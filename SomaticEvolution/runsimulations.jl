@@ -46,7 +46,6 @@ struct MoranInput <: SimulationInput
     tevent::Array{Float64,1}
     fixedmu::Bool
     timefunction::Function
-    maxclonesize::Int64
 end
 
 struct InputParameters{T<:SimulationInput}
@@ -75,7 +74,6 @@ struct SimulationResult
 end
 
 struct SampledData
-    df::DataFrame
     VAF::Array{Float64,1}
     counts::Array{Int64,1}
     depth::Array{Int64,1}
@@ -85,6 +83,12 @@ struct Simulation{T<:SimulationInput}
     input::InputParameters{T}
     output::SimulationResult
     sampled::SampledData
+end
+
+struct MultiSimulation{T<:SimulationInput}
+    input::InputParameters{T}
+    output::Array{SimulationResult,1}
+    sampled::Array{SampledData,1}
 end
 
 function InputParameters{BranchingInput}(;numclones = 1, Nmax = 10000, ploidy = 2, 
@@ -136,13 +140,14 @@ end
 #     )
 # end
 
+
 """
     run1simulation(b, d, Nmax; <keyword arguments>)
 """
 function run1simulation(IP::InputParameters{BranchingInput}, rng::AbstractRNG = MersenneTwister();
     minclonefreq = 0.0, maxclonefreq = 1.0)
 
-    #Initially set clonalmutations = 0 and μ=1. These are expanded later.
+    #Initially set clonalmutations = 0 and μ = 1. These are expanded later.
     simtracker = 
         branchingprocess(IP.siminput.b, IP.siminput.d, IP.siminput.Nmax, 1, rng, numclones = IP.siminput.numclones, 
             fixedmu = true, clonalmutations = 0, selection = IP.siminput.selection,
@@ -170,7 +175,7 @@ function run1simulation(IP::InputParameters{MoranInput}, rng::AbstractRNG = Mers
         moranprocess(IP.siminput.b, IP.siminput.d, IP.siminput.Nmax, 1, rng, 
                     numclones = IP.siminput.numclones, fixedmu = true, 
                     clonalmutations = 0, selection = IP.siminput.selection,
-                    tevent = IP.siminput.tevent, maxclonesize = IP.siminput.maxclonesize, 
+                    tevent = IP.siminput.tevent, 
                     timefunction = IP.siminput.timefunction)
         
     simtracker, numclones, simresults = 
@@ -287,7 +292,7 @@ function branchingprocess!(simtracker::SimulationTracker, Nmax, μ, rng::Abstrac
 end
 
 function moranprocess(N, bdrate, tmax, μ, rng::AbstractRNG; numclones = 0, fixedmu = false,
-    clonalmutations = μ, selection = Float64[], tevent = Float64[], maxclonesize = 200, 
+    clonalmutations = μ, selection = Float64[], tevent = Float64[], 
     timefunction::Function = exptime)
 
     simtracker = initializesim_moran(N, rng, numclones = numclones, clonalmutations = clonalmutations)
@@ -295,7 +300,7 @@ function moranprocess(N, bdrate, tmax, μ, rng::AbstractRNG; numclones = 0, fixe
     #run simulation
     simtracker = moranprocess!(simtracker, bdrate, tmax, μ, rng, numclones = numclones,
     fixedmu = fixedmu, selection = selection, tevent = tevent, timefunction = timefunction)
-return simtracker
+    return simtracker
 end
 """
     moranprocess!(simtracker::SimulationTracker, rng::AbstractRNG; 
