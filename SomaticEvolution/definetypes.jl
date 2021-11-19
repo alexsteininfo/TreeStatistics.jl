@@ -76,8 +76,6 @@ struct SimulationResult
     clonefreqp::Array{Float64,1}
     clonetime::Array{Float64,1}
     subclonalmutations::Array{Int64,1}
-    birthrates::Array{Float64,1}
-    deathrates::Array{Float64,1}
     tend::Float64
     trueVAF::Array{Float64,1}
     cloneN::Array{Int64, 1}
