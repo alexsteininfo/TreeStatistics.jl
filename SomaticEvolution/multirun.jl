@@ -28,7 +28,7 @@ function getstats(multsimlist::Array{MultiSimulation{T},1}, args::Symbol...) whe
         μ_predicted = Float64[]
         r2 = Float64[]
         for simresults in multsim.sampled
-            _, fitcoef, r2val = analysedata(simresults.VAF, 0.12, 0.24)
+            _, fitcoef, r2val = fitinverse(simresults.VAF, 0.12, 0.24)
             push!(μ_predicted, fitcoef)
             push!(r2, r2val)
         end 

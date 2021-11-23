@@ -1,4 +1,4 @@
-function analysedata(df::DataFrame, fmin, fmax)
+function fitinverse(df::DataFrame, fmin, fmax)
     df = df[fmin .<= df.VAF .< fmax, :]
     #remove clonal mutations from the cumultive frequency
     df[!, :cumfreq] .= df[!, :cumfreq] .- df[end, :cumfreq] .+ df[end, :freq]
@@ -12,7 +12,7 @@ function analysedata(df::DataFrame, fmin, fmax)
     return df, coef(lmfit)[1], r2(lmfit)  
 end
 
-function analysedata(VAF, fmin, fmax; xstep=0.001)
+function fitinverse(VAF, fmin, fmax; xstep=0.001)
     VAF = filter(x-> fmin <= x <= fmax, VAF)
     df = gethist(VAF, xmin = fmin, xmax = fmax, xstep = xstep)
     #fit the data to y = m(x - 1/fmax), enforcing the intercept y(1/fmax) = 0

@@ -20,7 +20,7 @@ end
 function gethist(VAF::Array{Float64,1}; xmin=0.0, xmax=1, xstep=0.001)
     x = xmin:xstep:xmax
     y = fit(Histogram, VAF, x, closed=:right).weights
-    dfhist = DataFrame(VAF = x[1:end-1], freq = y)
+    dfhist = DataFrame(VAF = x[2:end], freq = y)
     dfhist = addcumfreq!(dfhist,:freq)
     return dfhist
 end

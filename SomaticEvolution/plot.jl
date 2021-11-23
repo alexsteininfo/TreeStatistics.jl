@@ -35,7 +35,7 @@ end
         end
     end
     ylabel --> ylabel
-    xaxis --> "VAF"
+    xlabel --> "VAF"
     legend --> false
     grid --> false
     ()
@@ -69,7 +69,7 @@ end
 
     @series begin
         ylabel --> cumulative ? "Cumulative number of mutations" : "Number of mutations"
-        xaxis --> "Inverse VAF"
+        xlabel --> "Inverse VAF"
         seriestype --> :line
         annotationhalign --> :right
         annotationvalign --> :bottom
@@ -80,7 +80,7 @@ end
     if fitcoef !== nothing
         @series begin
             ylabel --> cumulative ? "Cumulative number of mutations" : "Number of mutations"
-            xaxis --> "Inverse VAF"
+            xlabel --> "Inverse VAF"
             seriestype --> :line
             linecolor --> :red
             linestyle --> :dash
@@ -93,7 +93,7 @@ end
         μ = piv.args[1].input.siminput.μ
         @series begin
             ylabel --> cumulative ? "Cumulative number of mutations" : "Number of mutations"
-            xaxis --> "Inverse VAF"
+            xlabel --> "Inverse VAF"
             seriestype --> :line
             linecolor --> :green
             linestyle --> :dash

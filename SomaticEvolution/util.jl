@@ -3,31 +3,62 @@
 
 Print out summary of simulation.
 """
-function Base.show(io::IO, sresult::Simulation)
-  @printf("===================================================================\n")
-  @printf("Input parameters: \n")
-  @printf("\t Mutation rate: %.2f\n", sresult.input.siminput.μ)
-  @printf("\t Death rate of host population: %.2f\n", sresult.input.siminput.d)
-  @printf("\t Effective mutation rate (μ/β): %.2f\n",(sresult.input.siminput.μ / 
-    ((sresult.input.siminput.b-sresult.input.siminput.d)/sresult.input.siminput.b)))
-  @printf("\t Number of clonal mutation: %d\n", sresult.input.siminput.clonalmutations)
-  @printf("\t Number of subclones: %d\n\n", sresult.input.siminput.numclones)
-  if sresult.input.siminput.numclones > 0
-    for i in 1:length(sresult.output.clonefreq)
-      @printf("Subclone %d \n", i)
-      @printf("\tFrequency: %.2f\n", sresult.output.clonefreq[i])
-      @printf("\tNumber of mutations in subclone: %d\n", sresult.output.subclonalmutations[i])
-      @printf("\tFitness advantage: %.2f\n", sresult.input.siminput.selection[i])
-      @printf("\tTime subclone emerges (population doublings): %.2f\n", sresult.output.clonetime[i])
-      @printf("\tNumber of divisions: %d\n", sresult.output.Ndivisions[i])
-      @printf("\tAverage number of divisions per cell: %.2f\n", sresult.output.avdivisions[i])
-      @printf("\tPopulation size when subclone emerges: %d\n", sresult.output.cloneN[i])
-      @printf("\tParent of subclone (0 is host): %d\n\n", sresult.output.clonetype[i] - 1)
+function Base.show(io::IO, sresult::Simulation{BranchingInput})
+    @printf("===================================================================\n")
+    @printf("Branching process \n")
+    @printf("Input parameters: \n")
+    @printf("\t Mutation rate: %.2f\n", sresult.input.siminput.μ)
+    @printf("\t Death rate of host population: %.2f\n", sresult.input.siminput.d)
+    @printf("\t Effective mutation rate (μ/β): %.2f\n",(sresult.input.siminput.μ / 
+        ((sresult.input.siminput.b-sresult.input.siminput.d)/sresult.input.siminput.b)))
+    @printf("\t Number of clonal mutation: %d\n", sresult.input.siminput.clonalmutations)
+    @printf("\t Number of subclones: %d\n\n", sresult.input.siminput.numclones)
+    if sresult.input.siminput.numclones > 0
+        for i in 1:length(sresult.output.clonefreq)
+            @printf("Subclone %d \n", i)
+            @printf("\tFrequency: %.2f\n", sresult.output.clonefreq[i])
+            @printf("\tNumber of mutations in subclone: %d\n", sresult.output.subclonalmutations[i])
+            @printf("\tFitness advantage: %.2f\n", sresult.input.siminput.selection[i])
+            @printf("\tTime subclone emerges: %.2f\n", sresult.output.clonetime[i])
+            @printf("\tNumber of divisions: %d\n", sresult.output.Ndivisions[i])
+            @printf("\tAverage number of divisions per cell: %.2f\n", sresult.output.avdivisions[i])
+            @printf("\tPopulation size when subclone emerges: %d\n", sresult.output.cloneN[i])
+            @printf("\tParent of subclone (0 is host): %d\n\n", sresult.output.clonetype[i] - 1)
+        end
+    else
+        @printf("No clones, tumour growth was neutral\n\n")
     end
-  else
-    @printf("No clones, tumour growth was neutral\n\n")
-  end
 
+end
+
+"""
+    show(sresult::Simulation)
+
+Print out summary of simulation.
+"""
+function Base.show(io::IO, sresult::Simulation{MoranInput})
+    @printf("===================================================================\n")
+    @printf("Moran process \n")
+    @printf("Input parameters: \n")
+    @printf("\t Mutation rate: %.2f\n", sresult.input.siminput.μ)
+    @printf("\t Birth/death rate of host population: %.2f\n", sresult.input.siminput.bdrate)
+    @printf("\t Number of clonal mutation: %d\n", sresult.input.siminput.clonalmutations)
+    @printf("\t Number of subclones: %d\n\n", sresult.input.siminput.numclones)
+    if sresult.input.siminput.numclones > 0
+        for i in 1:length(sresult.output.clonefreq)
+            @printf("Subclone %d \n", i)
+            @printf("\tFrequency: %.2f\n", sresult.output.clonefreq[i])
+            @printf("\tNumber of mutations in subclone: %d\n", sresult.output.subclonalmutations[i])
+            @printf("\tFitness advantage: %.2f\n", sresult.input.siminput.selection[i])
+            @printf("\tTime subclone emerges: %.2f\n", sresult.output.clonetime[i])
+            @printf("\tNumber of divisions: %d\n", sresult.output.Ndivisions[i])
+            @printf("\tAverage number of divisions per cell: %.2f\n", sresult.output.avdivisions[i])
+            @printf("\tPopulation size when subclone emerges: %d\n", sresult.output.cloneN[i])
+            @printf("\tParent of subclone (0 is host): %d\n\n", sresult.output.clonetype[i] - 1)
+        end
+    else
+        @printf("No clones, tumour growth was neutral\n\n")
+    end
 end
 
 function Base.show(io::IO, sresult::MultiSimulation)

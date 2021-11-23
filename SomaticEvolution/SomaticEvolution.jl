@@ -27,7 +27,7 @@ PlotInverseVAF,
 multiplesimulations,
 run1simulation, 
 sampledhist,
-analysedata,
+fitinverse,
 gethist,
 plotvaf,
 plotvaf!,
@@ -36,7 +36,7 @@ plotinversevaf!,
 getstats,
 saveinput
 
-
+include("definetypes.jl")
 include("runsimulations.jl")
 include("process.jl")
 include("sampling.jl")
