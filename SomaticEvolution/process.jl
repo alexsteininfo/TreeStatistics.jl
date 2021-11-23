@@ -36,8 +36,6 @@ function processresults!(simtracker::SimulationTracker, Nmax, numclones, μ, fix
         clonefreqp, 
         simtracker.clonetime,
         subclonalmutations, 
-        simtracker.birthrates,
-        simtracker.deathrates, 
         simtracker.tvec[end], 
         allelefreq, 
         simtracker.cloneN, 
@@ -46,6 +44,7 @@ function processresults!(simtracker::SimulationTracker, Nmax, numclones, μ, fix
         simtracker.cells, 
         simtracker.avdivisions)
 end
+
 
 function cellsconvert(cells)
     #convert from array of cell types to one array with mutations and one array with cell fitness
