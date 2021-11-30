@@ -1,5 +1,5 @@
 
-function multiplesimulations(numsim, IPlist... ; rng::AbstractRNG = MersenneTwister(),
+function multiplesimulations(numsim, IPlist... ; rng::AbstractRNG = Random.GLOBAL_RNG,
     minclonefreq = 0.0, maxclonefreq = 1.0)
 
     multsimlist = [multiplesimulations(numsim, IP, rng = rng, minclonefreq = minclonefreq, 
@@ -8,7 +8,7 @@ function multiplesimulations(numsim, IPlist... ; rng::AbstractRNG = MersenneTwis
     return multsimlist
 end
 
-function multiplesimulations(numsim, IP; rng::AbstractRNG = MersenneTwister(),
+function multiplesimulations(numsim, IP; rng::AbstractRNG = Random.GLOBAL_RNG,
     minclonefreq = 0.0, maxclonefreq = 1.0)
     
     results = MultiSimulation(IP, SimulationResult[], SampledData[])

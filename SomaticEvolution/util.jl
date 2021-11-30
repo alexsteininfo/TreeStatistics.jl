@@ -100,12 +100,12 @@ function Base.show(io::IO, sresult::MultiSimulation)
 
 end
 
-function Base.show(io::IO, sresultlist::Vector{MultiSimulation{T}} where T <: SimulationInput)
-    @printf("%d sets of simulations\n", length(sresultlist))
-    for sresult in sresultlist
-        Base.show(io, sresult)
-    end
-end
+# function Base.show(io::IO, sresultlist::Vector{MultiSimulation{T}} where T <: SimulationInput)
+#     @printf("%d sets of simulations\n", length(sresultlist))
+#     for sresult in sresultlist
+#         Base.show(io, sresult)
+#     end
+# end
 
 function saveinput(sresult::Simulation{BranchingInput}, filename)
     open(filename, "w") do io

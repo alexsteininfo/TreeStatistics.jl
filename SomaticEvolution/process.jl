@@ -31,7 +31,7 @@ function processresults!(simtracker::SimulationTracker, Nmax, numclones, μ, fix
                                 detectableclones)
     end
     
-    return simtracker, numclones, SimulationResult(
+    return simtracker, SimulationResult(
         clonefreq, 
         clonefreqp, 
         simtracker.clonetime,
@@ -90,8 +90,6 @@ function allelefreqexpand(AFDict, μ, acquiredmutations, rng::AbstractRNG; fixed
     AFnew = zeros(Int64, sum(mutations))
     #find all subclonal mutations, i.e. mutations held by all members of each fit subclone
     for i in 1:length(subclonalmutations)
-        #I swapped these round compared to the original code, i.e. previously was
-        # idx = findall((in)(mutids), acquiredmutations[i]) which was an error??
         idx = findall((in)(acquiredmutations[i]), mutids) 
         subclonalmutations[i] = sum(mutations[idx]) 
     end

@@ -4,9 +4,9 @@ end
 
 @recipe function f(pv::PlotVAF; sampled = true, cumulative = false, xstep = 0.01)
     if sampled    
-        df = gethist(pv.args[1].sampled.VAF, xstep = xstep)
+        df = gethist(pv.args[1].sampled.VAF, fstep = xstep)
     else
-        df = gethist(pv.args[1].output.trueVAF, xstep = xstep)
+        df = gethist(pv.args[1].output.trueVAF, fstep = xstep)
     end
     VAF = df[:,:VAF]
     freq = cumulative ? df[:,:cumfreq] : df[:,:freq]
@@ -46,34 +46,34 @@ end
 end
 
 
-@recipe function f(piv::PlotInverseVAF; sampled = true, fmin = 0.12, fmax = 0.24,
-                   fitcoef = nothing, cumulative = true, addtext = true, rsq = nothing,
-                   plottrue = false)
+@recipe function f(piv::PlotInverseVAF; sampled = true, fmin = 0.12, fmax = 0.24, 
+                    fstep = 0.001, fitcoef = nothing, cumulative = true, addtext = true, 
+                    rsq = nothing, plottrue = false)
     if sampled 
-        df = gethist(piv.args[1].sampled.VAF, xmin = fmin, xmax = fmax) 
+        df = gethist(piv.args[1].sampled.VAF, fmin = fmin, fmax = fmax, fstep = fstep) 
     else 
-        df = gethist(piv.args[1].output.trueVAF, xmin = fmin, xmax = fmax)
+        df = gethist(piv.args[1].output.trueVAF, fmin = fmin, fmax = fmax, fstep = fstep)
     end
     VAF = df[!,:VAF]
     freq = cumulative ? df[!,:cumfreq] : df[!,:freq]
     ylabel = cumulative ? "Cumulative number of mutations" : "Number of mutations"
 
-    if addtext
-        β = 1 - piv.args[1].input.siminput.d/piv.args[1].input.siminput.b
-        μ = piv.args[1].input.siminput.μ
-        text = "μ/β_pred = $fitcoef"
-        text *= "\nμ/β_true = $(μ/β)"
-        text *= rsq !== nothing ? "\nr^2 = $rsq" : ""
-        annotation = (1/0.16, 500, text)
-    else annotation = [] end
+    # if addtext
+    #     β = 1 - piv.args[1].input.siminput.d/piv.args[1].input.siminput.b
+    #     μ = piv.args[1].input.siminput.μ
+    #     text = "μ/β_pred = $fitcoef"
+    #     text *= "\nμ/β_true = $(μ/β)"
+    #     text *= rsq !== nothing ? "\nr^2 = $rsq" : ""
+    #     annotation = (1/0.16, 500, text)
+    # else annotation = [] end
 
     @series begin
         ylabel --> cumulative ? "Cumulative number of mutations" : "Number of mutations"
         xlabel --> "Inverse VAF"
         seriestype --> :line
-        annotationhalign --> :right
-        annotationvalign --> :bottom
-        annotation := annotation
+        # annotationhalign --> :right
+        # annotationvalign --> :bottom
+        # annotation := annotation
         1 ./ VAF, freq
     end
 
@@ -88,18 +88,18 @@ end
         end
     end
 
-    if plottrue
-        β = 1 - piv.args[1].input.siminput.d/piv.args[1].input.siminput.b
-        μ = piv.args[1].input.siminput.μ
-        @series begin
-            ylabel --> cumulative ? "Cumulative number of mutations" : "Number of mutations"
-            xlabel --> "Inverse VAF"
-            seriestype --> :line
-            linecolor --> :green
-            linestyle --> :dash
-            1 ./ VAF, μ/β .* (1 ./ VAF .- 1/fmax)
-        end
-    end
+    # if plottrue
+    #     β = 1 - piv.args[1].input.siminput.d/piv.args[1].input.siminput.b
+    #     μ = piv.args[1].input.siminput.μ
+    #     @series begin
+    #         ylabel --> cumulative ? "Cumulative number of mutations" : "Number of mutations"
+    #         xlabel --> "Inverse VAF"
+    #         seriestype --> :line
+    #         linecolor --> :green
+    #         linestyle --> :dash
+    #         1 ./ VAF, μ/β .* (1 ./ VAF .- 1/fmax)
+    #     end
+    # end
 
     ylabel --> ylabel
     xlabel --> "Inverse VAF"

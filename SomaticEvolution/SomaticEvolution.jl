@@ -2,7 +2,6 @@ module SomaticEvolution
 
 using Distributions
 using Statistics
-using Distributions
 using Random
 using StatsBase
 using DataFrames
@@ -10,6 +9,7 @@ using RecipesBase
 using GLM
 using LaTeXStrings
 using Printf
+using CSV
 
 
 export Cell,
@@ -34,7 +34,9 @@ plotvaf!,
 plotinversevaf,
 plotinversevaf!,
 getstats,
-saveinput
+saveinput,
+branchingprocess,
+moranprocess
 
 include("definetypes.jl")
 include("runsimulations.jl")

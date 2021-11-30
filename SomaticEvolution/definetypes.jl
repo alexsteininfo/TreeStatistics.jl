@@ -1,3 +1,8 @@
+"""
+    Cell 
+
+Represents a single cell.
+"""
 mutable struct Cell
     mutations::Array{Int64,1}
     fitness::Int64
@@ -87,7 +92,6 @@ end
 
 struct SampledData
     VAF::Array{Float64,1}
-    counts::Array{Int64,1}
     depth::Array{Int64,1}
 end
 

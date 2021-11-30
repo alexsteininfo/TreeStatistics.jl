@@ -1,22 +1,30 @@
+"""
+    run1simulation(IP::InputParameters{BranchingInput}, rng::AbstractRNG = MersenneTwister; 
+        <keyword arguments>)
 
+    Run a single branching process simulation using parameters defined by IP and return
+    a Simulation object.
 """
-    run1simulation(b, d, Nmax; <keyword arguments>)
-"""
-function run1simulation(IP::InputParameters{BranchingInput}, rng::AbstractRNG = MersenneTwister();
+
+function run1simulation(IP::InputParameters{BranchingInput}, rng::AbstractRNG = Random.GLOBAL_RNG;
     minclonefreq = 0.0, maxclonefreq = 1.0)
 
+    #Run branching simulation starting with a single cell.
     #Initially set clonalmutations = 0 and μ = 1. These are expanded later.
     simtracker = 
         branchingprocess(IP.siminput.b, IP.siminput.d, IP.siminput.Nmax, 1, rng, numclones = IP.siminput.numclones, 
             fixedmu = true, clonalmutations = 0, selection = IP.siminput.selection,
             tevent = IP.siminput.tevent, maxclonesize = IP.siminput.maxclonesize, 
             timefunction = IP.siminput.timefunction)
-        
-    simtracker, numclones, simresults = 
+    
+    #Add mutations and process simulation output to get SimResults.
+    #Remove undetectable subclones from simtracker
+    simtracker, simresults = 
         processresults!(simtracker, IP.siminput.Nmax, IP.siminput.numclones, IP.siminput.μ, 
                         IP.siminput.fixedmu, IP.siminput.clonalmutations, IP.ploidy, 
                         minclonefreq, maxclonefreq, rng)
     
+    #Mimic experimental data by sampling from the true VAF
     sampleddata = 
         sampledhist(simresults.trueVAF, IP.siminput.Nmax, rng, 
                     detectionlimit = IP.detectionlimit, 
@@ -25,22 +33,34 @@ function run1simulation(IP::InputParameters{BranchingInput}, rng::AbstractRNG = 
     return Simulation(IP,simresults,sampleddata)
 end
 
-function run1simulation(IP::InputParameters{MoranInput}, rng::AbstractRNG = MersenneTwister();
+"""
+    run1simulation(IP::InputParameters{MorangInput}, rng::AbstractRNG = MersenneTwister; 
+        <keyword arguments>)
+
+    Run a single moran process simulation using parameters defined by IP and return
+    a Simulation object.
+"""
+
+function run1simulation(IP::InputParameters{MoranInput}, rng::AbstractRNG = Random.GLOBAL_RNG;
     minclonefreq = 0.0, maxclonefreq = 1.0)
 
-    #Initially set clonalmutations = 0 and μ=1. These are expanded later.
+    #Run Moran simulation starting from a population of N identical cells.
+    #Initially set clonalmutations = 0 and μ = 1. These are expanded later.
     simtracker = 
         moranprocess(IP.siminput.N, IP.siminput.bdrate, IP.siminput.tmax, 1, rng, 
                     numclones = IP.siminput.numclones, fixedmu = true, 
                     clonalmutations = 0, selection = IP.siminput.selection,
                     tevent = IP.siminput.tevent, 
                     timefunction = IP.siminput.timefunction)
-        
-    simtracker, _ , simresults = 
+
+    #Add mutations and process simulation output to get SimResults.
+    #Remove undetectable subclones from simtracker   
+    simtracker, simresults = 
         processresults!(simtracker, IP.siminput.N, IP.siminput.numclones, IP.siminput.μ, 
                         IP.siminput.fixedmu, IP.siminput.clonalmutations, 
                         IP.ploidy, minclonefreq, maxclonefreq, rng)
     
+    #Mimic experimental data by sampling from the true VAF
     sampleddata = 
         sampledhist(simresults.trueVAF, IP.siminput.N, rng, 
                     detectionlimit = IP.detectionlimit, 
@@ -51,7 +71,7 @@ end
 
 
 """
-    branchingprocess(IP::InputParameters, rng::AbstractRNG; suppressmut::Bool = true)
+    branchingprocess(IP::InputParameters, rng::AbstractRNG; <keyword arguments>)
 
 Simulate a stochastic branching process with parameters defined by IP. Simulation is by a 
 rejection-kinetic Monte Carlo algorithm. If suppressmut assume there is only a single 
@@ -61,6 +81,17 @@ added retrospectively).
 Start simulation with a single cell.
 
 """
+function branchingprocess(IP::InputParameters{BranchingInput}, rng::AbstractRNG,
+        fixedmu = IP.fixedmu, μ = IP.μ, clonalmutations = IP.clonalmutations)
+
+    return branchingprocess(IP.siminput.b, IP.siminput.d, IP.siminput.Nmax, μ, rng, 
+                            numclones = IP.siminput.numclones, fixedmu = fixedmu, 
+                            clonalmutations = clonalmutations, 
+                            selection = IP.siminput.selection, tevent = IP.siminput.tevent, 
+                            maxclonesize = IP.siminput.maxclonesize, 
+                            timefunction = IP.siminput.timefunction)
+end
+
 function branchingprocess(b, d, Nmax, μ, rng::AbstractRNG; numclones = 0, fixedmu = false,
     clonalmutations = μ, selection = Float64[], tevent = Float64[], maxclonesize = 200, 
     timefunction::Function = exptime)
@@ -149,6 +180,16 @@ function branchingprocess!(simtracker::BranchingTracker, Nmax, μ, rng::Abstract
     return simtracker
 end
 
+function moranprocess(IP::InputParameters{MoranInput}, rng::AbstractRNG,
+                    fixedmu = IP.fixedmu, μ = Ip.μ, clonalmutations = IP.clonalmutations)
+
+    return moranprocess(IP.siminput.N, IP.siminput.bdrate, IP.siminput.tmax, μ, rng, 
+                        numclones = IP.siminput.numclones, fixedmu = fixedmu, 
+                        clonalmutations = clonalmutations, 
+                        selection = IP.siminput.selection, tevent = IP.siminput.tevent, 
+                        timefunction = IP.siminput.timefunction)
+end
+
 function moranprocess(N, bdrate, tmax, μ, rng::AbstractRNG; numclones = 0, fixedmu = false,
     clonalmutations = μ, selection = Float64[], tevent = Float64[], 
     timefunction::Function = exptime)
@@ -226,7 +267,7 @@ function set_subclone_birthdeath_rates(b, d, selection, numclones, rng::Abstract
 end
 
 """
-    initializesim(IP::InputParameters, rng::AbstractRNG = MersenneTwister();
+    initializesim(IP::InputParameters, rng::AbstractRNG = Random.GLOBAL_RNG;
     suppressmut = false)
 
 Set up the variables used to track a simulation. If suppressmut is true we assign 0 clonal 
@@ -404,4 +445,3 @@ end
 function no_mutations(cell)
     return length(cell.mutations) == 0
 end
-
