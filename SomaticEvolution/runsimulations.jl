@@ -14,8 +14,7 @@ function run1simulation(IP::InputParameters{BranchingInput}, rng::AbstractRNG = 
     simtracker = 
         branchingprocess(IP.siminput.b, IP.siminput.d, IP.siminput.Nmax, 1, rng, numclones = IP.siminput.numclones, 
             fixedmu = true, clonalmutations = 0, selection = IP.siminput.selection,
-            tevent = IP.siminput.tevent, maxclonesize = IP.siminput.maxclonesize, 
-            timefunction = IP.siminput.timefunction)
+            tevent = IP.siminput.tevent, maxclonesize = IP.siminput.maxclonesize)
     
     #Add mutations and process simulation output to get SimResults.
     #Remove undetectable subclones from simtracker
@@ -50,8 +49,7 @@ function run1simulation(IP::InputParameters{MoranInput}, rng::AbstractRNG = Rand
         moranprocess(IP.siminput.N, IP.siminput.bdrate, IP.siminput.tmax, 1, rng, 
                     numclones = IP.siminput.numclones, fixedmu = true, 
                     clonalmutations = 0, selection = IP.siminput.selection,
-                    tevent = IP.siminput.tevent, 
-                    timefunction = IP.siminput.timefunction)
+                    tevent = IP.siminput.tevent)
 
     #Add mutations and process simulation output to get SimResults.
     #Remove undetectable subclones from simtracker   
@@ -88,13 +86,11 @@ function branchingprocess(IP::InputParameters{BranchingInput}, rng::AbstractRNG,
                             numclones = IP.siminput.numclones, fixedmu = fixedmu, 
                             clonalmutations = clonalmutations, 
                             selection = IP.siminput.selection, tevent = IP.siminput.tevent, 
-                            maxclonesize = IP.siminput.maxclonesize, 
-                            timefunction = IP.siminput.timefunction)
+                            maxclonesize = IP.siminput.maxclonesize)
 end
 
 function branchingprocess(b, d, Nmax, μ, rng::AbstractRNG; numclones = 0, fixedmu = false,
-    clonalmutations = μ, selection = Float64[], tevent = Float64[], maxclonesize = 200, 
-    timefunction::Function = exptime)
+    clonalmutations = μ, selection = Float64[], tevent = Float64[], maxclonesize = 200)
 
     #initialize arrays and parameters
     simtracker = initializesim_branching(b, d, Nmax, rng, numclones = numclones, 
@@ -102,8 +98,7 @@ function branchingprocess(b, d, Nmax, μ, rng::AbstractRNG; numclones = 0, fixed
     
     #run simulation
     simtracker = branchingprocess!(simtracker, Nmax, μ, rng, numclones = numclones,
-        fixedmu = fixedmu, tevent = tevent, timefunction = timefunction, 
-        maxclonesize = maxclonesize)
+        fixedmu = fixedmu, tevent = tevent, maxclonesize = maxclonesize)
     return simtracker
 end
 
@@ -116,8 +111,7 @@ defined by IP.
 
 """
 function branchingprocess!(simtracker::BranchingTracker, Nmax, μ, rng::AbstractRNG; 
-    numclones = 0, fixedmu = false, tevent = Float64[], maxclonesize = 200, 
-    timefunction::Function = exptime)
+    numclones = 0, fixedmu = false, tevent = Float64[], maxclonesize = 200)
 
     t, N = simtracker.tvec[end], simtracker.Nvec[end]
     mutID = N == 1 ? 1 : getmutID(simtracker.cells)
@@ -162,7 +156,7 @@ function branchingprocess!(simtracker::BranchingTracker, Nmax, μ, rng::Abstract
         end
 
         #add time
-        Δt =  1/(Rmax * Nt) .* timefunction(rng)
+        Δt =  1/(Rmax * Nt) .* exptime(rng)
         t = t + Δt
         push!(simtracker.tvec,t)
         #add new population size
@@ -186,19 +180,17 @@ function moranprocess(IP::InputParameters{MoranInput}, rng::AbstractRNG,
     return moranprocess(IP.siminput.N, IP.siminput.bdrate, IP.siminput.tmax, μ, rng, 
                         numclones = IP.siminput.numclones, fixedmu = fixedmu, 
                         clonalmutations = clonalmutations, 
-                        selection = IP.siminput.selection, tevent = IP.siminput.tevent, 
-                        timefunction = IP.siminput.timefunction)
+                        selection = IP.siminput.selection, tevent = IP.siminput.tevent)
 end
 
 function moranprocess(N, bdrate, tmax, μ, rng::AbstractRNG; numclones = 0, fixedmu = false,
-    clonalmutations = μ, selection = Float64[], tevent = Float64[], 
-    timefunction::Function = exptime)
+    clonalmutations = μ, selection = Float64[], tevent = Float64[])
 
     simtracker = initializesim_moran(N, rng, numclones = numclones, clonalmutations = clonalmutations)
 
     #run simulation
     simtracker = moranprocess!(simtracker, bdrate, tmax, μ, rng, numclones = numclones,
-    fixedmu = fixedmu, selection = selection, tevent = tevent, timefunction = timefunction)
+    fixedmu = fixedmu, selection = selection, tevent = tevent)
     return simtracker
 end
 """
@@ -210,8 +202,7 @@ defined by IP.
 
 """
 function moranprocess!(simtracker::MoranTracker, bdrate, tmax, μ, rng::AbstractRNG; 
-    numclones = 0, fixedmu = false, selection = Float64[], tevent = Float64[], 
-    timefunction::Function = exptime)
+    numclones = 0, fixedmu = false, selection = Float64[], tevent = Float64[])
 
     t, N = simtracker.tvec[end], simtracker.N
     mutID = getmutID(simtracker.cells)
@@ -245,7 +236,7 @@ function moranprocess!(simtracker::MoranTracker, bdrate, tmax, μ, rng::Abstract
         simtracker, _ = celldeath!(simtracker,randcelldie,N)
 
         #add time
-        Δt =  1/(bdrate*N) .* timefunction(rng)
+        Δt =  1/(bdrate*N) .* exptime(rng)
         t = t + Δt
         push!(simtracker.tvec,t)
 

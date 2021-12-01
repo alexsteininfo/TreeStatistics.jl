@@ -50,7 +50,6 @@ struct BranchingInput <: SimulationInput
     d::Float64
     tevent::Array{Float64,1}
     fixedmu::Bool
-    timefunction::Function
     maxclonesize::Int64
 end
 
@@ -64,7 +63,6 @@ struct MoranInput <: SimulationInput
     bdrate::Float64
     tevent::Array{Float64,1}
     fixedmu::Bool
-    timefunction::Function
 end
 
 struct InputParameters{T<:SimulationInput}
@@ -111,7 +109,7 @@ function InputParameters{BranchingInput}(;numclones = 1, Nmax = 10000, ploidy = 
     read_depth = 100.0, detectionlimit = 5/read_depth, μ = 10.0, clonalmutations = μ, 
     selection = fill(0.0,numclones), b = log(2.0), d = 0.0, 
     tevent = collect(1.0:0.5:(1+numclones)/2), ρ = 0.0, cellularity = 1.0, fixedmu = false, 
-    timefunction = exptime, maxclonesize = 200)
+    maxclonesize = 200)
 
     return InputParameters(
         detectionlimit,
@@ -129,7 +127,6 @@ function InputParameters{BranchingInput}(;numclones = 1, Nmax = 10000, ploidy = 
             d,
             tevent,
             fixedmu,
-            timefunction,
             maxclonesize
         )
     )
@@ -138,8 +135,7 @@ end
 function InputParameters{MoranInput}(;numclones = 1, N = 10000, ploidy = 2, 
     read_depth = 100.0, detectionlimit = 5/read_depth, μ = 10.0, clonalmutations = μ, 
     selection = fill(0.0,numclones), bdrate = log(2.0), tmax = 15.0,
-    tevent = collect(1.0:0.5:(1+numclones)/2), ρ = 0.0, cellularity = 1.0, fixedmu = false, 
-    timefunction = exptime)
+    tevent = collect(1.0:0.5:(1+numclones)/2), ρ = 0.0, cellularity = 1.0, fixedmu = false)
 
     return InputParameters(
         detectionlimit,
@@ -157,7 +153,6 @@ function InputParameters{MoranInput}(;numclones = 1, N = 10000, ploidy = 2,
             bdrate,
             tevent,
             fixedmu,
-            timefunction
         )
     )
 end
