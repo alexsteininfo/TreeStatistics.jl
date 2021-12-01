@@ -107,7 +107,7 @@ end
 #     end
 # end
 
-function saveinput(sresult::Simulation{BranchingInput}, filename)
+function saveinput(filename, sresult::Simulation{BranchingInput})
     open(filename, "w") do io
         write(io, @sprintf("Simulation => branching process\n\n"))
         write(io, @sprintf("Input parameters:\n"))
@@ -148,4 +148,8 @@ function saveinput(sresult::Simulation{BranchingInput}, filename)
     end
 
 end
-    
+
+function saveinput(filename, multsim::MultiSimulation, i)
+    sresult = get_simulation(multsim, i)
+    saveinput(filename, sresult)
+end

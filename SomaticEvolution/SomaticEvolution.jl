@@ -39,7 +39,7 @@ branchingprocess,
 moranprocess
 
 include("definetypes.jl")
-include("runsimulations.jl")
+include("simulations.jl")
 include("process.jl")
 include("sampling.jl")
 include("analyse.jl")

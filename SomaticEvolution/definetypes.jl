@@ -105,6 +105,10 @@ struct MultiSimulation{T<:SimulationInput}
     sampled::Array{SampledData,1}
 end
 
+function get_simulation(multsim::MultiSimulation, i)
+    return Simulation(multsim.input, multsim.output[i], multsim.sampled[i])
+end 
+
 function InputParameters{BranchingInput}(;numclones = 1, Nmax = 10000, ploidy = 2, 
     read_depth = 100.0, detectionlimit = 5/read_depth, μ = 10.0, clonalmutations = μ, 
     selection = fill(0.0,numclones), b = log(2.0), d = 0.0, 
