@@ -1,4 +1,4 @@
-push!(LOAD_PATH, "/Users/jessie/git_reps/somatic-evolution/SomaticEvolution")
+push!(LOAD_PATH, "/Users/renton02/reps/somatic-evolution/SomaticEvolution")
 
 using Revise
 using Random
@@ -26,7 +26,7 @@ function plot_r2_vs_n(df)
     return p
 end
 
-function sample_sims(multsim::MultiSimulation, n, rng::AbstractRNG = MersenneTwister())
+function sample_sims(multsim::MultiSimulation, n, rng::AbstractRNG = Random.GLOBAL_RNG)
     simdatalist = Simulation[]
     randindex = sample(rng, 1:length(multsim.output), n, replace = false)
     for i in randindex
@@ -36,7 +36,7 @@ function sample_sims(multsim::MultiSimulation, n, rng::AbstractRNG = MersenneTwi
     return simdatalist
 end
 
-function plot_example_VAF(multsim, n, rng::AbstractRNG = MersenneTwister(); title = "")
+function plot_example_VAF(multsim, n, rng::AbstractRNG = Random.GLOBAL_RNG; title = "")
     vafplots = []
     sampledsims = sample_sims(multsim, n, rng)
     for (i, simdata) in enumerate(sampledsims)
@@ -58,15 +58,29 @@ function plot_example_VAF(multsim, n, rng::AbstractRNG = MersenneTwister(); titl
       
 end
 
-rng = MersenneTwister(13)
-μ = 100
+rng = MersenneTwister(1122)
+μ = 10
 b = (log(2))
 
-input1 = InputParameters{MoranInput}(N=100,numclones=0,μ=μ,clonalmutations=100, tmax=500)
-# input2 = InputParameters{MoranInput}(N=100,numclones=1,μ=μ,clonalmutations=2*μ, tmax=5,
-#                     selection = [10.0], tevent = [4.0])
-simdata1 = run1simulation(input1, rng)
-plotvaf(simdata1, sampled=false, cumulative=true)
+# input1 = InputParameters{BranchingInput}(Nmax=10000,numclones=0,μ=μ,clonalmutations=0)
+# simdata1 = run1simulation(input1, rng)
+
+input2 = InputParameters{MoranInput}(N=1000, numclones=0, μ=1, fixedmu=true, clonalmutations=0, tmax=20/log(2))
+simdata2 = run1simulation(input2, rng)
+
+p1 = plotvaf(simdata2, sampled=false, cumulative=false, fstep=0.01)
+p2 = plotvaf(simdata2, sampled=true, cumulative=false, fstep=0.01)
+
+p3 = plotinversevaf(simdata2, sampled=false, cumulative=true, 
+                    fmin=0.001, fmax=0.24, fstep=0.01)
+p4 = plotinversevaf(simdata2, sampled=true, cumulative=true, 
+                    fmin=0.12, fmax=0.24, fstep=0.01)
+
+
+for p in (p1,p2,p3,p4)
+    display(p)
+end
+
 # simdata2 = run1simulation(input2, rng)
 
 # simtracker = SomaticEvolution.moranprocess(10, log(2), 5, 1, rng, clonalmutations=0,
