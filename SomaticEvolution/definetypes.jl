@@ -5,7 +5,27 @@ Represents a single cell.
 """
 mutable struct Cell
     mutations::Array{Int64,1}
-    fitness::Int64
+    clonetype::Int64
+end
+
+struct CloneTracker
+    parenttype::Int64
+    time::Float64
+    mutations::Array{Int64, 1}
+    N0::Int64
+    Ndivisions::Int64
+    avdivisions::Float64
+end
+
+struct Clone
+    parenttype::Int64
+    time::Float64
+    mutations::Int64
+    N0::Int64
+    Ndivisions::Int64
+    avdivisions::Float64
+    freq::Float64
+    freqp::Float64
 end
 
 abstract type SimulationTracker end
@@ -16,26 +36,16 @@ struct BranchingTracker <: SimulationTracker
     cells::Array{Cell, 1}
     birthrates::Array{Float64, 1}
     deathrates::Array{Float64, 1}
-    clonesize::Array{Int64,1}
-    clonetype::Array{Int64, 1}
-    clonetime::Array{Float64, 1}
-    acquiredmutations::Array{Array{Int64, 1}, 1}
-    cloneN::Array{Int64, 1}
-    Ndivisions::Array{Int64, 1}
-    avdivisions::Array{Float64, 1}
+    clonesize::Array{Int64, 1}
+    subclones::Array{CloneTracker, 1}
 end
 
 struct MoranTracker <: SimulationTracker
     N::Int64
     tvec::Array{Float64, 1}
     cells::Array{Cell, 1}
-    clonesize::Array{Int64,1}
-    clonetype::Array{Int64, 1}
-    clonetime::Array{Float64, 1}
-    acquiredmutations::Array{Array{Int64, 1}, 1}
-    cloneN::Array{Int64, 1}
-    Ndivisions::Array{Int64, 1}
-    avdivisions::Array{Float64, 1}
+    clonesize::Array{Int64, 1}
+    subclones::Array{CloneTracker, 1}
 end
 
 abstract type SimulationInput end
@@ -75,17 +85,10 @@ struct InputParameters{T<:SimulationInput}
 end
 
 struct SimulationResult
-    clonefreq::Array{Float64,1}
-    clonefreqp::Array{Float64,1}
-    clonetime::Array{Float64,1}
-    subclonalmutations::Array{Int64,1}
+    subclones::Array{Clone, 1}
     tend::Float64
     trueVAF::Array{Float64,1}
-    cloneN::Array{Int64, 1}
-    clonetype::Array{Int64, 1}
-    Ndivisions::Array{Int64, 1}
     cells::Array{Cell, 1}
-    avdivisions::Array{Float64, 1}
 end
 
 struct SampledData

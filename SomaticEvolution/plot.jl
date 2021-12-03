@@ -21,8 +21,9 @@ end
         VAF, freq
     end
 
-    if length(pv.args[1].output.clonefreq) > 0
-        xint = pv.args[1].output.clonefreq./2 * pv.args[1].input.cellularity
+    if length(pv.args[1].output.subclones) > 0
+        subclonefreq = [subclone.freq for subclone in pv.args[1].output.subclones]
+        xint = subclonefreq ./2 * pv.args[1].input.cellularity
 
         @series begin
             seriestype --> :vline

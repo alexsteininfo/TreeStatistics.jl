@@ -96,6 +96,7 @@ function plot_singleplots(input1, input2, parentdir="", rng::AbstractRNG=Random.
 
     savefig(p1, dir*"neutral_expVAF.pdf")
     savefig(p2, dir*"oneclone_expVAF.pdf")
+    return (results=(simdata1, simdata2), plots=(p1,p2))
 end
 
 function plot_multiplots(input1, input2, parentdir="", rng::AbstractRNG=Random.GLOBAL_RNG)
@@ -118,6 +119,7 @@ function plot_multiplots(input1, input2, parentdir="", rng::AbstractRNG=Random.G
     for (i,sim) in enumerate(sims2)
         saveinput(dir*"oneclone_input_$i.txt", sim)
     end
+    return (results=results, plots=(p1,p2,p))
 end
 
 rng = MersenneTwister(13)
@@ -128,5 +130,6 @@ input1 = InputParameters{BranchingInput}(Nmax=10000,numclones=0,μ=μ,clonalmuta
 input2 = InputParameters{BranchingInput}(Nmax=10000,numclones=1,μ=μ,clonalmutations=2*μ,
                 selection = [1.0], tevent = [6.0])
 
-plot_singleplots(input1, input2, "data/")
-plot_multiplots(input1, input2, "data/")
+sim = run1simulation(input2, rng)
+results1, plots1 = plot_singleplots(input1, input2, "data/")
+results2, plots2 = plot_multiplots(input1, input2, "data/");
