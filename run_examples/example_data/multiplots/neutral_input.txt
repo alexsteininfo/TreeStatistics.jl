@@ -1,0 +1,17 @@
+Simulation => branching process
+
+Input parameters:
+	Detection limit = 0.050
+	Ploidy = 2
+	Read depth = 100
+	ρ = 0.00
+	Cellularity = 1.00
+
+	Max population size = 10000
+	Mutation rate (per division) = 100
+	Clonal mutations = 200
+	Birth rate (wild type)= 0.69
+	Death rate (wild type)= 0.00
+	Max size before mutations stop accumulating (will not be detected) = 200.00
+
+	Number of subclones = 0

@@ -270,6 +270,23 @@ Set up the variables used to track a simulation. If suppressmut is true we assig
 mutations, rather than taking IP.clonalmutations (mutations can be added retrospectively). 
 
 """
+function initializesim(siminput::BranchingInput, rng::AbstractRNG=Random.GLOBAL_RNG)
+    
+    return initializesim_branching(siminput.b, siminput.d, siminput.Nmax, rng,
+                                    numclones=siminput.numclones, 
+                                    clonalmutations=siminput.clonalmutations,
+                                    selection=siminput.selection)
+end
+
+function initializesim(siminput::MoranInput, rng::AbstractRNG=Random.GLOBAL_RNG)
+
+    return initializesim_moran(siminput.N, rng, 
+                                numclones=siminput.numclones,
+                                clonalmutations=siminput.clonalmutations,
+                                selection=siminput.selection)
+end
+
+
 function initializesim_branching(b, d, Nmax, rng::AbstractRNG; numclones = 0, clonalmutations = μ, 
         selection = Float64[])
 

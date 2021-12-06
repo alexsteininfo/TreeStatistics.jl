@@ -48,7 +48,7 @@ end
 
 
 @recipe function f(piv::PlotInverseVAF; sampled = true, fmin = 0.12, fmax = 0.24, 
-                    fstep = 0.001, fitcoef = nothing, cumulative = true)
+                    fstep = 0.001, fitcoef = nothing, cumulative = true, dataseries = :line)
     if sampled 
         df = gethist(piv.args[1].sampled.VAF, fmin = fmin, fmax = fmax, fstep = fstep) 
     else 
@@ -61,7 +61,7 @@ end
     @series begin
         ylabel --> cumulative ? "Cumulative number of mutations" : "Number of mutations"
         xlabel --> "Inverse VAF"
-        seriestype --> :line
+        seriestype --> dataseries
         1 ./ VAF, freq
     end
 
