@@ -4,11 +4,11 @@ using Revise
 using SomaticEvolution
 using Test
 
-tests = ["moran_tests.jl"]
+tests = []
 
 @testset "SomaticEvolution.jl" begin
     for test in tests
-        include(test)
+        include(test*".jl")
     end
 end
 
