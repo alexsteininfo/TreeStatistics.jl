@@ -21,15 +21,18 @@ function multiplesimulations(numsim, IP; rng::AbstractRNG = Random.GLOBAL_RNG,
     return results
 end
 
-function getstats(multsimlist::Array{MultiSimulation{T},1}, args::Symbol...) where T <: SimulationInput
+function getstats(multsimlist::Array{MultiSimulation{T},1}, args::Symbol...;
+    fit_fmin=0.12, fit_fmax=0.24, sampled=true) where T <: SimulationInput
     i = 1
     dflist = DataFrame[]
     for multsim in multsimlist
         μ_predicted = Float64[]
         r2 = Float64[]
-        for simresults in multsim.sampled
-            _, fitcoef, r2val = fitinverse(simresults.VAF, 0.12, 0.24)
-            push!(μ_predicted, fitcoef)
+        data = sampled ? multsim.sampled : multsim.output
+        for simresults in data
+            VAF = sampled ? simresults.VAF : simresults.trueVAF
+            _, fitcoef, r2val = fitinverse(VAF, fit_fmin, fit_fmax)
+            push!(μ_predicted, fitcoef[1])
             push!(r2, r2val)
         end 
         μ_error = ((μ_predicted .- multsim.input.siminput.μ) 
