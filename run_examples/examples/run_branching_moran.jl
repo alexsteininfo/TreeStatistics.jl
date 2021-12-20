@@ -12,7 +12,7 @@ using LaTeXStrings
 rng = MersenneTwister(14)
 
 input = InputParameters{BranchingMoranInput}(Nmax=100, numclones=0, μ=100, fixedmu=false, bdrate=log(2),
-                                    clonalmutations=200, tmax=50)
+                                    clonalmutations=200, tmax=10)
 simdata = run1simulation(input, rng)
 
 p1 = plotvaf(simdata, sampled=true, cumulative=false)

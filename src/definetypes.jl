@@ -27,21 +27,8 @@ struct Clone
     freq::Float64
     freqp::Float64
 end
-
-abstract type SimulationTracker end
-
-struct BranchingTracker <: SimulationTracker
+struct SimulationTracker 
     Nvec::Array{Int64, 1}
-    tvec::Array{Float64, 1}
-    cells::Array{Cell, 1}
-    birthrates::Array{Float64, 1}
-    deathrates::Array{Float64, 1}
-    clonesize::Array{Int64, 1}
-    subclones::Array{CloneTracker, 1}
-end
-
-struct MoranTracker <: SimulationTracker
-    N::Int64
     tvec::Array{Float64, 1}
     cells::Array{Cell, 1}
     clonesize::Array{Int64, 1}

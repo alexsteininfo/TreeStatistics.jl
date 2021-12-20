@@ -1,8 +1,9 @@
 """
-    run1simulation(IP::InputParameters{BranchingInput}, rng::AbstractRNG = MersenneTwister; 
+    run1simulation(IP::InputParameters{BranchingMoranInput}, rng::AbstractRNG = MersenneTwister; 
         <keyword arguments>)
 
-    Run a single branching process simulation using parameters defined by IP and return
+    Run a simulation that follows a branching process until population reaches maximum size, 
+    then switches to a Moran process. Parameters defined by IP and return
     a Simulation object.
 """
 
@@ -11,13 +12,10 @@ function run1simulation(IP::InputParameters{BranchingMoranInput}, rng::AbstractR
 
     #Run branching simulation starting with a single cell.
     #Initially set clonalmutations = 0 and μ = 1. These are expanded later.
-    simtrackerbranch = 
+    simtracker = 
         branchingprocess(IP.siminput.b, IP.siminput.d, IP.siminput.Nmax, 1, rng, numclones = IP.siminput.numclones, 
             fixedmu = true, clonalmutations = 0, selection = IP.siminput.selection,
             tevent = IP.siminput.tevent, maxclonesize = Inf)
-    
-    simtracker = MoranTracker(simtrackerbranch.Nvec[end], simtrackerbranch.tvec[end:end], 
-                            simtrackerbranch.cells, simtrackerbranch.clonesize, simtrackerbranch.subclones)
     
     simtracker = moranprocess!(simtracker, IP.siminput.bdrate, IP.siminput.tmax, 1, rng::AbstractRNG; 
         numclones = IP.siminput.numclones, fixedmu = true, selection = IP.siminput.selection, 
@@ -26,7 +24,7 @@ function run1simulation(IP::InputParameters{BranchingMoranInput}, rng::AbstractR
     simtracker, simresults = 
         processresults!(simtracker, IP.siminput.Nmax, IP.siminput.numclones, IP.siminput.μ, 
                         IP.siminput.fixedmu, IP.siminput.clonalmutations, IP.ploidy, 
-                        minclonefreq, maxclonefreq, rng, simtracker_previous=simtrackerbranch)
+                        minclonefreq, maxclonefreq, rng)
     
     #Mimic experimental data by sampling from the true VAF
     sampleddata = 
@@ -63,7 +61,7 @@ function run1simulation(IP::InputParameters{BranchingInput}, rng::AbstractRNG = 
 end
 
 """
-    run1simulation(IP::InputParameters{MorangInput}, rng::AbstractRNG = MersenneTwister; 
+    run1simulation(IP::InputParameters{MoranInput}, rng::AbstractRNG = MersenneTwister; 
         <keyword arguments>)
 
     Run a single moran process simulation using parameters defined by IP and return
@@ -122,16 +120,16 @@ function branchingprocess(IP::InputParameters{BranchingInput}, rng::AbstractRNG,
                             maxclonesize = IP.siminput.maxclonesize)
 end
 
-function branchingprocess(b, d, Nmax, μ, rng::AbstractRNG; numclones = 0, fixedmu = false,
-    clonalmutations = μ, selection = Float64[], tevent = Float64[], maxclonesize = 200)
+function branchingprocess(b, d, Nmax, μ, rng::AbstractRNG; numclones=0, fixedmu=false,
+    clonalmutations=μ, selection=Float64[], tevent=Float64[], maxclonesize=200)
 
     #initialize arrays and parameters
-    simtracker = initializesim_branching(b, d, Nmax, rng, numclones = numclones, 
-        selection = selection, clonalmutations = clonalmutations)
+    simtracker = initializesim_branching(b, d, Nmax, rng, numclones=numclones, 
+        selection=selection, clonalmutations=clonalmutations)
     
     #run simulation
-    simtracker = branchingprocess!(simtracker, Nmax, μ, rng, numclones = numclones,
-        fixedmu = fixedmu, tevent = tevent, maxclonesize = maxclonesize)
+    simtracker = branchingprocess!(simtracker, b, d, Nmax, μ, rng, numclones=numclones,
+        fixedmu=fixedmu, selection=selection, tevent=tevent, maxclonesize=maxclonesize)
     return simtracker
 end
 
@@ -143,8 +141,9 @@ Run branching process simulation, starting in state defined by simtracker, with 
 defined by IP.
 
 """
-function branchingprocess!(simtracker::BranchingTracker, Nmax, μ, rng::AbstractRNG; 
-    numclones = 0, fixedmu = false, tevent = Float64[], maxclonesize = 200)
+function branchingprocess!(simtracker::SimulationTracker, b, d, Nmax, μ, rng::AbstractRNG; 
+    numclones=0, fixedmu=false, selection=selection, tevent=Float64[], 
+    maxclonesize=200)
 
     t, N = simtracker.tvec[end], simtracker.Nvec[end]
     mutID = N == 1 ? 1 : getmutID(simtracker.cells)
@@ -154,18 +153,20 @@ function branchingprocess!(simtracker::BranchingTracker, Nmax, μ, rng::Abstract
     changemutrate = BitArray(undef, numclones + 1)
     changemutrate .= 1
 
+    birthrates, deathrates = set_branching_birthdeath_rates(b, d, selection)
+
     #Rmax starts with b + d and changes once a fitter mutant is introduced, this ensures
     #that b and d have correct units
-    Rmax = (maximum(simtracker.birthrates[1:nclonescurrent])
-                                + maximum(simtracker.deathrates[1:nclonescurrent]))
+    Rmax = (maximum(birthrates[1:nclonescurrent])
+                                + maximum(deathrates[1:nclonescurrent]))
 
     while N < Nmax
         Nt = N
         randcell = rand(rng,1:N) #pick a random cell
         r = rand(rng,Uniform(0,Rmax))
         #get birth and death rates for randcell
-        br = simtracker.birthrates[simtracker.cells[randcell].clonetype]
-        dr = simtracker.deathrates[simtracker.cells[randcell].clonetype]
+        br = birthrates[simtracker.cells[randcell].clonetype]
+        dr = deathrates[simtracker.cells[randcell].clonetype]
 
         if r < br 
             #cell divides
@@ -179,8 +180,8 @@ function branchingprocess!(simtracker::BranchingTracker, Nmax, μ, rng::Abstract
                         nclonescurrent)
                 
                     #change Rmax now there is a new fitter mutant
-                    Rmax = (maximum(simtracker.birthrates[1:nclonescurrent])
-                                + maximum(simtracker.deathrates[1:nclonescurrent]))
+                    Rmax = (maximum(birthrates[1:nclonescurrent])
+                                + maximum(deathrates[1:nclonescurrent]))
             end
 
         elseif r < br + dr
@@ -191,9 +192,8 @@ function branchingprocess!(simtracker::BranchingTracker, Nmax, μ, rng::Abstract
         #add time
         Δt =  1/(Rmax * Nt) .* exptime(rng)
         t = t + Δt
-        push!(simtracker.tvec,t)
-        #add new population size
-        push!(simtracker.Nvec, N)
+        simtracker = update_time_popsize!(simtracker, t, N)
+
 
         if (executed == false) && ((simtracker.clonesize.>maxclonesize) == changemutrate)
             #if population of all clones is sufficiently large no new mutations
@@ -205,6 +205,25 @@ function branchingprocess!(simtracker::BranchingTracker, Nmax, μ, rng::Abstract
         end
     end
     return simtracker
+end
+
+
+function update_time_popsize!(simtracker::SimulationTracker, t, N)
+    push!(simtracker.tvec,t)
+    push!(simtracker.Nvec, N)
+    return simtracker
+end
+
+function set_branching_birthdeath_rates(b, d, selection)
+
+    birthrates = [b]
+    deathrates = [d]
+    #add birth and death rates for each subclone. 
+    for i in 1:length(selection)
+        push!(deathrates, d)
+        push!(birthrates, (1 + selection[i]) .* b)
+    end
+    return birthrates,deathrates
 end
 
 function moranprocess(IP::InputParameters{MoranInput}, rng::AbstractRNG,
@@ -220,7 +239,7 @@ end
 function moranprocess(N, bdrate, tmax, μ, rng::AbstractRNG; numclones = 0, fixedmu = false,
     clonalmutations = μ, selection = Float64[], tevent = Float64[])
 
-    simtracker = initializesim_moran(N, rng, numclones = numclones, clonalmutations = clonalmutations)
+    simtracker = initializesim_moran(N, numclones = numclones, clonalmutations = clonalmutations)
 
     #run simulation
     simtracker = moranprocess!(simtracker, bdrate, tmax, μ, rng, numclones = numclones,
@@ -235,10 +254,10 @@ Run branching process simulation, starting in state defined by simtracker, with 
 defined by IP.
 
 """
-function moranprocess!(simtracker::MoranTracker, bdrate, tmax, μ, rng::AbstractRNG; 
+function moranprocess!(simtracker::SimulationTracker, bdrate, tmax, μ, rng::AbstractRNG; 
     numclones = 0, fixedmu = false, selection = Float64[], tevent = Float64[])
 
-    t, N = simtracker.tvec[end], simtracker.N
+    t, N = simtracker.tvec[end], simtracker.Nvec[end]
     mutID = getmutID(simtracker.cells)
 
     nclonescurrent = length(simtracker.subclones) + 1  
@@ -272,23 +291,10 @@ function moranprocess!(simtracker::MoranTracker, bdrate, tmax, μ, rng::Abstract
         #add time
         Δt =  1/(bdrate*N) .* exptime(rng)
         t = t + Δt
-        push!(simtracker.tvec,t)
+        simtracker = update_time_popsize!(simtracker, t, N)
 
     end
     return simtracker
-end
-
-function set_subclone_birthdeath_rates(b, d, selection, numclones, rng::AbstractRNG)
-
-    birthrates = [b]
-    deathrates = [d]
-    #add birth and death rates for each subclone. 
-    #fitness is randomly distributed between death and birth rates
-    for i in 1:numclones
-        push!(deathrates, rand(rng) * deathrates[1])
-        push!(birthrates,(1 + selection[i]) * (birthrates[1] - deathrates[1]) + deathrates[i + 1])
-    end
-    return birthrates,deathrates
 end
 
 """
@@ -309,7 +315,7 @@ end
 
 function initializesim(siminput::MoranInput, rng::AbstractRNG=Random.GLOBAL_RNG)
 
-    return initializesim_moran(siminput.N, rng, 
+    return initializesim_moran(siminput.N, 
                                 numclones=siminput.numclones,
                                 clonalmutations=siminput.clonalmutations,
                                 selection=siminput.selection)
@@ -318,8 +324,6 @@ end
 
 function initializesim_branching(b, d, Nmax, rng::AbstractRNG; numclones = 0, clonalmutations = μ, 
         selection = Float64[])
-
-    birthrates, deathrates = set_subclone_birthdeath_rates(b, d, selection, numclones, rng)
 
     #initialize time to zero
     t = 0.0
@@ -348,19 +352,17 @@ function initializesim_branching(b, d, Nmax, rng::AbstractRNG; numclones = 0, cl
 
     subclones = CloneTracker[]
 
-    simtracker = BranchingTracker(
+    simtracker = SimulationTracker(
         Nvec,
         tvec,
         cells,
-        birthrates,
-        deathrates,
         clonesize,
         subclones
     )
     return simtracker
 end
 
-function initializesim_moran(N, rng::AbstractRNG; numclones = 0, clonalmutations = μ, 
+function initializesim_moran(N; numclones = 0, clonalmutations = μ, 
     selection = Float64[])
 
     #initialize time to zero
@@ -385,8 +387,8 @@ function initializesim_moran(N, rng::AbstractRNG; numclones = 0, clonalmutations
 
     subclones = CloneTracker[]
 
-    simtracker = MoranTracker(
-        N,
+    simtracker = SimulationTracker(
+        [N],
         tvec,
         cells,
         clonesize,

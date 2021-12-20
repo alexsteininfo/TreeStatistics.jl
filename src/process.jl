@@ -1,6 +1,5 @@
 function processresults!(simtracker, Nmax, numclones, μ, fixedmu::Bool, 
-    clonalmutations, ploidy, minclonefreq, maxclonefreq, rng::AbstractRNG;
-    simtracker_previous=nothing)
+    clonalmutations, ploidy, minclonefreq, maxclonefreq, rng::AbstractRNG)
 
     if length(simtracker.subclones)!= numclones
         error("wrong number of clones")
@@ -39,11 +38,6 @@ function processresults!(simtracker, Nmax, numclones, μ, fixedmu::Bool,
                         subclone.Ndivisions, subclone.avdivisions, freq, freqp)
                     for (subclone, submuts, freq, freqp) 
                         in zip(simtracker.subclones, subclonalmutations, clonefreq, clonefreqp)]
-    if simtracker_previous !== nothing
-        Nvec, tvec = get_pophistory([simtracker; simtracker_previous])
-    else
-        Nvec, tvec = get_pophistory(simtracker)
-    end
     
 
     return simtracker, SimulationResult(
@@ -51,15 +45,11 @@ function processresults!(simtracker, Nmax, numclones, μ, fixedmu::Bool,
         simtracker.tvec[end], 
         allelefreq, 
         simtracker.cells,
-        Nvec,
-        tvec
+        simtracker.Nvec,
+         simtracker.tvec
         )   
 end
 
-get_pophistory(simtracker::MoranTracker) = 
-    (fill(simtracker.N, length(simtracker.tvec)), simtracker.tvec)
-
-get_pophistory(simtracker::BranchingTracker) = (simtracker.Nvec, simtracker.tvec)
 
 function get_pophistory(simtrackervec::Array{SimulationTracker, 1})
     Nvec, tvec = get_pophistory(simtrackervec[1])
@@ -126,22 +116,7 @@ function allelefreqexpand(AFDict, μ, subclonalmuation_ids, rng::AbstractRNG; fi
   return AFnew, subclonalmutations
 end
 
-function remove_undetectable!(simtracker::BranchingTracker, clonefreq, clonefreqp, numclones, detectableclones)
-    simtracker, clonefreq, clonefreqp, numclones = 
-        _remove_undetectable!(simtracker, clonefreq, clonefreqp, numclones, 
-                            detectableclones)
-    if sum(detectableclones) < numclones
-        simtracker.birthrates = simtracker.birthrates[detectableclones]
-        simtracker.deathrates = simtracker.deathrates[detectableclones]
-    end
-    return simtracker, clonefreq, clonefreqp, numclones
-end
-
-function remove_undetectable!(simtracker::MoranTracker, clonefreq, clonefreqp, numclones, detectableclones)
-    return _remove_undetectable!(simtracker, clonefreq, clonefreqp, numclones, detectableclones)
-end
-
-function _remove_undetectable!(simtracker::SimulationTracker, clonefreq, clonefreqp, numclones, detectableclones)
+function remove_undetectable!(simtracker::SimulationTracker, clonefreq, clonefreqp, numclones, detectableclones)
     #if there are clones outside the detectable range remove them from the data
     if sum(detectableclones) < numclones
         numclones = sum(detectableclones)
