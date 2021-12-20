@@ -5,10 +5,10 @@ Print out summary of simulation.
 """
 function Base.show(io::IO, sresult::Simulation)
     @printf("===================================================================\n")
-    @printf("Branching process \n")
+    _showtype(sresult)
     @printf("Input parameters: \n")
     @printf("\t Mutation rate: %.2f\n", sresult.input.siminput.μ)
-    _showrates(io, sresult)
+    _showrates(sresult)
     @printf("\t Number of clonal mutations: %d\n", sresult.input.siminput.clonalmutations)
     @printf("\t Number of subclones: %d\n\n", sresult.input.siminput.numclones)
     if sresult.input.siminput.numclones > 0
@@ -29,15 +29,28 @@ function Base.show(io::IO, sresult::Simulation)
 
 end
 
-function _showrates(io::IO, sresult::Simulation{BranchingInput})
+_showtype(sresult::Simulation{BranchingInput}) = @printf("Branching process \n")
+_showtype(sresult::Simulation{MoranInput}) = @printf("Moran process \n")
+_showtype(sresult::Simulation{BranchingMoranInput}) = @printf("Branching => Moran process\n")
+
+
+function _showrates(sresult::Simulation{BranchingInput})
     @printf("\t Birth rate of host population: %.2f\n", sresult.input.siminput.b)
     @printf("\t Death rate of host population: %.2f\n", sresult.input.siminput.d)
     @printf("\t Effective mutation rate (μ/β): %.2f\n",(sresult.input.siminput.μ / 
         ((sresult.input.siminput.b-sresult.input.siminput.d)/sresult.input.siminput.b)))
 end
 
-function _showrates(io::IO, sresult::Simulation{MoranInput})
+function _showrates(sresult::Simulation{MoranInput})
     @printf("\t Birth/death rate of host population: %.2f\n", sresult.input.siminput.bdrate)
+end
+
+function _showrates(sresult::Simulation{BranchingMoranInput})
+    @printf("\t Birth rate of host population (branching phase): %.2f\n", sresult.input.siminput.b)
+    @printf("\t Death rate of host population (branching phase): %.2f\n", sresult.input.siminput.d)
+    @printf("\t Effective mutation rate (μ/β) (branching phase): %.2f\n",(sresult.input.siminput.μ / 
+        ((sresult.input.siminput.b-sresult.input.siminput.d)/sresult.input.siminput.b)))
+    @printf("\t Birth/death rate of host population (moran phase): %.2f\n", sresult.input.siminput.bdrate)
 end
 """
     show(sresult::Simulation)

@@ -75,6 +75,20 @@ struct MoranInput <: SimulationInput
     fixedmu::Bool
 end
 
+struct BranchingMoranInput <: SimulationInput
+    numclones::Int64 
+    Nmax::Int64
+    tmax::Float64
+    clonalmutations::Int64
+    selection::Array{Float64,1}
+    μ::Float64
+    bdrate::Float64
+    b::Float64
+    d::Float64
+    tevent::Array{Float64,1}
+    fixedmu::Bool
+end
+
 struct InputParameters{T<:SimulationInput}
     detectionlimit::Float64
     ploidy::Int64
@@ -89,6 +103,8 @@ struct SimulationResult
     tend::Float64
     trueVAF::Array{Float64,1}
     cells::Array{Cell, 1}
+    Nvec::Array{Int64, 1}
+    tvec::Array{Float64, 1}
 end
 
 struct SampledData
@@ -158,6 +174,33 @@ function InputParameters{MoranInput}(;numclones = 1, N = 10000, ploidy = 2,
             selection,
             μ,
             bdrate,
+            tevent,
+            fixedmu,
+        )
+    )
+end
+
+function InputParameters{BranchingMoranInput}(;numclones = 1, Nmax = 10000, ploidy = 2, 
+    read_depth = 100.0, detectionlimit = 5/read_depth, μ = 10.0, clonalmutations = μ, 
+    selection = fill(0.0,numclones), bdrate = log(2.0), b = log(2), d = 0, tmax = 15.0,
+    tevent = collect(1.0:0.5:(1+numclones)/2), ρ = 0.0, cellularity = 1.0, fixedmu = false)
+
+    return InputParameters(
+        detectionlimit,
+        ploidy,
+        read_depth,
+        ρ,
+        cellularity,
+        BranchingMoranInput(
+            numclones,
+            Nmax,
+            tmax,
+            clonalmutations,
+            selection,
+            μ,
+            bdrate,
+            b,
+            d,
             tevent,
             fixedmu,
         )

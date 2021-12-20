@@ -6,6 +6,36 @@
     a Simulation object.
 """
 
+function run1simulation(IP::InputParameters{BranchingMoranInput}, rng::AbstractRNG = Random.GLOBAL_RNG;
+    minclonefreq = 0.0, maxclonefreq = 1.0)
+
+    #Run branching simulation starting with a single cell.
+    #Initially set clonalmutations = 0 and μ = 1. These are expanded later.
+    simtrackerbranch = 
+        branchingprocess(IP.siminput.b, IP.siminput.d, IP.siminput.Nmax, 1, rng, numclones = IP.siminput.numclones, 
+            fixedmu = true, clonalmutations = 0, selection = IP.siminput.selection,
+            tevent = IP.siminput.tevent, maxclonesize = Inf)
+    
+    simtracker = MoranTracker(simtrackerbranch.Nvec[end], simtrackerbranch.tvec[end:end], 
+                            simtrackerbranch.cells, simtrackerbranch.clonesize, simtrackerbranch.subclones)
+    
+    simtracker = moranprocess!(simtracker, IP.siminput.bdrate, IP.siminput.tmax, 1, rng::AbstractRNG; 
+        numclones = IP.siminput.numclones, fixedmu = true, selection = IP.siminput.selection, 
+        tevent = IP.siminput.tevent)
+
+    simtracker, simresults = 
+        processresults!(simtracker, IP.siminput.Nmax, IP.siminput.numclones, IP.siminput.μ, 
+                        IP.siminput.fixedmu, IP.siminput.clonalmutations, IP.ploidy, 
+                        minclonefreq, maxclonefreq, rng, simtracker_previous=simtrackerbranch)
+    
+    #Mimic experimental data by sampling from the true VAF
+    sampleddata = 
+        sampledhist(simresults.trueVAF, IP.siminput.Nmax, rng, 
+                    detectionlimit = IP.detectionlimit, 
+                    read_depth = IP.read_depth, cellularity = IP.cellularity)
+    return Simulation(IP,simresults,sampleddata)
+end
+
 function run1simulation(IP::InputParameters{BranchingInput}, rng::AbstractRNG = Random.GLOBAL_RNG;
     minclonefreq = 0.0, maxclonefreq = 1.0)
 
@@ -66,7 +96,6 @@ function run1simulation(IP::InputParameters{MoranInput}, rng::AbstractRNG = Rand
 
     return Simulation(IP,simresults,sampleddata)
 end
-
 
 """
     branchingprocess(IP::InputParameters, rng::AbstractRNG; <keyword arguments>)
@@ -345,14 +374,14 @@ function initializesim_moran(N, rng::AbstractRNG; numclones = 0, clonalmutations
 
     #need to keep track of mutations, assuming infinite sites, new mutations will be unique,
     #we assign each new muation with a unique integer by simply counting up from one
-    mutID = 1
     for cell in cells
-        cell,mutID = newmutations!(cell, clonalmutations, mutID, rng, fixedmu = true)
+        cell.mutations = collect(1:clonalmutations)
     end
+    mutID = clonalmutations + 1
 
     #keep track of clone sizes (wildtype + subclones)
     clonesize = zeros(Int64, numclones + 1)
-    clonesize[1] = 1
+    clonesize[1] = N
 
     subclones = CloneTracker[]
 
