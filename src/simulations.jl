@@ -124,7 +124,7 @@ function branchingprocess(b, d, Nmax, μ, rng::AbstractRNG; numclones=0, fixedmu
     clonalmutations=μ, selection=Float64[], tevent=Float64[], maxclonesize=200)
 
     #initialize arrays and parameters
-    simtracker = initializesim_branching(b, d, Nmax, rng, numclones=numclones, 
+    simtracker = initializesim_branching(Nmax, numclones=numclones, 
         selection=selection, clonalmutations=clonalmutations)
     
     #run simulation
@@ -307,22 +307,26 @@ mutations, rather than taking IP.clonalmutations (mutations can be added retrosp
 """
 function initializesim(siminput::BranchingInput, rng::AbstractRNG=Random.GLOBAL_RNG)
     
-    return initializesim_branching(siminput.b, siminput.d, siminput.Nmax, rng,
-                                    numclones=siminput.numclones, 
-                                    clonalmutations=siminput.clonalmutations,
-                                    selection=siminput.selection)
+    return initializesim_branching(
+        siminput.Nmax,
+        numclones=siminput.numclones, 
+        clonalmutations=siminput.clonalmutations,
+        selection=siminput.selection
+    )
 end
 
 function initializesim(siminput::MoranInput, rng::AbstractRNG=Random.GLOBAL_RNG)
 
-    return initializesim_moran(siminput.N, 
-                                numclones=siminput.numclones,
-                                clonalmutations=siminput.clonalmutations,
-                                selection=siminput.selection)
+    return initializesim_moran(
+        siminput.N, 
+        numclones=siminput.numclones,
+        clonalmutations=siminput.clonalmutations,
+        selection=siminput.selection
+    )
 end
 
 
-function initializesim_branching(b, d, Nmax, rng::AbstractRNG; numclones = 0, clonalmutations = μ, 
+function initializesim_branching(Nmax; numclones = 0, clonalmutations = 0, 
         selection = Float64[])
 
     #initialize time to zero
@@ -344,7 +348,7 @@ function initializesim_branching(b, d, Nmax, rng::AbstractRNG; numclones = 0, cl
     #need to keep track of mutations, assuming infinite sites, new mutations will be unique,
     #we assign each new muation with a unique integer by simply counting up from one
     mutID = 1
-    cells[1],mutID = newmutations!(cells[1], clonalmutations, mutID, rng, fixedmu = true)
+    cells[1],mutID = newmutations!(cells[1], clonalmutations, mutID)
 
     #keep track of clone sizes (wildtype + subclones)
     clonesize = zeros(Int64, numclones + 1)
@@ -362,7 +366,7 @@ function initializesim_branching(b, d, Nmax, rng::AbstractRNG; numclones = 0, cl
     return simtracker
 end
 
-function initializesim_moran(N; numclones = 0, clonalmutations = μ, 
+function initializesim_moran(N; numclones = 0, clonalmutations = 0, 
     selection = Float64[])
 
     #initialize time to zero
@@ -400,8 +404,13 @@ end
 function newmutations!(cell, μ, mutID, rng::AbstractRNG; fixedmu = true)
     #function to add new mutations to cells based on μ
     numbermutations = fixedmu ? μ : rand(rng,Poisson(μ))
-    append!(cell.mutations, mutID:mutID+numbermutations-1)
-    mutID = mutID + numbermutations
+    return newmutations!(cell, numbermutations, mutID)
+end
+
+function newmutations!(cell, μ, mutID)
+    #function to add new mutations to cells based on μ
+    append!(cell.mutations, mutID:mutID + μ - 1)
+    mutID = mutID + μ
     return cell, mutID
 end
 
