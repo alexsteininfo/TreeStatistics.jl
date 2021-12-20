@@ -19,7 +19,8 @@ function processresults!(simtracker, Nmax, numclones, μ, fixedmu::Bool,
     allelefreq /= (ploidy * Nmax) #correct for ploidy
     
     #get proportion of cells in each subclone
-    clonefreqp = simtracker.clonesize[2:end]/sum(simtracker.clonesize)
+    clonesize = getclonesize(simtracker)
+    clonefreqp = clonesize[2:end]/sum(clonesize)
     clonefreq = copy(clonefreqp)
     if length(clonefreqp) > 1
         clonefreq, subclonalmutations = 

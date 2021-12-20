@@ -8,13 +8,14 @@ mutable struct Cell
     clonetype::Int64
 end
 
-struct CloneTracker
+mutable struct CloneTracker
     parenttype::Int64
     time::Float64
     mutations::Array{Int64, 1}
     N0::Int64
     Ndivisions::Int64
     avdivisions::Float64
+    size::Int64
 end
 
 struct Clone
@@ -31,8 +32,8 @@ struct SimulationTracker
     Nvec::Array{Int64, 1}
     tvec::Array{Float64, 1}
     cells::Array{Cell, 1}
-    clonesize::Array{Int64, 1}
     subclones::Array{CloneTracker, 1}
+    
 end
 
 abstract type SimulationInput end
