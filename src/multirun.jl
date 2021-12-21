@@ -1,20 +1,16 @@
 
-function multiplesimulations(numsim, IPlist... ; rng::AbstractRNG = Random.GLOBAL_RNG,
-    minclonefreq = 0.0, maxclonefreq = 1.0)
+function multiplesimulations(numsim, IPlist... ; rng::AbstractRNG = Random.GLOBAL_RNG)
 
-    multsimlist = [multiplesimulations(numsim, IP, rng = rng, minclonefreq = minclonefreq, 
-                                        maxclonefreq = maxclonefreq) 
+    multsimlist = [multiplesimulations(numsim, IP, rng = rng) 
                         for IP in IPlist]
     return multsimlist
 end
 
-function multiplesimulations(numsim, IP; rng::AbstractRNG = Random.GLOBAL_RNG,
-    minclonefreq = 0.0, maxclonefreq = 1.0)
+function multiplesimulations(numsim, IP; rng::AbstractRNG = Random.GLOBAL_RNG)
     
     results = MultiSimulation(IP, SimulationResult[], SampledData[])
     for i in 1:numsim
-        simdata = run1simulation(IP, rng, minclonefreq = minclonefreq,
-            maxclonefreq = maxclonefreq)
+        simdata = run1simulation(IP, rng)
         push!(results.output, simdata.output)
         push!(results.sampled, simdata.sampled)
     end

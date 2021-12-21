@@ -1,3 +1,4 @@
+
 """
     Cell 
 
@@ -10,6 +11,7 @@ end
 
 mutable struct CloneTracker
     parenttype::Int64
+    parentmodule::Int64
     time::Float64
     mutations::Array{Int64, 1}
     N0::Int64
@@ -20,6 +22,7 @@ end
 
 struct Clone
     parenttype::Int64
+    parentmodule::Int64
     time::Float64
     mutations::Int64
     N0::Int64
@@ -28,12 +31,12 @@ struct Clone
     freq::Float64
     freqp::Float64
 end
-struct SimulationTracker 
+struct ModuleTracker 
     Nvec::Array{Int64, 1}
     tvec::Array{Float64, 1}
     cells::Array{Cell, 1}
     subclones::Array{CloneTracker, 1}
-    
+    id::Int64
 end
 
 abstract type SimulationInput end
@@ -76,6 +79,21 @@ struct BranchingMoranInput <: SimulationInput
     tevent::Array{Float64,1}
     fixedmu::Bool
 end
+struct MultilevelInput <: SimulationInput
+    numclones::Int64 
+    Nmax::Int64
+    pop_age::Float64
+    clonalmutations::Int64
+    selection::Array{Float64,1}
+    μ::Float64
+    bdrate::Float64
+    b::Float64
+    d::Float64
+    tevent::Array{Float64,1}
+    fixedmu::Bool
+    branchrate::Float64
+    branchinitsize::Int64
+end
 
 struct InputParameters{T<:SimulationInput}
     detectionlimit::Float64
@@ -106,6 +124,19 @@ struct Simulation{T<:SimulationInput}
     sampled::SampledData
 end
 
+struct Population
+    inout::InputParameters{MultilevelInput}
+    output::Array{SimulationResult, 1}
+    sampled::Array{SampledData, 1}
+end
+
+function Population(input::InputParameters{MultilevelInput})
+    return Population(
+        input,
+        SimulationResult[],
+        SampledData[]
+    )
+end
 struct MultiSimulation{T<:SimulationInput}
     input::InputParameters{T}
     output::Array{SimulationResult,1}
@@ -191,6 +222,36 @@ function InputParameters{BranchingMoranInput}(;numclones = 1, Nmax = 10000, ploi
             d,
             tevent,
             fixedmu,
+        )
+    )
+end
+
+function InputParameters{MultilevelInput}(;numclones=1, Nmax=200, ploidy=2, 
+    read_depth=100.0, detectionlimit=5/read_depth, μ=10.0, clonalmutations=μ, 
+    selection=fill(0.0,numclones), bdrate=log(2.0), b=log(2), d=0, pop_age=15,
+    tevent=collect(1.0:0.5:(1+numclones)/2), ρ=0.0, cellularity=1.0, fixedmu=false,
+    branchrate=5, branchinitsize=Nmax/10)
+
+    return InputParameters(
+        detectionlimit,
+        ploidy,
+        read_depth,
+        ρ,
+        cellularity,
+        MultilevelInput(
+            numclones,
+            Nmax,
+            pop_age,
+            clonalmutations,
+            selection,
+            μ,
+            bdrate,
+            b,
+            d,
+            tevent,
+            fixedmu,
+            branchrate,
+            branchinitsize
         )
     )
 end

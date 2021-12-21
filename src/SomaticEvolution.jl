@@ -16,15 +16,18 @@ export Cell,
 MultiSimulation,
 SimulationTracker,
 SimulationInput,
+MultilevelInput,
 BranchingMoranInput,
 BranchingInput,
 MoranInput,
+MultilevelInput,
 InputParameters,
 Simulation,
 SampledData,
 PlotVAF,
 PlotInverseVAF,
 
+multilevel_simulation,
 multiplesimulations,
 run1simulation, 
 sampledhist,
@@ -41,6 +44,7 @@ moranprocess
 
 include("definetypes.jl")
 include("simulations.jl")
+include("multilevel.jl")
 include("process.jl")
 include("sampling.jl")
 include("analyse.jl")

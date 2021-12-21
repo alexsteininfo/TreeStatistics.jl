@@ -1,14 +1,14 @@
-function processresults!(simtracker, Nmax, numclones, μ, fixedmu::Bool, 
-    clonalmutations, ploidy, minclonefreq, maxclonefreq, rng::AbstractRNG)
+function processresults!(moduletracker, Nmax, numclones, μ, fixedmu::Bool, 
+    clonalmutations, ploidy, rng::AbstractRNG)
 
-    if length(simtracker.subclones)!= numclones
-        error("wrong number of clones")
+    if length(moduletracker.subclones)!= numclones
+        error("wrong number of clones, $(length(moduletracker.subclones)) != $numclones")
     end
 
     #get list of all mutations (assumed one per cell division)
-    mutations = cellsconvert(simtracker.cells).mutations
+    mutations = cellsconvert(moduletracker.cells).mutations
     #get list of mutations in each subclone
-    subclonalmutation_ids = [subclone.mutations for subclone in simtracker.subclones]
+    subclonalmutation_ids = [subclone.mutations for subclone in moduletracker.subclones]
 
     #calculate allele frequencies. Expand so that each cell obtained m ~ Poisson(μ) 
     #mutations at division and add clonal mutations
@@ -19,43 +19,45 @@ function processresults!(simtracker, Nmax, numclones, μ, fixedmu::Bool,
     allelefreq /= (ploidy * Nmax) #correct for ploidy
     
     #get proportion of cells in each subclone
-    clonesize = getclonesize(simtracker)
+    clonesize = getclonesize(moduletracker)
     clonefreqp = clonesize[2:end]/sum(clonesize)
     clonefreq = copy(clonefreqp)
     if length(clonefreqp) > 1
         clonefreq, subclonalmutations = 
-            calculateclonefreq!(clonefreq, subclonalmutations, simtracker.subclones)
+            calculateclonefreq!(clonefreq, subclonalmutations, moduletracker.subclones)
     end
 
-    detectableclones = (clonefreq .> minclonefreq) .& (clonefreq .< maxclonefreq)
+    subclones = [
+        Clone(
+            subclone.parenttype, 
+            subclone.parentmodule, 
+            subclone.time, 
+            submuts, 
+            subclone.N0, 
+            subclone.Ndivisions, 
+            subclone.avdivisions, 
+            freq, 
+            freqp
+        )
+        for (subclone, submuts, freq, freqp) 
+            in zip(moduletracker.subclones, subclonalmutations, clonefreq, clonefreqp)]
     
-    if sum(detectableclones) > numclones
-        simtracker, clonefreq, clonefreqp, numclones =
-            remove_undetectable!(simtracker, clonefreq, clonefreqp, numclones, 
-                detectableclones)
-    end
 
-    subclones = [Clone(subclone.parenttype, subclone.time, submuts, subclone.N0, 
-                        subclone.Ndivisions, subclone.avdivisions, freq, freqp)
-                    for (subclone, submuts, freq, freqp) 
-                        in zip(simtracker.subclones, subclonalmutations, clonefreq, clonefreqp)]
-    
-
-    return simtracker, SimulationResult(
+    return moduletracker, SimulationResult(
         subclones,
-        simtracker.tvec[end], 
+        moduletracker.tvec[end], 
         allelefreq, 
-        simtracker.cells,
-        simtracker.Nvec,
-         simtracker.tvec
+        moduletracker.cells,
+        moduletracker.Nvec,
+        moduletracker.tvec
         )   
 end
 
 
-function get_pophistory(simtrackervec::Array{SimulationTracker, 1})
-    Nvec, tvec = get_pophistory(simtrackervec[1])
-    for simtracker in simtrackervec[2:end]
-        Nvec0, tvec0 = get_pophistory(simtracker)
+function get_pophistory(moduletrackervec::Array{ModuleTracker, 1})
+    Nvec, tvec = get_pophistory(moduletrackervec[1])
+    for moduletracker in moduletrackervec[2:end]
+        Nvec0, tvec0 = get_pophistory(moduletracker)
         append!(Nvec, Nvec0[2:end])
         append!(tvec, tvec0[2:end])
     end
@@ -117,18 +119,18 @@ function allelefreqexpand(AFDict, μ, subclonalmuation_ids, rng::AbstractRNG; fi
   return AFnew, subclonalmutations
 end
 
-function remove_undetectable!(simtracker::SimulationTracker, clonefreq, clonefreqp, numclones, detectableclones)
+function remove_undetectable!(moduletracker::ModuleTracker, clonefreq, clonefreqp, numclones, detectableclones)
     #if there are clones outside the detectable range remove them from the data
     if sum(detectableclones) < numclones
         numclones = sum(detectableclones)
         clonefreq = clonefreq[detectableclones]
         clonefreqp = clonefreqp[detectableclones]
-        simtracker.subclones = simtracker.subclones[detectableclones]
+        moduletracker.subclones = moduletracker.subclones[detectableclones]
         pushfirst!(detectableclones, true)
-        simtracker.clonesize = simtracker.clonesize[detectableclones]
+        moduletracker.clonesize = moduletracker.clonesize[detectableclones]
         detectableclones = detectableclones[1:length(br)]
     end
-    return simtracker, clonefreq, clonefreqp, numclones
+    return moduletracker, clonefreq, clonefreqp, numclones
 end
 
 

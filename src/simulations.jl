@@ -7,24 +7,23 @@
     a Simulation object.
 """
 
-function run1simulation(IP::InputParameters{BranchingMoranInput}, rng::AbstractRNG = Random.GLOBAL_RNG;
-    minclonefreq = 0.0, maxclonefreq = 1.0)
+function run1simulation(IP::InputParameters{BranchingMoranInput}, rng::AbstractRNG = Random.GLOBAL_RNG)
 
     #Run branching simulation starting with a single cell.
     #Initially set clonalmutations = 0 and μ = 1. These are expanded later.
-    simtracker = 
+    moduletracker = 
         branchingprocess(IP.siminput.b, IP.siminput.d, IP.siminput.Nmax, 1, rng, numclones = IP.siminput.numclones, 
             fixedmu = true, clonalmutations = 0, selection = IP.siminput.selection,
             tevent = IP.siminput.tevent, maxclonesize = Inf)
     
-    simtracker = moranprocess!(simtracker, IP.siminput.bdrate, IP.siminput.tmax, 1, rng::AbstractRNG; 
+    moduletracker = 
+        moranprocess!(moduletracker, IP.siminput.bdrate, IP.siminput.tmax, 1, rng::AbstractRNG; 
         numclones = IP.siminput.numclones, fixedmu = true, selection = IP.siminput.selection, 
         tevent = IP.siminput.tevent)
 
-    simtracker, simresults = 
-        processresults!(simtracker, IP.siminput.Nmax, IP.siminput.numclones, IP.siminput.μ, 
-                        IP.siminput.fixedmu, IP.siminput.clonalmutations, IP.ploidy, 
-                        minclonefreq, maxclonefreq, rng)
+    moduletracker, simresults = 
+        processresults!(moduletracker, IP.siminput.Nmax, IP.siminput.numclones, IP.siminput.μ, 
+                        IP.siminput.fixedmu, IP.siminput.clonalmutations, IP.ploidy, rng)
     
     #Mimic experimental data by sampling from the true VAF
     sampleddata = 
@@ -34,22 +33,20 @@ function run1simulation(IP::InputParameters{BranchingMoranInput}, rng::AbstractR
     return Simulation(IP,simresults,sampleddata)
 end
 
-function run1simulation(IP::InputParameters{BranchingInput}, rng::AbstractRNG = Random.GLOBAL_RNG;
-    minclonefreq = 0.0, maxclonefreq = 1.0)
+function run1simulation(IP::InputParameters{BranchingInput}, rng::AbstractRNG = Random.GLOBAL_RNG)
 
     #Run branching simulation starting with a single cell.
     #Initially set clonalmutations = 0 and μ = 1. These are expanded later.
-    simtracker = 
+    moduletracker = 
         branchingprocess(IP.siminput.b, IP.siminput.d, IP.siminput.Nmax, 1, rng, numclones = IP.siminput.numclones, 
             fixedmu = true, clonalmutations = 0, selection = IP.siminput.selection,
             tevent = IP.siminput.tevent, maxclonesize = IP.siminput.maxclonesize)
     
     #Add mutations and process simulation output to get SimResults.
-    #Remove undetectable subclones from simtracker
-    simtracker, simresults = 
-        processresults!(simtracker, IP.siminput.Nmax, IP.siminput.numclones, IP.siminput.μ, 
-                        IP.siminput.fixedmu, IP.siminput.clonalmutations, IP.ploidy, 
-                        minclonefreq, maxclonefreq, rng)
+    #Remove undetectable subclones from moduletracker
+    moduletracker, simresults = 
+        processresults!(moduletracker, IP.siminput.Nmax, IP.siminput.numclones, IP.siminput.μ, 
+                        IP.siminput.fixedmu, IP.siminput.clonalmutations, IP.ploidy, rng)
     
     #Mimic experimental data by sampling from the true VAF
     sampleddata = 
@@ -68,23 +65,21 @@ end
     a Simulation object.
 """
 
-function run1simulation(IP::InputParameters{MoranInput}, rng::AbstractRNG = Random.GLOBAL_RNG;
-    minclonefreq = 0.0, maxclonefreq = 1.0)
+function run1simulation(IP::InputParameters{MoranInput}, rng::AbstractRNG = Random.GLOBAL_RNG)
 
     #Run Moran simulation starting from a population of N identical cells.
     #Initially set clonalmutations = 0 and μ = 1. These are expanded later.
-    simtracker = 
+    moduletracker = 
         moranprocess(IP.siminput.N, IP.siminput.bdrate, IP.siminput.tmax, 1, rng, 
                     numclones = IP.siminput.numclones, fixedmu = true, 
                     clonalmutations = 0, selection = IP.siminput.selection,
                     tevent = IP.siminput.tevent)
 
     #Add mutations and process simulation output to get SimResults.
-    #Remove undetectable subclones from simtracker   
-    simtracker, simresults = 
-        processresults!(simtracker, IP.siminput.N, IP.siminput.numclones, IP.siminput.μ, 
-                        IP.siminput.fixedmu, IP.siminput.clonalmutations, 
-                        IP.ploidy, minclonefreq, maxclonefreq, rng)
+    #Remove undetectable subclones from moduletracker   
+    moduletracker, simresults = 
+        processresults!(moduletracker, IP.siminput.N, IP.siminput.numclones, IP.siminput.μ, 
+                        IP.siminput.fixedmu, IP.siminput.clonalmutations, IP.ploidy, rng)
     
     #Mimic experimental data by sampling from the true VAF
     sampleddata = 
@@ -124,33 +119,33 @@ function branchingprocess(b, d, Nmax, μ, rng::AbstractRNG; numclones=0, fixedmu
     clonalmutations=μ, selection=Float64[], tevent=Float64[], maxclonesize=200)
 
     #initialize arrays and parameters
-    simtracker = initializesim_branching(
+    moduletracker = initializesim_branching(
         Nmax, 
         clonalmutations=clonalmutations
     )
     
     #run simulation
-    simtracker = branchingprocess!(simtracker, b, d, Nmax, μ, rng, numclones=numclones,
+    moduletracker = branchingprocess!(moduletracker, b, d, Nmax, μ, rng, numclones=numclones,
         fixedmu=fixedmu, selection=selection, tevent=tevent, maxclonesize=maxclonesize)
-    return simtracker
+    return moduletracker
 end
 
 """
-    branchingprocess!(simtracker::SimulationTracker, IP::InputParameters, rng::AbstractRNG; 
+    branchingprocess!(moduletracker::ModuleTracker, IP::InputParameters, rng::AbstractRNG; 
         suppressmut::Bool = true)
 
-Run branching process simulation, starting in state defined by simtracker, with parameters
+Run branching process simulation, starting in state defined by moduletracker, with parameters
 defined by IP.
 
 """
-function branchingprocess!(simtracker::SimulationTracker, b, d, Nmax, μ, rng::AbstractRNG; 
+function branchingprocess!(moduletracker::ModuleTracker, b, d, Nmax, μ, rng::AbstractRNG; 
     numclones=0, fixedmu=false, selection=selection, tevent=Float64[], 
-    maxclonesize=200)
+    maxclonesize=200, tmax=Inf)
 
-    t, N = simtracker.tvec[end], simtracker.Nvec[end]
-    mutID = N == 1 ? 1 : getmutID(simtracker.cells)
+    t, N = moduletracker.tvec[end], moduletracker.Nvec[end]
+    mutID = N == 1 ? 1 : getmutID(moduletracker.cells)
 
-    nclonescurrent = length(simtracker.subclones) + 1  
+    nclonescurrent = length(moduletracker.subclones) + 1  
     executed = false
     changemutrate = BitArray(undef, numclones + 1)
     changemutrate .= 1
@@ -163,22 +158,29 @@ function branchingprocess!(simtracker::SimulationTracker, b, d, Nmax, μ, rng::A
                                 + maximum(deathrates[1:nclonescurrent]))
 
     while N < Nmax
-        Nt = N
+
+        #calc next event time and break if it exceeds tmax 
+        Δt =  1/(Rmax * N) .* exptime(rng)
+        t = t + Δt
+        if t > tmax
+            break
+        end
+
         randcell = rand(rng,1:N) #pick a random cell
         r = rand(rng,Uniform(0,Rmax))
         #get birth and death rates for randcell
-        br = birthrates[simtracker.cells[randcell].clonetype]
-        dr = deathrates[simtracker.cells[randcell].clonetype]
+        br = birthrates[moduletracker.cells[randcell].clonetype]
+        dr = deathrates[moduletracker.cells[randcell].clonetype]
 
         if r < br 
             #cell divides
-            simtracker, N, mutID = celldivision!(simtracker, randcell, N, mutID, μ, rng,
+            moduletracker, N, mutID = celldivision!(moduletracker, randcell, N, mutID, μ, rng,
                 fixedmu = fixedmu)
             #check if t>=tevent for next fit subclone
             if nclonescurrent < numclones + 1 && t >= tevent[nclonescurrent]
                 #if current number clones != final number clones, one of the new cells is
                 #mutated to become fitter and form a new clone
-                    simtracker, nclonescurrent = cellmutation!(simtracker, N, N, t, 
+                    moduletracker, nclonescurrent = cellmutation!(moduletracker, N, N, t, 
                         nclonescurrent)
                 
                     #change Rmax now there is a new fitter mutant
@@ -188,31 +190,29 @@ function branchingprocess!(simtracker::SimulationTracker, b, d, Nmax, μ, rng::A
 
         elseif r < br + dr
             #cell dies
-            simtracker, N = celldeath!(simtracker,randcell,N)
+            moduletracker = celldeath!(moduletracker, randcell)
+            N -= 1
         end
 
-        #add time
-        Δt =  1/(Rmax * Nt) .* exptime(rng)
-        t = t + Δt
-        simtracker = update_time_popsize!(simtracker, t, N)
+        moduletracker = update_time_popsize!(moduletracker, t, N)
 
         #if population of all clones is sufficiently large no new mutations
         #are acquired, can use this approximation as only mutations above 1%
         #frequency can be reliably detected
         if ((maxclonesize !== nothing && 
             executed == false && 
-            (getclonesize(simtracker) .> maxclonesize) == changemutrate))
+            (getclonesize(moduletracker) .> maxclonesize) == changemutrate))
 
             μ = 0
             fixedmu = true
             executed = true
         end
     end
-    return simtracker
+    return moduletracker
 end
 
-function getclonesize(simtracker)
-    return getclonesize(simtracker.Nvec[end], simtracker.subclones)
+function getclonesize(moduletracker)
+    return getclonesize(moduletracker.Nvec[end], moduletracker.subclones)
 end
 
 function getclonesize(N, subclones)
@@ -221,10 +221,10 @@ function getclonesize(N, subclones)
 end
 
 
-function update_time_popsize!(simtracker::SimulationTracker, t, N)
-    push!(simtracker.tvec,t)
-    push!(simtracker.Nvec, N)
-    return simtracker
+function update_time_popsize!(moduletracker::ModuleTracker, t, N)
+    push!(moduletracker.tvec,t)
+    push!(moduletracker.Nvec, N)
+    return moduletracker
 end
 
 function set_branching_birthdeath_rates(b, d, selection)
@@ -252,36 +252,44 @@ end
 function moranprocess(N, bdrate, tmax, μ, rng::AbstractRNG; numclones = 0, fixedmu = false,
     clonalmutations = μ, selection = Float64[], tevent = Float64[])
 
-    simtracker = initializesim_moran(N, clonalmutations = clonalmutations)
+    moduletracker = initializesim_moran(N, clonalmutations = clonalmutations)
 
     #run simulation
-    simtracker = moranprocess!(simtracker, bdrate, tmax, μ, rng, numclones = numclones,
+    moduletracker = moranprocess!(moduletracker, bdrate, tmax, μ, rng, numclones = numclones,
     fixedmu = fixedmu, selection = selection, tevent = tevent)
-    return simtracker
+    return moduletracker
 end
 """
-    moranprocess!(simtracker::SimulationTracker, rng::AbstractRNG; 
+    moranprocess!(moduletracker::ModuleTracker, rng::AbstractRNG; 
         suppressmut::Bool = true)
 
-Run branching process simulation, starting in state defined by simtracker, with parameters
+Run branching process simulation, starting in state defined by moduletracker, with parameters
 defined by IP.
 
 """
-function moranprocess!(simtracker::SimulationTracker, bdrate, tmax, μ, rng::AbstractRNG; 
+function moranprocess!(moduletracker::ModuleTracker, bdrate, tmax, μ, rng::AbstractRNG; 
     numclones = 0, fixedmu = false, selection = Float64[], tevent = Float64[])
 
-    t, N = simtracker.tvec[end], simtracker.Nvec[end]
-    mutID = getmutID(simtracker.cells)
+    t, N = moduletracker.tvec[end], moduletracker.Nvec[end]
+    mutID = getmutID(moduletracker.cells)
 
-    nclonescurrent = length(simtracker.subclones) + 1  
+    nclonescurrent = length(moduletracker.subclones) + 1  
 
-    while t < tmax
+    while true
+
+        #calc next event time and break if it exceeds tmax 
+        Δt =  1/(bdrate*N) .* exptime(rng)
+        t = t + Δt
+        if t > tmax
+            break
+        end
+
         #pick a cell to divide proportional to clonetype
         if nclonescurrent == 1
             randcelldivide = rand(rng, 1:N)
         else
             p = [cell.clonetype==1 ? 1 : 1 + selection[cell.clonetype - 1] 
-                    for cell in simtracker.cells] 
+                    for cell in moduletracker.cells] 
             p /= sum(p)
             randcelldivide = sample(rng, 1:N, ProbabilityWeights(p)) 
         end
@@ -290,24 +298,21 @@ function moranprocess!(simtracker::SimulationTracker, bdrate, tmax, μ, rng::Abs
         randcelldie = rand(rng,1:N) 
 
         #cell divides
-        simtracker, _, mutID = celldivision!(simtracker, randcelldivide, N, mutID, μ, rng,
+        moduletracker, _, mutID = celldivision!(moduletracker, randcelldivide, N, mutID, μ, rng,
             fixedmu = fixedmu)
         
         #check if t>=tevent for next fit subclone and more subclones are expected
         if nclonescurrent < numclones + 1 && t >= tevent[nclonescurrent]
-            simtracker, nclonescurrent = cellmutation!(simtracker, N+1, N, t, nclonescurrent)
+            moduletracker, nclonescurrent = cellmutation!(moduletracker, N+1, N, t, nclonescurrent)
         end
 
         #cell dies
-        simtracker, _ = celldeath!(simtracker,randcelldie,N)
+        moduletracker = celldeath!(moduletracker, randcelldie)
 
-        #add time
-        Δt =  1/(bdrate*N) .* exptime(rng)
-        t = t + Δt
-        simtracker = update_time_popsize!(simtracker, t, N)
+        moduletracker = update_time_popsize!(moduletracker, t, N)
 
     end
-    return simtracker
+    return moduletracker
 end
 
 """
@@ -335,7 +340,7 @@ function initializesim(siminput::MoranInput, rng::AbstractRNG=Random.GLOBAL_RNG)
 end
 
 
-function initializesim_branching(Nmax; clonalmutations = 0)
+function initializesim_branching(Nmax=nothing; clonalmutations = 0)
 
     #initialize time to zero
     t = 0.0
@@ -350,7 +355,9 @@ function initializesim_branching(Nmax; clonalmutations = 0)
     #Initialize array of cell type that stores mutations for each cell and their clone type
     #clone type of 1 is the host population with selection=0
     cells = Cell[]
-    sizehint!(cells, Nmax)
+    if Nmax !== nothing 
+        sizehint!(cells, Nmax)
+    end
     push!(cells, Cell([],1))
 
     #need to keep track of mutations, assuming infinite sites, new mutations will be unique,
@@ -360,13 +367,14 @@ function initializesim_branching(Nmax; clonalmutations = 0)
 
     subclones = CloneTracker[]
 
-    simtracker = SimulationTracker(
+    moduletracker = ModuleTracker(
         Nvec,
         tvec,
         cells,
-        subclones
+        subclones,
+        1
     )
-    return simtracker
+    return moduletracker
 end
 
 function initializesim_moran(N; clonalmutations=0)
@@ -388,14 +396,43 @@ function initializesim_moran(N; clonalmutations=0)
 
     subclones = CloneTracker[]
 
-    simtracker = SimulationTracker(
+    moduletracker = ModuleTracker(
         [N],
         tvec,
         cells,
-        subclones
+        subclones,
+        1
     )
-    return simtracker
+    return moduletracker
 end
+
+function initializesim_from_cells(cells::Array{Cell,1}, subclones::Array{CloneTracker, 1}, id;
+    inittime=0.0)
+
+    #initialize time to zero
+    t = inittime
+    tvec = Float64[]
+    push!(tvec,t)
+
+    #population starts from list of cells
+    N = length(cells)
+    Nvec = Int64[]
+    push!(Nvec, N)
+
+    for (i, subclone) in enumerate(subclones)
+        subclone.size = sum(cell.clonetype .== 1)
+    end
+
+    moduletracker = ModuleTracker(
+        Nvec,
+        tvec,
+        cells,
+        subclones,
+        id
+    )
+    return moduletracker
+end
+
 
 function newmutations!(cell, μ, mutID, rng::AbstractRNG; fixedmu = true)
     #function to add new mutations to cells based on μ
@@ -410,59 +447,71 @@ function newmutations!(cell, μ, mutID)
     return cell, mutID
 end
 
-function celldivision!(simtracker::SimulationTracker, parentcell, N, mutID, μ, 
+function celldivision!(moduletracker::ModuleTracker, parentcell, N, mutID, μ, 
     rng::AbstractRNG; fixedmu=fixedmu)
     
     N += 1 #population increases by one
-    push!(simtracker.cells, copycell(simtracker.cells[parentcell])) #add new copy of parent cell to cells
+    push!(moduletracker.cells, copycell(moduletracker.cells[parentcell])) #add new copy of parent cell to cells
     #add new mutations to both new cells
     if μ > 0.0 
-        simtracker.cells[parentcell],mutID = newmutations!(simtracker.cells[parentcell], μ, 
+        moduletracker.cells[parentcell],mutID = newmutations!(moduletracker.cells[parentcell], μ, 
             mutID, rng, fixedmu = fixedmu)
-        simtracker.cells[end],mutID = newmutations!(simtracker.cells[end], μ, mutID, rng,
+        moduletracker.cells[end],mutID = newmutations!(moduletracker.cells[end], μ, mutID, rng,
             fixedmu=fixedmu)
     end
-    clonetype = simtracker.cells[parentcell].clonetype
+    clonetype = moduletracker.cells[parentcell].clonetype
     if clonetype > 1
-        simtracker.subclones[clonetype - 1].size += 1
+        moduletracker.subclones[clonetype - 1].size += 1
     end
 
-    return simtracker, N, mutID
+    return moduletracker, N, mutID
 end
 
-function cellmutation!(simtracker::SimulationTracker, mutatingcell, N, t, nclonescurrent)
+function cellmutation!(moduletracker::ModuleTracker, mutatingcell, N, t, nclonescurrent)
     
     #add new clone
-    parenttype = simtracker.cells[mutatingcell].clonetype
-    mutations = deepcopy(simtracker.cells[mutatingcell].mutations)
-    Ndivisions = length(simtracker.cells[mutatingcell].mutations)
-    avdivisions = mean(map(x -> length(x.mutations), simtracker.cells))
-    clone = CloneTracker(parenttype, t, mutations, N, Ndivisions, avdivisions, 1)
-    push!(simtracker.subclones, clone)
+    parenttype = moduletracker.cells[mutatingcell].clonetype
+    mutations = deepcopy(moduletracker.cells[mutatingcell].mutations)
+    Ndivisions = length(moduletracker.cells[mutatingcell].mutations)
+    avdivisions = mean(map(x -> length(x.mutations), moduletracker.cells))
+    clone = CloneTracker(parenttype, moduletracker.id, t, mutations, N, Ndivisions, 
+        avdivisions, 1)
+    push!(moduletracker.subclones, clone)
 
     #change clone type of new cell and update clone sizes
     nclonescurrent += 1
-    simtracker.cells[mutatingcell].clonetype = nclonescurrent
+    moduletracker.cells[mutatingcell].clonetype = nclonescurrent
 
     if parenttype > 1
-        simtracker.subclones[parenttype - 1].size -= 1
+        moduletracker.subclones[parenttype - 1].size -= 1
     end
 
 
-    return simtracker, nclonescurrent
+    return moduletracker, nclonescurrent
 end
 
-function celldeath!(simtracker::SimulationTracker, deadcell, N)
-    #population decreases by 1
-    N -= 1
+function celldeath!(moduletracker::ModuleTracker, deadcell::Int64)
     #frequency of cell type decreases
-    clonetype = simtracker.cells[deadcell].clonetype 
+    clonetype = moduletracker.cells[deadcell].clonetype 
     if clonetype > 1
-        simtracker.subclones[clonetype - 1].size -= 1
+        moduletracker.subclones[clonetype - 1].size -= 1
     end
     #remove deleted cell
-    deleteat!(simtracker.cells,deadcell)
-    return simtracker, N
+    deleteat!(moduletracker.cells, deadcell)
+
+    return moduletracker
+end
+
+function celldeath!(moduletracker::ModuleTracker, deadcells::Array{Int64, 1})
+    for deadcell in deadcells
+        clonetype = moduletracker.cells[deadcell].clonetype 
+        if clonetype > 1
+            moduletracker.subclones[clonetype - 1].size -= 1
+        end
+    end
+    deleteat!(moduletracker.cells, sort(deadcells))
+
+    return moduletracker
 end
 
 function getmutID(cells::Vector{Cell})

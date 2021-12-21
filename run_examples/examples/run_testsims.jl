@@ -8,23 +8,23 @@ using Plots
 
 rng = MersenneTwister(14)
 
-IP1 = InputParameters{BranchingMoranInput}(Nmax=10000, numclones=0, μ=100, fixedmu=false, 
+IP1 = InputParameters{BranchingMoranInput}(Nmax=100, numclones=0, μ=100, fixedmu=false, 
     bdrate=log(2), clonalmutations=200, tmax=20)
 
-IP2 = InputParameters{BranchingInput}(Nmax=10000, numclones=0, μ=100, fixedmu=false, b=log(2),
+IP2 = InputParameters{BranchingInput}(Nmax=100, numclones=0, μ=100, fixedmu=false, b=log(2),
     clonalmutations=200)
 
-IP3 = InputParameters{MoranInput}(N=10000, numclones=0, μ=100, fixedmu=false, bdrate=log(2),
+IP3 = InputParameters{MoranInput}(N=100, numclones=0, μ=100, fixedmu=false, bdrate=log(2),
     clonalmutations=200, tmax=20)
 
-IP4 = InputParameters{BranchingMoranInput}(Nmax=10000, tmax=20, numclones=2, μ=100, fixedmu=false, 
-    bdrate=log(2), clonalmutations=200, selection=[1,2], tevent=[6,7])
+IP4 = InputParameters{BranchingMoranInput}(Nmax=100, tmax=20, numclones=2, μ=100, fixedmu=false, 
+    bdrate=log(2), clonalmutations=200, selection=[1,2], tevent=[5,6])
 
-IP5 = InputParameters{BranchingInput}(Nmax=10000,numclones=2,μ=100,clonalmutations=200,
-    selection=[1,2], tevent=[6,7])
+IP5 = InputParameters{BranchingInput}(Nmax=100,numclones=2,μ=100,clonalmutations=200,
+    selection=[1,2], tevent=[4,5])
 
-IP6 = InputParameters{MoranInput}(N=10000,tmax=20,numclones=2,μ=100,clonalmutations=200,
-    selection=[1,2], tevent=[6,7])
+IP6 = InputParameters{MoranInput}(N=100,tmax=20,numclones=2,μ=100,clonalmutations=200,
+    selection=[1,2], tevent=[5,6])
 
 plots = []
 for input in (IP1, IP2, IP3, IP4, IP5, IP6)
