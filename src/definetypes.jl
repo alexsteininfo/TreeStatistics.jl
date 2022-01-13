@@ -37,6 +37,7 @@ struct ModuleTracker
     cells::Array{Cell, 1}
     subclones::Array{CloneTracker, 1}
     id::Int64
+    parentid::Int64
 end
 
 abstract type SimulationInput end
@@ -81,7 +82,7 @@ struct BranchingMoranInput <: SimulationInput
 end
 struct MultilevelInput <: SimulationInput
     numclones::Int64 
-    Nmax::Int64
+    modulesize::Int64
     pop_age::Float64
     clonalmutations::Int64
     selection::Array{Float64,1}
@@ -124,26 +125,24 @@ struct Simulation{T<:SimulationInput}
     sampled::SampledData
 end
 
-struct Population
-    inout::InputParameters{MultilevelInput}
+struct MultiSimulation{T<:SimulationInput}
+    input::InputParameters{T}
     output::Array{SimulationResult, 1}
     sampled::Array{SampledData, 1}
 end
 
-function Population(input::InputParameters{MultilevelInput})
-    return Population(
+function MultiSimulation{T}(input::InputParameters{T}) where T<:SimulationInput
+    return MultiSimulation(
         input,
         SimulationResult[],
         SampledData[]
     )
 end
-struct MultiSimulation{T<:SimulationInput}
-    input::InputParameters{T}
-    output::Array{SimulationResult,1}
-    sampled::Array{SampledData,1}
-end
 
-function get_simulation(multsim::MultiSimulation, i)
+Base.length(multisim::MultiSimulation) = length(multisim.output)
+const Population = MultiSimulation{MultilevelInput}
+
+function get_simulation(multsim, i)
     return Simulation(multsim.input, multsim.output[i], multsim.sampled[i])
 end 
 
@@ -226,11 +225,11 @@ function InputParameters{BranchingMoranInput}(;numclones = 1, Nmax = 10000, ploi
     )
 end
 
-function InputParameters{MultilevelInput}(;numclones=1, Nmax=200, ploidy=2, 
+function InputParameters{MultilevelInput}(;numclones=1, modulesize=200, ploidy=2, 
     read_depth=100.0, detectionlimit=5/read_depth, μ=10.0, clonalmutations=μ, 
     selection=fill(0.0,numclones), bdrate=log(2.0), b=log(2), d=0, pop_age=15,
     tevent=collect(1.0:0.5:(1+numclones)/2), ρ=0.0, cellularity=1.0, fixedmu=false,
-    branchrate=5, branchinitsize=Nmax/10)
+    branchrate=5, branchfraction=0.1, branchinitsize=nothing)
 
     return InputParameters(
         detectionlimit,
@@ -240,7 +239,7 @@ function InputParameters{MultilevelInput}(;numclones=1, Nmax=200, ploidy=2,
         cellularity,
         MultilevelInput(
             numclones,
-            Nmax,
+            modulesize,
             pop_age,
             clonalmutations,
             selection,
@@ -251,7 +250,7 @@ function InputParameters{MultilevelInput}(;numclones=1, Nmax=200, ploidy=2,
             tevent,
             fixedmu,
             branchrate,
-            branchinitsize
+            branchinitsize !== nothing ? branchinitsize : ceil(modulesize * branchfraction)
         )
     )
 end

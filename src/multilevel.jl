@@ -9,15 +9,22 @@
 """
 
 function multilevel_simulation(IP::InputParameters{MultilevelInput}; 
-    rng::AbstractRNG=Random.GLOBAL_RNG)
+    rng::AbstractRNG=Random.GLOBAL_RNG, maxmodules=1e6, showprogress=false)
 
     populationtracker = initialize_population(
-        IP.siminput.Nmax, 
+        IP.siminput.modulesize, 
         clonalmutations=IP.siminput.clonalmutations
         )
     population = Population(IP)
     
     for moduletracker in populationtracker
+        numbermodules = length(populationtracker)
+        if numbermodules >= maxmodules
+            error("population size exceeds maxmodules: ", numbermodules, " > ", maxmodules)
+        end
+        if showprogress
+            print("\rnumber of modules = ", numbermodules, "\t")
+        end
         while true
             moduletracker, newmoduletracker =
                 module_simulate_to_branching(
@@ -30,12 +37,12 @@ function multilevel_simulation(IP::InputParameters{MultilevelInput};
                 push!(populationtracker, newmoduletracker)
             else
                 moduletracker, simresults = 
-                    processresults!(moduletracker, IP.siminput.Nmax, IP.siminput.numclones, IP.siminput.μ, 
+                    processresults!(moduletracker, IP.siminput.modulesize, IP.siminput.numclones, IP.siminput.μ, 
                                 IP.siminput.fixedmu, IP.siminput.clonalmutations, IP.ploidy, rng)
             
                 #Mimic experimental data by sampling from the true VAF
                 sampleddata = 
-                    sampledhist(simresults.trueVAF, IP.siminput.Nmax, rng, 
+                    sampledhist(simresults.trueVAF, IP.siminput.modulesize, rng, 
                             detectionlimit = IP.detectionlimit, 
                             read_depth = IP.read_depth, cellularity = IP.cellularity)
                 push!(population.output, simresults)
@@ -55,9 +62,9 @@ function module_simulate_to_branching(moduletracker::ModuleTracker,
     rng::AbstractRNG=Random.GLOBAL_RNG
     )
 
-    if moduletracker.Nvec[end] < IP.siminput.Nmax
+    if moduletracker.Nvec[end] < IP.siminput.modulesize
         moduletracker = 
-            branchingprocess!(moduletracker, IP.siminput.b, IP.siminput.d, IP.siminput.Nmax, 1, 
+            branchingprocess!(moduletracker, IP.siminput.b, IP.siminput.d, IP.siminput.modulesize, 1, 
                 rng, numclones=IP.siminput.numclones, fixedmu=true, selection=IP.siminput.selection, 
                 tevent=IP.siminput.tevent, maxclonesize=Inf, tmax=IP.siminput.pop_age)
     end 
@@ -83,7 +90,7 @@ function sample_new_module!(moduletracker, newmoduleid, branchinitsize, branchti
     sampleids = sample(rng, 1:length(moduletracker.cells), branchinitsize, replace=false)
     newmoduletracker = 
         initializesim_from_cells(moduletracker.cells[sampleids], moduletracker.subclones, 
-            newmoduleid, inittime=branchtime)
+            newmoduleid, moduletracker.id, inittime=branchtime)
     moduletracker = celldeath!(moduletracker, sampleids)
     push!(moduletracker.Nvec, moduletracker.Nvec[end] - branchinitsize)
     push!(moduletracker.tvec, branchtime)
@@ -91,7 +98,7 @@ function sample_new_module!(moduletracker, newmoduleid, branchinitsize, branchti
     return moduletracker, newmoduletracker
 end
 
-function initialize_population(Nmax=nothing; clonalmutations=0)
+function initialize_population(modulesize=nothing; clonalmutations=0)
 
     #population is defined by ModuleTracker vector with each entry coprresponding to
     #an individual module
@@ -99,11 +106,10 @@ function initialize_population(Nmax=nothing; clonalmutations=0)
 
     #initialise population with a single module conisting of a single cell
     initialmodule = initializesim_branching(
-        Nmax,
+        modulesize,
         clonalmutations=clonalmutations
     )
     push!(population, initialmodule)
 
     return population
 end
-

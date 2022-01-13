@@ -14,7 +14,7 @@ end
     if get(plotattributes, :yscale, nothing) == :log10
         VAF, freq = VAF[freq .> 0], freq[freq .>0]
     end
-    ylabel = cumulative ? "Cumulative number of mutations" : "Number of mutations"
+    yguide = cumulative ? "Cumulative number of mutations" : "Number of mutations"
 
     @series begin
         seriestype --> :bar
@@ -39,8 +39,8 @@ end
             xint
         end
     end
-    ylabel --> ylabel
-    xlabel --> "VAF"
+    yguide --> yguide
+    xguide --> "VAF"
     legend --> false
     grid --> false
     ()
@@ -60,11 +60,11 @@ end
     end
     VAF = df[!,:VAF]
     freq = cumulative ? df[!,:cumfreq] : df[!,:freq]
-    ylabel = cumulative ? "Cumulative numberof mutations" : "Number of mutations"
+    yguide = cumulative ? "Cumulative numberof mutations" : "Number of mutations"
 
     @series begin
-        ylabel --> ylabel
-        xlabel --> "Inverse VAF"
+        yguide --> yguide
+        xguide --> "Inverse VAF"
         seriestype --> dataseries
         1 ./ VAF, freq
     end
@@ -79,8 +79,8 @@ end
         x, y = 1 ./ VAF, m ./ VAF .+ c
         x, y = x[y .>= 0], y[y .>= 0]
         @series begin
-            ylabel --> ylabel
-            xlabel --> "Inverse VAF"
+            yguide --> yguide
+            xguide --> "Inverse VAF"
             seriestype --> :line
             linecolor --> :red
             linestyle --> :dash
@@ -88,8 +88,8 @@ end
         end
     end
 
-    ylabel --> ylabel
-    xlabel --> "Inverse VAF"
+    yguide --> yguide
+    xguide --> "Inverse VAF"
     fvals = [df[end, :VAF], 2/(1/df[1, :VAF]+ 1/df[end, :VAF]), df[1, :VAF]] 
     xticks --> (1 ./ fvals, map(x -> "1/" * x, string.(round.(fvals, digits = 2))))
     legend --> false
@@ -98,15 +98,65 @@ end
 end
 
 
-@userplot PlotPopulation
 
-@recipe function f(pp::PlotPopulation)
-    for sresult in pp.args
-        @series begin
-            ylabel --> "Population size"
-            xlabel --> "Time"
-            seriestype --> :line
-            sresult.output.tvec, sresult.output.Nvec
+@recipe function f(output::SimulationResult)
+    @series begin
+        yguide --> "Population size"
+        xguide --> "Time"
+        seriestype --> :line
+        output.tvec, output.Nvec
+    end
+end
+
+@recipe function f(outputvec::Vector{SimulationResult}; plottype=:popsize)
+    if plottype == :modulesize
+        yguide --> "Module size"
+        xguide --> "Time"
+        for output in outputvec
+            @series begin
+                seriestype --> :line
+                legend --> false
+                output.tvec, output.Nvec
+            end
         end
+    elseif plottype == :popsize
+        yguide --> "Number of modules"
+        xguide --> "Time"
+        @series begin
+            seriestype --> :line
+            legend --> false
+            newmoduletimes(outputvec), 1:length(outputvec)
+        end
+    # elseif plottype == :popsizebycell
+    #     yguide --> "Number of cells"
+    #     xguide --> "Time"
+    #     @series begin
+            
+    #     end
+
+    end
+end
+
+@userplot PairwisePlot
+
+@recipe function f(pp::PairwisePlot)
+    if length(pp.args) == 1
+        z = pp.args[1]
+        x, y = 1:size(z)[1], 1:size(z)[2]
+    elseif length(pp.args) == 3
+        x, y, z = pp.args
+    end
+    yguide --> "Module #"
+    xguide --> "Module #"
+    title --> "Pairwise fixed differences"
+    @series begin
+        grid --> false
+        seriestype := :heatmap
+        seriescolor --> cgrad(:bone, rev=true)
+        xticks --> x
+        yticks --> y
+        aspectratio --> 1
+        size --> (500,510)
+        x, y, z
     end
 end

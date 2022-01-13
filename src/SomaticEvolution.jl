@@ -10,6 +10,7 @@ using GLM
 using LaTeXStrings
 using Printf
 using CSV
+using Plots
 
 
 export Cell,
@@ -40,7 +41,9 @@ plotinversevaf!,
 getstats,
 saveinput,
 branchingprocess,
-moranprocess
+moranprocess,
+get_simulation,
+pairwise_fixed_differences
 
 include("definetypes.jl")
 include("simulations.jl")
@@ -51,6 +54,7 @@ include("analyse.jl")
 include("multirun.jl")
 include("plot.jl")
 include("util.jl")
+include("population_analysis.jl")
 
 
 

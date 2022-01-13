@@ -340,7 +340,7 @@ function initializesim(siminput::MoranInput, rng::AbstractRNG=Random.GLOBAL_RNG)
 end
 
 
-function initializesim_branching(Nmax=nothing; clonalmutations = 0)
+function initializesim_branching(Nmax=nothing; clonalmutations=0)
 
     #initialize time to zero
     t = 0.0
@@ -372,7 +372,8 @@ function initializesim_branching(Nmax=nothing; clonalmutations = 0)
         tvec,
         cells,
         subclones,
-        1
+        1,
+        0
     )
     return moduletracker
 end
@@ -401,12 +402,14 @@ function initializesim_moran(N; clonalmutations=0)
         tvec,
         cells,
         subclones,
-        1
+        1,
+        0
     )
     return moduletracker
 end
 
-function initializesim_from_cells(cells::Array{Cell,1}, subclones::Array{CloneTracker, 1}, id;
+function initializesim_from_cells(cells::Array{Cell,1}, subclones::Array{CloneTracker, 1}, 
+    id, parentid;
     inittime=0.0)
 
     #initialize time to zero
@@ -428,7 +431,8 @@ function initializesim_from_cells(cells::Array{Cell,1}, subclones::Array{CloneTr
         tvec,
         cells,
         subclones,
-        id
+        id,
+        parentid
     )
     return moduletracker
 end
@@ -524,7 +528,7 @@ function getmutID(cells::Vector{Cell})
 end
 
 function copycell(cellold::Cell)
-    return Cell(copy(cellold.mutations), copy(cellold.clonetype))
+    return Cell(copy(cellold.mutations), cellold.clonetype)
   end
 
 function exptime(rng::AbstractRNG)

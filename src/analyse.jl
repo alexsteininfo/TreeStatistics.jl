@@ -42,3 +42,4 @@ function _fitinverse(df::DataFrame, fmax, cumulative)
     df[!,:invVAF] .+= 1/fmax
     return df, coef(lmfit), r2(lmfit)
 end
+
