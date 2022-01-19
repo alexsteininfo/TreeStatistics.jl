@@ -68,7 +68,6 @@ include("analyse.jl")
 include("multirun.jl")
 include("plot.jl")
 include("util.jl")
-include("savedata.jl")
 include("statistics.jl")
 
 
