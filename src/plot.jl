@@ -1,13 +1,13 @@
-@userplot struct PlotVAF{T<:Tuple{Simulation}}
-    args::T
-end
+""" plotvaf(VAF, [subclonefreqs=[]]; <keyword arguments>)
+"""
+plotvaf
 
-@recipe function f(pv::PlotVAF; sampled = true, cumulative = false, fstep = 0.01)
-    if sampled    
-        df = gethist(pv.args[1].sampled.VAF, fstep = fstep)
-    else
-        df = gethist(pv.args[1].output.trueVAF, fstep = fstep)
-    end
+@userplot PlotVAF
+
+@recipe function f(pv::PlotVAF; cumulative = false, fstep = 0.01, sampled=true)
+    VAFresult = pv.args[1]
+    VAF = sampled ? VAFresult.sampledVAF : VAFresult.trueVAF
+    df = gethist(VAF, fstep = fstep)
     VAF = (df[!,:VAF] .*2 .- fstep) ./ 2 #set x values to middle of bins
     freq = cumulative ? df[:,:cumfreq] : df[:,:freq]
 
@@ -25,10 +25,9 @@ end
         VAF, freq
     end
 
-    if length(pv.args[1].output.subclones) > 0
-        subclonefreq = [subclone.freq for subclone in pv.args[1].output.subclones]
-        xint = subclonefreq ./2 * pv.args[1].input.cellularity
-
+    if length(VAFresult.subclonefreq) > 0
+        subclonefreq = VAFresult.subclonefreq ./VAFresult.input.ploidy * VAFresult.cellularity
+    
         @series begin
             seriestype --> :vline
             legend --> false
@@ -36,7 +35,7 @@ end
             linewidth --> 2
             legend --> false
             grid --> false
-            xint
+            subclonefreq
         end
     end
     yguide --> yguide
@@ -46,18 +45,18 @@ end
     ()
 end
 
-@userplot struct PlotInverseVAF{T<:Tuple{Simulation}}
-    args::T
-end
+""" plotinversevaf(VAF; <keyword arguments>)
+"""
+plotvaf
 
+@userplot PlotInverseVAF
 
-@recipe function f(piv::PlotInverseVAF; sampled = true, fmin = 0.12, fmax = 0.24, fit_fmax=fmax,
+@recipe function f(pv::PlotInverseVAF; fmin = 0.12, fmax = 0.24, fit_fmax=fmax, sampled=true,
                     fstep = 0.001, fitcoef = nothing, cumulative = true, dataseries = :line)
-    if sampled 
-        df = gethist(piv.args[1].sampled.VAF, fmin = fmin, fmax = fmax, fstep = fstep) 
-    else 
-        df = gethist(piv.args[1].output.trueVAF, fmin = fmin, fmax = fmax, fstep = fstep)
-    end
+
+    VAFresult = pv.args[1]
+    VAF = sampled ? VAFresult.sampledVAF : VAFresult.trueVAF
+    df = gethist(VAF, fmin = fmin, fmax = fmax, fstep = fstep) 
     VAF = df[!,:VAF]
     freq = cumulative ? df[!,:cumfreq] : df[!,:freq]
     yguide = cumulative ? "Cumulative numberof mutations" : "Number of mutations"
@@ -99,7 +98,7 @@ end
 
 
 
-@recipe function f(output::SimulationResult)
+@recipe function f(output::ModuleTracker)
     @series begin
         yguide --> "Population size"
         xguide --> "Time"
@@ -108,15 +107,15 @@ end
     end
 end
 
-@recipe function f(outputvec::Vector{SimulationResult}; plottype=:popsize)
+@recipe function f(multisim::MultiSimulation; plottype=:popsize, tstep=nothing)
     if plottype == :modulesize
         yguide --> "Module size"
         xguide --> "Time"
-        for output in outputvec
+        for moduletracker in multisim
             @series begin
                 seriestype --> :line
                 legend --> false
-                output.tvec, output.Nvec
+                moduletracker.tvec, moduletracker.Nvec
             end
         end
     elseif plottype == :popsize
@@ -125,14 +124,17 @@ end
         @series begin
             seriestype --> :line
             legend --> false
-            newmoduletimes(outputvec), 1:length(outputvec)
+            newmoduletimes(multisim), 1:length(multisim)
         end
-    # elseif plottype == :popsizebycell
-    #     yguide --> "Number of cells"
-    #     xguide --> "Time"
-    #     @series begin
-            
-    #     end
+    elseif plottype == :cellpopsize
+        tstep = isnothing(tstep) ? 1 / multisim.input.bdrate : tstep
+        yguide --> "Number of cells"
+        xguide --> "Time"
+        @series begin
+            seriestype --> :line
+            legend --> false
+            cellpopulationsize(multisim, tstep)
+        end
 
     end
 end

@@ -1,10 +1,10 @@
 Nmax = 100
-IP = InputParameters{BranchingMoranInput}(Nmax=Nmax, numclones=0, μ=100, fixedmu=false, bdrate=log(2),
+input = BranchingMoranInput(Nmax=Nmax, numclones=0, μ=100, fixedmu=false, bdrate=log(2),
     clonalmutations=0, tmax=10)
 
 moduletracker = SomaticEvolution.initialize_population(
-    IP.siminput.Nmax, 
-    clonalmutations=IP.siminput.clonalmutations
+    input.Nmax, 
+    clonalmutations=input.clonalmutations
     )[1]
 
 branchinitsize = 20
@@ -15,7 +15,7 @@ rng = MersenneTwister(12)
 moduletracker, newmoduletracker =
     SomaticEvolution.module_simulate_to_branching(
         moduletracker, 
-        IP,  
+        input,  
         branchinitsize,
         2,
         modulebranchingrate,

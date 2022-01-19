@@ -17,12 +17,21 @@ using Plots; gr()
 # branchfraction = 0.05-0.5, proportion of cells to sample from module to form new module
 # μ = (1e-8 - 1e-9) x 260e6 x 2, mutation rate per base pair x genome size x ploidy
 
-function main(age, showprogress=false)
+function main(modulenumber, age, seed, showprogress=false)
     rng = MersenneTwister(seed)
-    IP = InputParameters{MultilevelInput}(modulesize=200, numclones=0, fixedmu=false, b=1, d=0,
+    input = MultilevelInput(modulesize=20, numclones=0, fixedmu=false, b=1, d=0,
         bdrate=1, clonalmutations=0, pop_age=age*365, branchrate=3/365, branchfraction=0.2, 
         μ=1e-8*260e6*2)
-    pop = multilevel_simulation(IP, rng=rng, maxmodules=1e6, showprogress=showprogress)
+    pop = multilevel_simulation(input, rng=rng, maxmodules=modulenumber, showprogress=showprogress)
+    return pop
+end
+
+function main_fast(modulenumber, age, seed, showprogress=false)
+    rng = MersenneTwister(seed)
+    input = MultilevelInput(modulesize=20, numclones=0, fixedmu=false, b=1, d=0,
+        bdrate=1, clonalmutations=0, pop_age=age*365, branchrate=3/365, branchfraction=0.2, 
+        μ=1e-8*260e6*2)
+    pop = SomaticEvolution.multilevel_simulation_fast(input, rng=rng, maxmodules=modulenumber, showprogress=showprogress)
     return pop
 end
 

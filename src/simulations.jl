@@ -1,99 +1,78 @@
 """
-    run1simulation(IP::InputParameters{BranchingMoranInput}, rng::AbstractRNG = MersenneTwister; 
+    run1simulation(input::BranchingMoranInput, rng::AbstractRNG = MersenneTwister; 
         <keyword arguments>)
 
     Run a simulation that follows a branching process until population reaches maximum size, 
-    then switches to a Moran process. Parameters defined by IP and return
+    then switches to a Moran process. Parameters defined by input and return
     a Simulation object.
 """
 
-function run1simulation(IP::InputParameters{BranchingMoranInput}, rng::AbstractRNG = Random.GLOBAL_RNG)
+function run1simulation(input::BranchingMoranInput, rng::AbstractRNG = Random.GLOBAL_RNG)
 
     #Run branching simulation starting with a single cell.
     #Initially set clonalmutations = 0 and μ = 1. These are expanded later.
     moduletracker = 
-        branchingprocess(IP.siminput.b, IP.siminput.d, IP.siminput.Nmax, 1, rng, numclones = IP.siminput.numclones, 
-            fixedmu = true, clonalmutations = 0, selection = IP.siminput.selection,
-            tevent = IP.siminput.tevent, maxclonesize = Inf)
+        branchingprocess(input.b, input.d, input.Nmax, 1, rng, numclones = input.numclones, 
+            fixedmu = true, clonalmutations = 0, selection = input.selection,
+            tevent = input.tevent, maxclonesize = Inf)
     
     moduletracker = 
-        moranprocess!(moduletracker, IP.siminput.bdrate, IP.siminput.tmax, 1, rng::AbstractRNG; 
-        numclones = IP.siminput.numclones, fixedmu = true, selection = IP.siminput.selection, 
-        tevent = IP.siminput.tevent)
+        moranprocess!(moduletracker, input.bdrate, input.tmax, 1, rng::AbstractRNG; 
+        numclones = input.numclones, fixedmu = true, selection = input.selection, 
+        tevent = input.tevent)
 
-    moduletracker, simresults = 
-        processresults!(moduletracker, IP.siminput.Nmax, IP.siminput.numclones, IP.siminput.μ, 
-                        IP.siminput.fixedmu, IP.siminput.clonalmutations, IP.ploidy, rng)
+    moduletracker = 
+        processresults!(moduletracker, input.μ, input.clonalmutations, rng)
     
-    #Mimic experimental data by sampling from the true VAF
-    sampleddata = 
-        sampledhist(simresults.trueVAF, IP.siminput.Nmax, rng, 
-                    detectionlimit = IP.detectionlimit, 
-                    read_depth = IP.read_depth, cellularity = IP.cellularity)
-    return Simulation(IP,simresults,sampleddata)
+    return Simulation(input, moduletracker)
 end
 
-function run1simulation(IP::InputParameters{BranchingInput}, rng::AbstractRNG = Random.GLOBAL_RNG)
+function run1simulation(input::BranchingInput, rng::AbstractRNG = Random.GLOBAL_RNG)
 
     #Run branching simulation starting with a single cell.
     #Initially set clonalmutations = 0 and μ = 1. These are expanded later.
     moduletracker = 
-        branchingprocess(IP.siminput.b, IP.siminput.d, IP.siminput.Nmax, 1, rng, numclones = IP.siminput.numclones, 
-            fixedmu = true, clonalmutations = 0, selection = IP.siminput.selection,
-            tevent = IP.siminput.tevent, maxclonesize = IP.siminput.maxclonesize)
+        branchingprocess(input.b, input.d, input.Nmax, 1, rng, numclones = input.numclones, 
+            fixedmu = true, clonalmutations = 0, selection = input.selection,
+            tevent = input.tevent, maxclonesize = input.maxclonesize)
     
     #Add mutations and process simulation output to get SimResults.
     #Remove undetectable subclones from moduletracker
-    moduletracker, simresults = 
-        processresults!(moduletracker, IP.siminput.Nmax, IP.siminput.numclones, IP.siminput.μ, 
-                        IP.siminput.fixedmu, IP.siminput.clonalmutations, IP.ploidy, rng)
-    
-    #Mimic experimental data by sampling from the true VAF
-    sampleddata = 
-        sampledhist(simresults.trueVAF, IP.siminput.Nmax, rng, 
-                    detectionlimit = IP.detectionlimit, 
-                    read_depth = IP.read_depth, cellularity = IP.cellularity)
+    moduletracker = 
+        processresults!(moduletracker, input.μ, input.clonalmutations, rng)
 
-    return Simulation(IP,simresults,sampleddata)
+    return Simulation(input, moduletracker)
 end
 
 """
-    run1simulation(IP::InputParameters{MoranInput}, rng::AbstractRNG = MersenneTwister; 
+    run1simulation(input::MoranInput, rng::AbstractRNG = MersenneTwister; 
         <keyword arguments>)
 
-    Run a single moran process simulation using parameters defined by IP and return
+    Run a single moran process simulation using parameters defined by input and return
     a Simulation object.
 """
 
-function run1simulation(IP::InputParameters{MoranInput}, rng::AbstractRNG = Random.GLOBAL_RNG)
+function run1simulation(input::MoranInput, rng::AbstractRNG = Random.GLOBAL_RNG)
 
     #Run Moran simulation starting from a population of N identical cells.
     #Initially set clonalmutations = 0 and μ = 1. These are expanded later.
     moduletracker = 
-        moranprocess(IP.siminput.N, IP.siminput.bdrate, IP.siminput.tmax, 1, rng, 
-                    numclones = IP.siminput.numclones, fixedmu = true, 
-                    clonalmutations = 0, selection = IP.siminput.selection,
-                    tevent = IP.siminput.tevent)
+        moranprocess(input.N, input.bdrate, input.tmax, 1, rng, 
+                    numclones = input.numclones, fixedmu = true, 
+                    clonalmutations = 0, selection = input.selection,
+                    tevent = input.tevent)
 
     #Add mutations and process simulation output to get SimResults.
     #Remove undetectable subclones from moduletracker   
-    moduletracker, simresults = 
-        processresults!(moduletracker, IP.siminput.N, IP.siminput.numclones, IP.siminput.μ, 
-                        IP.siminput.fixedmu, IP.siminput.clonalmutations, IP.ploidy, rng)
-    
-    #Mimic experimental data by sampling from the true VAF
-    sampleddata = 
-        sampledhist(simresults.trueVAF, IP.siminput.N, rng, 
-                    detectionlimit = IP.detectionlimit, 
-                    read_depth = IP.read_depth, cellularity = IP.cellularity)
-
-    return Simulation(IP,simresults,sampleddata)
+    moduletracker = 
+        processresults!(moduletracker, input.μ, input.clonalmutations, rng)
+    return Simulation(input,simresults)
 end
 
 """
-    branchingprocess(IP::InputParameters, rng::AbstractRNG; <keyword arguments>)
+    branchingprocess(input::BranchingInput, rng::AbstractRNG; <keyword arguments>)
 
-Simulate a stochastic branching process with parameters defined by IP. Simulation is by a 
+Simulate a stochastic branching process with parameters defined by input. Simulation is by a 
 rejection-kinetic Monte Carlo algorithm and starts with a single cell.
 
 If suppressmut assume there is only a single 
@@ -104,15 +83,15 @@ Returns SimTracker object.
 
 
 """
-function branchingprocess(IP::InputParameters{BranchingInput}, rng::AbstractRNG,
-                            fixedmu=IP.siminput.fixedmu, μ=IP.siminput.μ, 
-                            clonalmutations=IP.siminput.clonalmutations)
+function branchingprocess(input::BranchingInput, rng::AbstractRNG,
+                            fixedmu=input.fixedmu, μ=input.μ, 
+                            clonalmutations=input.clonalmutations)
 
-    return branchingprocess(IP.siminput.b, IP.siminput.d, IP.siminput.Nmax, μ, rng, 
-                            numclones = IP.siminput.numclones, fixedmu = fixedmu, 
+    return branchingprocess(input.b, input.d, input.Nmax, μ, rng, 
+                            numclones = input.numclones, fixedmu = fixedmu, 
                             clonalmutations = clonalmutations, 
-                            selection = IP.siminput.selection, tevent = IP.siminput.tevent, 
-                            maxclonesize = IP.siminput.maxclonesize)
+                            selection = input.selection, tevent = input.tevent, 
+                            maxclonesize = input.maxclonesize)
 end
 
 function branchingprocess(b, d, Nmax, μ, rng::AbstractRNG; numclones=0, fixedmu=false,
@@ -131,11 +110,11 @@ function branchingprocess(b, d, Nmax, μ, rng::AbstractRNG; numclones=0, fixedmu
 end
 
 """
-    branchingprocess!(moduletracker::ModuleTracker, IP::InputParameters, rng::AbstractRNG; 
-        suppressmut::Bool = true)
+    branchingprocess!(moduletracker::ModuleTracker, b, d, Nmax, μ, rng::AbstractRNG; 
+        <keyword arguments>)
 
 Run branching process simulation, starting in state defined by moduletracker, with parameters
-defined by IP.
+defined by input.
 
 """
 function branchingprocess!(moduletracker::ModuleTracker, b, d, Nmax, μ, rng::AbstractRNG; 
@@ -174,8 +153,9 @@ function branchingprocess!(moduletracker::ModuleTracker, b, d, Nmax, μ, rng::Ab
 
         if r < br 
             #cell divides
-            moduletracker, N, mutID = celldivision!(moduletracker, randcell, N, mutID, μ, rng,
+            moduletracker, mutID = celldivision!(moduletracker, randcell, mutID, μ, rng,
                 fixedmu = fixedmu)
+            N += 1
             #check if t>=tevent for next fit subclone
             if nclonescurrent < numclones + 1 && t >= tevent[nclonescurrent]
                 #if current number clones != final number clones, one of the new cells is
@@ -239,14 +219,14 @@ function set_branching_birthdeath_rates(b, d, selection)
     return birthrates,deathrates
 end
 
-function moranprocess(IP::InputParameters{MoranInput}, rng::AbstractRNG,
-                    fixedmu=IP.siminput.fixedmu, μ=IP.siminput.μ, 
-                    clonalmutations=IP.siminput.clonalmutations)
+function moranprocess(input::MoranInput, rng::AbstractRNG,
+                    fixedmu=input.fixedmu, μ=input.μ, 
+                    clonalmutations=input.clonalmutations)
 
-    return moranprocess(IP.siminput.N, IP.siminput.bdrate, IP.siminput.tmax, μ, rng, 
-                        numclones = IP.siminput.numclones, fixedmu = fixedmu, 
+    return moranprocess(input.N, input.bdrate, input.tmax, μ, rng, 
+                        numclones = input.numclones, fixedmu = fixedmu, 
                         clonalmutations = clonalmutations, 
-                        selection = IP.siminput.selection, tevent = IP.siminput.tevent)
+                        selection = input.selection, tevent = input.tevent)
 end
 
 function moranprocess(N, bdrate, tmax, μ, rng::AbstractRNG; numclones = 0, fixedmu = false,
@@ -264,7 +244,7 @@ end
         suppressmut::Bool = true)
 
 Run branching process simulation, starting in state defined by moduletracker, with parameters
-defined by IP.
+defined by input.
 
 """
 function moranprocess!(moduletracker::ModuleTracker, bdrate, tmax, μ, rng::AbstractRNG; 
@@ -298,7 +278,7 @@ function moranprocess!(moduletracker::ModuleTracker, bdrate, tmax, μ, rng::Abst
         randcelldie = rand(rng,1:N) 
 
         #cell divides
-        moduletracker, _, mutID = celldivision!(moduletracker, randcelldivide, N, mutID, μ, rng,
+        moduletracker, mutID = celldivision!(moduletracker, randcelldivide, mutID, μ, rng,
             fixedmu = fixedmu)
         
         #check if t>=tevent for next fit subclone and more subclones are expected
@@ -316,11 +296,11 @@ function moranprocess!(moduletracker::ModuleTracker, bdrate, tmax, μ, rng::Abst
 end
 
 """
-    initializesim(IP::InputParameters, rng::AbstractRNG = Random.GLOBAL_RNG;
+    initializesim(input::BranchingInput, rng::AbstractRNG = Random.GLOBAL_RNG;
     suppressmut = false)
 
 Set up the variables used to track a simulation. If suppressmut is true we assign 0 clonal 
-mutations, rather than taking IP.clonalmutations (mutations can be added retrospectively). 
+mutations, rather than taking input.clonalmutations (mutations can be added retrospectively). 
 
 """
 function initializesim(siminput::BranchingInput, rng::AbstractRNG=Random.GLOBAL_RNG)
@@ -438,7 +418,7 @@ function initializesim_from_cells(cells::Array{Cell,1}, subclones::Array{CloneTr
 end
 
 
-function newmutations!(cell, μ, mutID, rng::AbstractRNG; fixedmu = true)
+function newmutations!(cell, μ, mutID, rng::AbstractRNG; fixedmu = false)
     #function to add new mutations to cells based on μ
     numbermutations = fixedmu ? μ : rand(rng,Poisson(μ))
     return newmutations!(cell, numbermutations, mutID)
@@ -451,10 +431,9 @@ function newmutations!(cell, μ, mutID)
     return cell, mutID
 end
 
-function celldivision!(moduletracker::ModuleTracker, parentcell, N, mutID, μ, 
-    rng::AbstractRNG; fixedmu=fixedmu)
+function celldivision!(moduletracker::ModuleTracker, parentcell, mutID, μ, 
+    rng::AbstractRNG; fixedmu=true)
     
-    N += 1 #population increases by one
     push!(moduletracker.cells, copycell(moduletracker.cells[parentcell])) #add new copy of parent cell to cells
     #add new mutations to both new cells
     if μ > 0.0 
@@ -468,7 +447,7 @@ function celldivision!(moduletracker::ModuleTracker, parentcell, N, mutID, μ,
         moduletracker.subclones[clonetype - 1].size += 1
     end
 
-    return moduletracker, N, mutID
+    return moduletracker, mutID
 end
 
 function cellmutation!(moduletracker::ModuleTracker, mutatingcell, N, t, nclonescurrent)

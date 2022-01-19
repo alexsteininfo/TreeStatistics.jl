@@ -22,16 +22,18 @@ BranchingMoranInput,
 BranchingInput,
 MoranInput,
 MultilevelInput,
-InputParameters,
 Simulation,
 SampledData,
 PlotVAF,
 PlotInverseVAF,
+VAFResult,
 
 multilevel_simulation,
+multilevel_simulation_fast,
 multiplesimulations,
 run1simulation, 
-sampledhist,
+getallelefreq,
+sampledallelefreq,
 fitinverse,
 gethist,
 plotvaf,
@@ -43,7 +45,19 @@ saveinput,
 branchingprocess,
 moranprocess,
 get_simulation,
-pairwise_fixed_differences
+pairwise_fixed_differences,
+pairwise_fixed_differences_statistics,
+newmoduletimes,
+cellpopulationsize,
+average_mutations,
+average_mutations_per_module,
+mutations_per_cell,
+clonal_mutation_ids,
+clonal_mutations,
+subclonefreq,
+getVAFresult,
+age
+
 
 include("definetypes.jl")
 include("simulations.jl")
@@ -54,7 +68,8 @@ include("analyse.jl")
 include("multirun.jl")
 include("plot.jl")
 include("util.jl")
-include("population_analysis.jl")
+include("savedata.jl")
+include("statistics.jl")
 
 
 

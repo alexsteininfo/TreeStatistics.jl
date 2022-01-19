@@ -40,6 +40,8 @@ struct ModuleTracker
     parentid::Int64
 end
 
+Base.length(moduletracker::ModuleTracker) = moduletracker.Nvec[end]
+
 abstract type SimulationInput end
 
 struct BranchingInput <: SimulationInput
@@ -53,6 +55,7 @@ struct BranchingInput <: SimulationInput
     tevent::Array{Float64,1}
     fixedmu::Bool
     maxclonesize::Int64
+    ploidy::Int64
 end
 
 struct MoranInput <: SimulationInput
@@ -65,6 +68,7 @@ struct MoranInput <: SimulationInput
     bdrate::Float64
     tevent::Array{Float64,1}
     fixedmu::Bool
+    ploidy::Int64
 end
 
 struct BranchingMoranInput <: SimulationInput
@@ -79,6 +83,7 @@ struct BranchingMoranInput <: SimulationInput
     d::Float64
     tevent::Array{Float64,1}
     fixedmu::Bool
+    ploidy::Int64
 end
 struct MultilevelInput <: SimulationInput
     numclones::Int64 
@@ -94,15 +99,7 @@ struct MultilevelInput <: SimulationInput
     fixedmu::Bool
     branchrate::Float64
     branchinitsize::Int64
-end
-
-struct InputParameters{T<:SimulationInput}
-    detectionlimit::Float64
     ploidy::Int64
-    read_depth::Float64
-    ρ::Float64
-    cellularity::Float64
-    siminput::T
 end
 
 struct SimulationResult
@@ -120,45 +117,59 @@ struct SampledData
 end
 
 struct Simulation{T<:SimulationInput}
-    input::InputParameters{T}
-    output::SimulationResult
-    sampled::SampledData
+    input::T
+    output::ModuleTracker
+end
+
+struct VAFResult{T<:SimulationInput}
+    read_depth::Float64
+    cellularity::Float64
+    detectionlimit::Float64
+    input::T
+    trueVAF::Array{Float64,1}
+    sampledVAF::Array{Float64,1}
+    subclonefreq::Array{Float64, 1}
+    subclonefreqp::Array{Float64, 1}
+
+end
+
 end
 
 struct MultiSimulation{T<:SimulationInput}
-    input::InputParameters{T}
-    output::Array{SimulationResult, 1}
-    sampled::Array{SampledData, 1}
+    input::T
+    output::Array{ModuleTracker, 1}
+    # mutations::Array{Int64, 1}
 end
 
-function MultiSimulation{T}(input::InputParameters{T}) where T<:SimulationInput
+function MultiSimulation{T}(input::T) where T<:SimulationInput
     return MultiSimulation(
         input,
-        SimulationResult[],
-        SampledData[]
+        ModuleTracker[]
     )
 end
 
 Base.length(multisim::MultiSimulation) = length(multisim.output)
+Base.iterate(multisim::MultiSimulation) = iterate(multisim.output)
+Base.iterate(multisim::MultiSimulation, state) = iterate(multisim.output, state)
+Base.getindex(multisim::MultiSimulation, i) = getindex(multisim.output, i)
+Base.setindex(multisim::MultiSimulation, v, i) = getindex(multisim.output, v, i)
+Base.firstindex(multisim::MultiSimulation) = firstindex(multisim.output)
+Base.lastindex(multisim::MultiSimulation) = lastindex(multisim.output)
+
+
+
 const Population = MultiSimulation{MultilevelInput}
 
 function get_simulation(multsim, i)
-    return Simulation(multsim.input, multsim.output[i], multsim.sampled[i])
+    return Simulation(multsim.input, multsim.output[i])
 end 
 
-function InputParameters{BranchingInput}(;numclones = 1, Nmax = 10000, ploidy = 2, 
-    read_depth = 100.0, detectionlimit = 5/read_depth, μ = 10.0, clonalmutations = μ, 
-    selection = fill(0.0,numclones), b = log(2.0), d = 0.0, 
-    tevent = collect(1.0:0.5:(1+numclones)/2), ρ = 0.0, cellularity = 1.0, fixedmu = false, 
+function BranchingInput(;numclones = 1, Nmax = 10000, ploidy = 2, μ = 10.0, 
+    clonalmutations = μ, selection = fill(0.0,numclones), b = log(2.0), d = 0.0, 
+    tevent = collect(1.0:0.5:(1+numclones)/2), fixedmu = false, 
     maxclonesize = 200)
 
-    return InputParameters(
-        detectionlimit,
-        ploidy,
-        read_depth,
-        ρ,
-        cellularity,
-        BranchingInput(
+    return BranchingInput(
             numclones,
             Nmax,
             clonalmutations,
@@ -168,23 +179,16 @@ function InputParameters{BranchingInput}(;numclones = 1, Nmax = 10000, ploidy = 
             d,
             tevent,
             fixedmu,
-            maxclonesize
-        )
+            maxclonesize,
+            ploidy
     )
 end
 
-function InputParameters{MoranInput}(;numclones = 1, N = 10000, ploidy = 2, 
-    read_depth = 100.0, detectionlimit = 5/read_depth, μ = 10.0, clonalmutations = μ, 
+function MoranInput(;numclones = 1, N = 10000, ploidy = 2, μ = 10.0, clonalmutations = μ, 
     selection = fill(0.0,numclones), bdrate = log(2.0), tmax = 15.0,
-    tevent = collect(1.0:0.5:(1+numclones)/2), ρ = 0.0, cellularity = 1.0, fixedmu = false)
+    tevent = collect(1.0:0.5:(1+numclones)/2), fixedmu = false)
 
-    return InputParameters(
-        detectionlimit,
-        ploidy,
-        read_depth,
-        ρ,
-        cellularity,
-        MoranInput(
+    return MoranInput(
             N,
             numclones,
             tmax,
@@ -194,22 +198,15 @@ function InputParameters{MoranInput}(;numclones = 1, N = 10000, ploidy = 2,
             bdrate,
             tevent,
             fixedmu,
-        )
+            ploidy
     )
 end
 
-function InputParameters{BranchingMoranInput}(;numclones = 1, Nmax = 10000, ploidy = 2, 
-    read_depth = 100.0, detectionlimit = 5/read_depth, μ = 10.0, clonalmutations = μ, 
-    selection = fill(0.0,numclones), bdrate = log(2.0), b = log(2), d = 0, tmax = 15.0,
-    tevent = collect(1.0:0.5:(1+numclones)/2), ρ = 0.0, cellularity = 1.0, fixedmu = false)
+function BranchingMoranInput(;numclones = 1, Nmax = 10000, ploidy = 2, μ = 10.0, 
+    clonalmutations = μ, selection = fill(0.0,numclones), bdrate = log(2.0), b = log(2), 
+    d = 0, tmax = 15.0, tevent = collect(1.0:0.5:(1+numclones)/2), fixedmu = false)
 
-    return InputParameters(
-        detectionlimit,
-        ploidy,
-        read_depth,
-        ρ,
-        cellularity,
-        BranchingMoranInput(
+    return BranchingMoranInput(
             numclones,
             Nmax,
             tmax,
@@ -221,23 +218,17 @@ function InputParameters{BranchingMoranInput}(;numclones = 1, Nmax = 10000, ploi
             d,
             tevent,
             fixedmu,
-        )
+            ploidy
     )
+    
 end
 
-function InputParameters{MultilevelInput}(;numclones=1, modulesize=200, ploidy=2, 
-    read_depth=100.0, detectionlimit=5/read_depth, μ=10.0, clonalmutations=μ, 
+function MultilevelInput(;numclones=1, modulesize=200, ploidy=2, μ=10.0, clonalmutations=μ, 
     selection=fill(0.0,numclones), bdrate=log(2.0), b=log(2), d=0, pop_age=15,
-    tevent=collect(1.0:0.5:(1+numclones)/2), ρ=0.0, cellularity=1.0, fixedmu=false,
-    branchrate=5, branchfraction=0.1, branchinitsize=nothing)
+    tevent=collect(1.0:0.5:(1+numclones)/2), fixedmu=false, branchrate=5, 
+    branchfraction=0.1, branchinitsize=nothing)
 
-    return InputParameters(
-        detectionlimit,
-        ploidy,
-        read_depth,
-        ρ,
-        cellularity,
-        MultilevelInput(
+    return MultilevelInput(
             numclones,
             modulesize,
             pop_age,
@@ -250,7 +241,11 @@ function InputParameters{MultilevelInput}(;numclones=1, modulesize=200, ploidy=2
             tevent,
             fixedmu,
             branchrate,
-            branchinitsize !== nothing ? branchinitsize : ceil(modulesize * branchfraction)
-        )
+            branchinitsize !== nothing ? branchinitsize : ceil(modulesize * branchfraction),
+            ploidy
     )
 end
+
+age(moduletracker::ModuleTracker) = moduletracker.tvec[end]
+age(simulation::Simulation) = age(simulation.output)
+age(multisim::MultiSimulation) = maximum(age(output) for output in multisim.output)

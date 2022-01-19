@@ -1,3 +1,54 @@
+function getVAFresult(simulation::Simulation, rng::AbstractRNG; read_depth=100.0, 
+    detectionlimit=5/read_depth, cellularity=1.0)
+
+    trueVAF = getallelefreq(simulation)
+    sampledVAF = sampledallelefreq(trueVAF, rng, read_depth=read_depth, 
+        detectionlimit=detectionlimit, cellularity=cellularity)
+    freq, freqp = subclonefreq(simulation.output)
+
+    return VAFResult(
+        read_depth,
+        cellularity,
+        detectionlimit,
+        simulation.input,
+        trueVAF,
+        sampledVAF,
+        freq,
+        freqp
+    )
+end
+
+function getallelefreq(simulation::Simulation)
+    return getallelefreq(simulation.output, simulation.input.ploidy)
+end
+
+function getallelefreq(moduletracker::ModuleTracker, ploidy)
+    mutations = cellsconvert(moduletracker.cells).mutations
+    return getallelefreq(mutations, moduletracker.Nvec[end], ploidy)
+end
+
+function getallelefreq(mutations, N, ploidy=2)
+    allelefreq = counts(mutations,minimum(mutations):maximum(mutations))
+    # idx = f .> 0.01 #should this be f/(2*cellnum) .> 0.01, i.e. only include freq > 1% ??
+    allelefreq = map(Float64, allelefreq)
+    allelefreq ./= (ploidy * N) #correct for ploidy
+end
+
+
+function cellsconvert(cells)
+    #convert from array of cell types to one array with mutations and one array with cell fitness
+
+    clonetype = zeros(Int64,length(cells))
+    mutations = Int64[]
+    # sizehint!(mutations, length(cells) * 10) #helps with performance to provide vector size
+
+    for i in 1:length(cells)
+        append!(mutations,cells[i].mutations)
+        clonetype[i] = cells[i].clonetype
+    end
+
+    return (;mutations, clonetype)
+end
 
 """
     sampledhist(trueVAF::Array{Float64,1}, cellnum::Int64; <keyword arguments>)
@@ -11,8 +62,8 @@ according to experimental constraints.
 - `cellularity = 1.0`: 
 
 """
-function sampledhist(trueVAF::Array{Float64, 1}, cellnum::Int64, rng::AbstractRNG; 
-    detectionlimit=5/read_depth, read_depth=100.0, cellularity=1.0)
+function sampledallelefreq(trueVAF::Array{Float64, 1}, rng::AbstractRNG; 
+    read_depth=100.0, detectionlimit=5/read_depth, cellularity=1.0)
 
     VAF = trueVAF * cellularity
     filter!(x -> x > detectionlimit, VAF)
@@ -21,7 +72,7 @@ function sampledhist(trueVAF::Array{Float64, 1}, cellnum::Int64, rng::AbstractRN
     depth = rand(rng, Poisson(read_depth), length(VAF))
     sampalleles = map((n, p) -> rand(rng, Binomial(n, p)), depth, VAF)
     sampledVAF = sampalleles ./ depth
-    return SampledData(sampledVAF, depth)
+    return sampledVAF
 end
 
 """
@@ -47,4 +98,16 @@ end
 function addcumfreq!(df,colname)
     df[!, Symbol(:cum,colname)] = reverse(cumsum(reverse(df[!, colname])))
     return df
+end
+
+function subclonefreq(moduletracker)
+    #get proportion of cells in each subclone
+    clonesize = getclonesize(moduletracker)
+    clonefreqp = clonesize[2:end]/sum(clonesize)
+    clonefreq = copy(clonefreqp)
+    if length(clonefreqp) > 1
+        clonefreq, subclonalmutations = 
+            calculateclonefreq!(clonefreq, subclonalmutations, moduletracker.subclones)
+    end
+    return clonefreq, clonefreqp
 end

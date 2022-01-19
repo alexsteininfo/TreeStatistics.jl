@@ -1,16 +1,16 @@
 
-function multiplesimulations(numsim, IPlist... ; rng::AbstractRNG = Random.GLOBAL_RNG)
+function multiplesimulations(numsim, inputlist... ; rng::AbstractRNG = Random.GLOBAL_RNG)
 
-    multsimlist = [multiplesimulations(numsim, IP, rng = rng) 
-                        for IP in IPlist]
+    multsimlist = [multiplesimulations(numsim, input, rng = rng) 
+                        for input in inputlist]
     return multsimlist
 end
 
-function multiplesimulations(numsim, IP; rng::AbstractRNG = Random.GLOBAL_RNG)
+function multiplesimulations(numsim, input; rng::AbstractRNG = Random.GLOBAL_RNG)
     
-    results = MultiSimulation(IP, SimulationResult[], SampledData[])
+    results = MultiSimulation(input, ModuleTracker[])
     for i in 1:numsim
-        simdata = run1simulation(IP, rng)
+        simdata = run1simulation(input, rng)
         push!(results.output, simdata.output)
         push!(results.sampled, simdata.sampled)
     end
@@ -31,8 +31,8 @@ function getstats(multsimlist::Array{MultiSimulation{T},1}, args::Symbol...;
             push!(μ_predicted, fitcoef[1])
             push!(r2, r2val)
         end 
-        μ_error = ((μ_predicted .- multsim.input.siminput.μ) 
-                        ./ multsim.input.siminput.μ .* 100)
+        μ_error = ((μ_predicted .- multsim.input.μ) 
+                        ./ multsim.input.μ .* 100)
         df = DataFrame(id = i, μ_predicted = μ_predicted, μ_error = μ_error, r2 = r2)
         addinputparams!(df,multsim,args)
         i += 1
@@ -45,8 +45,8 @@ function addinputparams!(df,multsim,args)
     for fieldname in args
         if fieldname in fieldnames(InputParameters)
             value = getfield(multsim.input, fieldname)
-        elseif fieldname in fieldnames(typeof(multsim.input.siminput))
-            value = getfield(multsim.input.siminput, fieldname)
+        elseif fieldname in fieldnames(typeof(multsim.input))
+            value = getfield(multsim.input, fieldname)
         end
         addparam!(df,fieldname,value)
     end
