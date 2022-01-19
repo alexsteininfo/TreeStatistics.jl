@@ -133,8 +133,6 @@ struct VAFResult{T<:SimulationInput}
 
 end
 
-end
-
 struct MultiSimulation{T<:SimulationInput}
     input::T
     output::Array{ModuleTracker, 1}
