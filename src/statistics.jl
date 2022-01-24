@@ -116,7 +116,7 @@ function pairwise_fixed_differences(population; idx=nothing, diagonals=false)
     for i in 1:n
         if diagonals pfd[i,i] = length(clonalmuts[i]) end
         for j in i+1:n
-            pfd[j,i] = length(intersect(clonalmuts[i], clonalmuts[j]))
+            pfd[j,i] = length(symdiff(clonalmuts[i], clonalmuts[j]))
         end
     end
     return pfd
@@ -136,7 +136,7 @@ function pairwise_fixed_differences_statistics(population; idx=nothing, clonal=t
     pfd = Int64[]
     for i in 1:n
         for j in i+1:n
-            push!(pfd, length(intersect(clonalmuts[i], clonalmuts[j])))
+            push!(pfd, length(symdiff(clonalmuts[i], clonalmuts[j])))
         end
     end
     if clonal
