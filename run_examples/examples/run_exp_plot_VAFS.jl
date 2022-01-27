@@ -38,12 +38,13 @@ function plot_example_VAF(multsim::MultiSimulation, n, rng::AbstractRNG=Random.G
     vafplots = []
     sampledsims = sample_sims(multsim, n, rng)
     for (i, simdata) in enumerate(sampledsims)
-        df, fitcoef, rsq = fitinverse(simdata.sampled.VAF, 0.12, 0.24)
+        VAFresult = getVAFresult(simdata, rng)
+        df, fitcoef, rsq = fitinverse(VAFresult.sampledVAF, 0.12, 0.24)
         if savedata !== nothing
             CSV.write(savedata*"_$i.csv", df)
         end
-        p1 = plotvaf(simdata, sampled=true, cumulative = false)
-        p2 = plotinversevaf(simdata, sampled = true, fitcoef = fitcoef, rsq = rsq, 
+        p1 = plotvaf(VAFresult, sampled=true, cumulative = false)
+        p2 = plotinversevaf(VAFresult, sampled = true, fitcoef = fitcoef, rsq = rsq, 
             fmin=0.12, fmax=0.24)
         label1 = latexstring("\\mu_\\textrm{pred} = $(round(Int,fitcoef))")
         label2 = latexstring("R^2 = $(round(rsq,digits=4))")
@@ -59,14 +60,14 @@ function plot_example_VAF(multsim::MultiSimulation, n, rng::AbstractRNG=Random.G
       
 end
 
-function plot_example_VAF(simdata::Simulation; title = "", savedata = nothing)
+function plot_example_VAF(VAFresult::VAFResult; title = "", savedata = nothing)
 
-    df, fitcoef, rsq = fitinverse(simdata.sampled.VAF, 0.12, 0.24)
+    df, fitcoef, rsq = fitinverse(VAFresult.sampledVAF, 0.12, 0.24)
     if savedata !== nothing
         CSV.write(savedata*".csv", df)
     end
-    p1 = plotvaf(simdata, sampled=true, cumulative = false, savedata=savedata)
-    p2 = plotinversevaf(simdata, sampled = true, fitcoef = fitcoef, rsq = rsq, 
+    p1 = plotvaf(VAFresult, sampled=true, cumulative = false, savedata=savedata)
+    p2 = plotinversevaf(VAFresult, sampled = true, fitcoef = fitcoef, rsq = rsq, 
         fmin=0.12, fmax=0.24, ylabel = "Cumulative number\nof mutations")
     label1 = latexstring("\\mu_\\textrm{pred} = $(round(Int,fitcoef))")
     label2 = latexstring("R^2 = $(round(rsq,digits=4))")
@@ -85,10 +86,13 @@ function plot_singleplots(input1, input2, parentdir="", rng::AbstractRNG=Random.
 
     simdata1 = run1simulation(input1, rng)
     simdata2 = run1simulation(input2, rng)
+    VAFresult1 = getVAFresult(simdata1, rng)
+    VAFresult2 = getVAFresult(simdata2, rng)
 
-    p1 = plot_example_VAF(simdata1, title = "No subclones, neutral tumour growth",
+
+    p1 = plot_example_VAF(VAFresult1, title = "No subclones, neutral tumour growth",
                             savedata=dir*"neutral")
-    p2 = plot_example_VAF(simdata2, title = "One subclone with s = 1, t1 = 6",
+    p2 = plot_example_VAF(VAFresult2, title = "One subclone with s = 1, t1 = 6",
                             savedata=dir*"oneclone")
 
     saveinput(dir*"neutral_input.txt", simdata1)
@@ -126,8 +130,8 @@ rng = MersenneTwister(13)
 μ = 100
 b = log(2)
 
-input1 = InputParameters{BranchingInput}(Nmax=10000,numclones=0,μ=μ,clonalmutations=2*μ)
-input2 = InputParameters{BranchingInput}(Nmax=10000,numclones=1,μ=μ,clonalmutations=2*μ,
+input1 = BranchingInput(Nmax=10000,numclones=0,μ=μ,clonalmutations=2*μ)
+input2 = BranchingInput(Nmax=10000,numclones=1,μ=μ,clonalmutations=2*μ,
                 selection = [1.0], tevent = [6.0])
 
 sim = run1simulation(input2, rng)
