@@ -1,6 +1,6 @@
 """ plotvaf(VAF, [subclonefreqs=[]]; <keyword arguments>)
 """
-plotvaf
+# plotvaf
 
 @userplot PlotVAF
 

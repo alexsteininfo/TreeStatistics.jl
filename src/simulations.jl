@@ -1,12 +1,11 @@
 """
-    run1simulation(input::BranchingMoranInput, rng::AbstractRNG = MersenneTwister; 
-        <keyword arguments>)
+    run1simulation(input::BranchingMoranInput[, rng::AbstractRNG])
 
-    Run a simulation that follows a branching process until population reaches maximum size, 
-    then switches to a Moran process. Parameters defined by input and return
-    a Simulation object.
+    Simulate a population of cells that grows by a branching process to fixed size then 
+    switches to a Moran process.
+    
+    Take simulation parameters from `input` and return a Simulation.
 """
-
 function run1simulation(input::BranchingMoranInput, rng::AbstractRNG = Random.GLOBAL_RNG)
 
     #Run branching simulation starting with a single cell.
@@ -27,6 +26,11 @@ function run1simulation(input::BranchingMoranInput, rng::AbstractRNG = Random.GL
     return Simulation(input, moduletracker)
 end
 
+"""
+    run1simulation(input::BranchingInput[, rng::AbstractRNG])
+
+    Simulate a population of cells that grows by a branching process to a fixed size.
+"""
 function run1simulation(input::BranchingInput, rng::AbstractRNG = Random.GLOBAL_RNG)
 
     #Run branching simulation starting with a single cell.
@@ -45,11 +49,9 @@ function run1simulation(input::BranchingInput, rng::AbstractRNG = Random.GLOBAL_
 end
 
 """
-    run1simulation(input::MoranInput, rng::AbstractRNG = MersenneTwister; 
-        <keyword arguments>)
+    run1simulation(input::MoranInput[, rng::AbstractRNG])
 
-    Run a single moran process simulation using parameters defined by input and return
-    a Simulation object.
+    Simulate a population of cells according to a Moran process for fixed time.
 """
 
 function run1simulation(input::MoranInput, rng::AbstractRNG = Random.GLOBAL_RNG)
@@ -66,21 +68,16 @@ function run1simulation(input::MoranInput, rng::AbstractRNG = Random.GLOBAL_RNG)
     #Remove undetectable subclones from moduletracker   
     moduletracker = 
         processresults!(moduletracker, input.μ, input.clonalmutations, rng)
-    return Simulation(input,simresults)
+    return Simulation(input,moduletracker)
 end
 
 """
     branchingprocess(input::BranchingInput, rng::AbstractRNG; <keyword arguments>)
 
-Simulate a stochastic branching process with parameters defined by input. Simulation is by a 
-rejection-kinetic Monte Carlo algorithm and starts with a single cell.
+Simulate a stochastic branching process with parameters defined by input and return 
+ModuleTracker. 
 
-If suppressmut assume there is only a single 
-acquired mutation per cell at division and no clonal mutations (additional mutations can be 
-added retrospectively).
-
-Returns SimTracker object.
-
+Simulation is by a rejection-kinetic Monte Carlo algorithm and starts with a single cell. 
 
 """
 function branchingprocess(input::BranchingInput, rng::AbstractRNG,
@@ -94,6 +91,20 @@ function branchingprocess(input::BranchingInput, rng::AbstractRNG,
                             maxclonesize = input.maxclonesize)
 end
 
+"""
+    branchingprocess(b, d, Nmax, μ, rng::AbstractRNG; <keyword arguments>)
+
+Simulate a stochastic branching process, starting with a single cell, with with birth rate 
+`b`, death rate `d` until population reaches size `Nmax`.
+
+Cells accumulate neutral mutations at division with rate `μ`, until all subclones exceed
+`maxclonesize`.
+
+If `numclones` = 0, all cells have the same fitness and there is only one (sub)clone. 
+Otherwise, `numclones` is the number of fit subclones. The `i`th subclone arises by a single 
+cell mutating at time `tevent[i]` and has selection coefficient `selection[i]`.
+
+"""
 function branchingprocess(b, d, Nmax, μ, rng::AbstractRNG; numclones=0, fixedmu=false,
     clonalmutations=μ, selection=Float64[], tevent=Float64[], maxclonesize=200)
 
@@ -113,9 +124,9 @@ end
     branchingprocess!(moduletracker::ModuleTracker, b, d, Nmax, μ, rng::AbstractRNG; 
         <keyword arguments>)
 
-Run branching process simulation, starting in state defined by moduletracker, with parameters
-defined by input.
+Run branching process simulation, starting in state defined by moduletracker.
 
+See also [`branchingprocess`](@ref)
 """
 function branchingprocess!(moduletracker::ModuleTracker, b, d, Nmax, μ, rng::AbstractRNG; 
     numclones=0, fixedmu=false, selection=selection, tevent=Float64[], 
@@ -191,24 +202,40 @@ function branchingprocess!(moduletracker::ModuleTracker, b, d, Nmax, μ, rng::Ab
     return moduletracker
 end
 
-function getclonesize(moduletracker)
+"""
+    getclonesize(moduletracker::ModuleTracker)
+
+Return number of cells in each subclone (including wild-type).
+"""
+function getclonesize(moduletracker::ModuleTracker)
     return getclonesize(moduletracker.Nvec[end], moduletracker.subclones)
 end
 
+"""
+    getclonesize(N, subclones)
+"""
 function getclonesize(N, subclones)
    sizevec = [clone.size for clone in subclones]
    prepend!(sizevec, N - sum(sizevec)) 
 end
 
+"""
+    update_time_popsize(moduletracker::ModuleTracker, t, N)
 
+Update moduletracker with new time `t` and pop size `N`.
+"""
 function update_time_popsize!(moduletracker::ModuleTracker, t, N)
     push!(moduletracker.tvec,t)
     push!(moduletracker.Nvec, N)
     return moduletracker
 end
 
-function set_branching_birthdeath_rates(b, d, selection)
+"""
+    set_branching_birthdeath_rates(b, d, selection)
 
+Return Vectors of birthrates and deathrates for each subclone (including wild-type).
+"""
+function set_branching_birthdeath_rates(b, d, selection)
     birthrates = [b]
     deathrates = [d]
     #add birth and death rates for each subclone. 
@@ -219,6 +246,14 @@ function set_branching_birthdeath_rates(b, d, selection)
     return birthrates,deathrates
 end
 
+"""
+    moranprocess(input::MoranInput, rng::AbstractRNG; <keyword arguments>)
+
+Simulate a Moran process with parameters defined by input and return ModuleTracker. 
+
+Simulation is by a Gillespie algorithm.
+
+"""
 function moranprocess(input::MoranInput, rng::AbstractRNG,
                     fixedmu=input.fixedmu, μ=input.μ, 
                     clonalmutations=input.clonalmutations)
@@ -229,6 +264,20 @@ function moranprocess(input::MoranInput, rng::AbstractRNG,
                         selection = input.selection, tevent = input.tevent)
 end
 
+"""
+    moranprocess(N, bdrate, tmax, μ, rng::AbstractRNG; <keyword arguments>)
+
+Simulate a Moran process starting with `N` cells until time `tmax`.
+
+Update events comprise of a birth and a death, and occur with rate `bdrate`. Cells 
+accumulate neutral mutations at division with rate `μ`, until all subclones exceed
+`maxclonesize`.
+
+If `numclones` = 0, all cells have the same fitness and there is only one (sub)clone. 
+Otherwise, `numclones` is the number of fit subclones. The `i`th subclone arises by a single 
+cell mutating at time `tevent[i]` and has selection coefficient `selection[i]`. 
+
+"""
 function moranprocess(N, bdrate, tmax, μ, rng::AbstractRNG; numclones = 0, fixedmu = false,
     clonalmutations = μ, selection = Float64[], tevent = Float64[])
 
@@ -240,11 +289,12 @@ function moranprocess(N, bdrate, tmax, μ, rng::AbstractRNG; numclones = 0, fixe
     return moduletracker
 end
 """
-    moranprocess!(moduletracker::ModuleTracker, rng::AbstractRNG; 
-        suppressmut::Bool = true)
+    moranprocess!(moduletracker::ModuleTracker, bdrate, tmax, μ, rng::AbstractRNG; 
+        <keyword-arguments>)
 
-Run branching process simulation, starting in state defined by moduletracker, with parameters
-defined by input.
+Run Moran process simulation, starting in state defined by moduletracker.
+
+See also [`moranprocess`](@ref)
 
 """
 function moranprocess!(moduletracker::ModuleTracker, bdrate, tmax, μ, rng::AbstractRNG; 
@@ -296,12 +346,9 @@ function moranprocess!(moduletracker::ModuleTracker, bdrate, tmax, μ, rng::Abst
 end
 
 """
-    initializesim(input::BranchingInput, rng::AbstractRNG = Random.GLOBAL_RNG;
-    suppressmut = false)
+    initializesim(input::BranchingInput, rng::AbstractRNG=Random.GLOBAL_RNG)
 
-Set up the variables used to track a simulation. If suppressmut is true we assign 0 clonal 
-mutations, rather than taking input.clonalmutations (mutations can be added retrospectively). 
-
+Initialise simulation and return a ModuleTracker.
 """
 function initializesim(siminput::BranchingInput, rng::AbstractRNG=Random.GLOBAL_RNG)
     
@@ -311,6 +358,9 @@ function initializesim(siminput::BranchingInput, rng::AbstractRNG=Random.GLOBAL_
     )
 end
 
+"""
+    initializesim(input::MoranInput, rng::AbstractRNG=Random.GLOBAL_RNG)
+"""
 function initializesim(siminput::MoranInput, rng::AbstractRNG=Random.GLOBAL_RNG)
 
     return initializesim_moran(
@@ -319,7 +369,11 @@ function initializesim(siminput::MoranInput, rng::AbstractRNG=Random.GLOBAL_RNG)
     )
 end
 
+"""
+    initializesim_branching(input::BranchingInput, rng::AbstractRNG=Random.GLOBAL_RNG)
 
+Initialise simulation and return a ModuleTracker.
+"""
 function initializesim_branching(Nmax=nothing; clonalmutations=0)
 
     #initialize time to zero
