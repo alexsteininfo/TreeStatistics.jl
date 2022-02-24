@@ -12,7 +12,6 @@ function multiplesimulations(numsim, input; rng::AbstractRNG = Random.GLOBAL_RNG
     for i in 1:numsim
         simdata = run1simulation(input, rng)
         push!(results.output, simdata.output)
-        push!(results.sampled, simdata.sampled)
     end
     return results
 end

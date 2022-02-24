@@ -1,4 +1,4 @@
-function getVAFresult(simulation::Simulation, rng::AbstractRNG; read_depth=100.0, 
+function getVAFresult(simulation::Simulation, rng::AbstractRNG=Random.GLOBAL_RNG; read_depth=100.0, 
     detectionlimit=5/read_depth, cellularity=1.0)
 
     trueVAF = getallelefreq(simulation)
@@ -15,6 +15,37 @@ function getVAFresult(simulation::Simulation, rng::AbstractRNG; read_depth=100.0
         sampledVAF,
         freq,
         freqp
+    )
+end
+
+function getVAFresult(multisim::MultiSimulation, rng::AbstractRNG=Random.GLOBAL_RNG; read_depth=100.0, 
+    detectionlimit=5/read_depth, cellularity=1.0)
+
+    trueVAFs = Array{Float64, 1}[]
+    sampledVAFs = Array{Float64, 1}[]
+    freqs = Array{Float64, 1}[]
+    freqps = Array{Float64, 1}[]
+    
+    for moduletracker in multisim
+        trueVAF = getallelefreq(moduletracker)
+        sampledVAF = sampledallelefreq(trueVAF, rng, read_depth=read_depth, 
+            detectionlimit=detectionlimit, cellularity=cellularity)
+        freq, freqp = subclonefreq(moduletracker)
+        push!(trueVAFs, trueVAF)
+        push!(sampledVAFs, sampledVAF)
+        push!(freqs, freq)
+        push!(freqps, freqp)
+    end
+
+    return VAFResultMulti(
+        read_depth,
+        cellularity,
+        detectionlimit,
+        simulation.input,
+        trueVAFs,
+        sampledVAFs,
+        freqs,
+        freqps
     )
 end
 
