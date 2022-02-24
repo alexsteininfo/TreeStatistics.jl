@@ -2,64 +2,78 @@
     multilevel_simulation(input::MultilevelInput, rng::AbstractRNG = MersenneTwister; 
         <keyword arguments>)
 
-    Run a simulation process that models somatic evolution in a growing population. Starts 
-    with a single cell which grows via a branching process to a "module" of specified size, 
-    then switches to a Moran process. New modules are created with given rate, by 
-    sampling cells from the parent module.
-"""
+    Simulate a growing population of modules, until it reaches `maxmodules`.
+    
+    Start with a single module comprised of a single cell that grows via a branching process  
+    to size `input.modulesize`, then switches to a Moran process. 
+    New modules are created with rate `input.branchrate`, by sampling cells from the parent 
+    module. Return output as a Population.
 
+"""
 function multilevel_simulation(input::MultilevelInput; 
-    rng::AbstractRNG=Random.GLOBAL_RNG, maxmodules=1e6, showprogress=false)
+    rng::AbstractRNG=Random.GLOBAL_RNG, maxmodules=1e6)
 
     populationtracker = initialize_population(
         input.modulesize, 
-        clonalmutations=input.clonalmutations
+        clonalmutations=0
         )
 
-    mutID = getmutID(populationtracker[1].cells)
+    mutID = getmutID(populationtracker[1].cells) #get id of next mutation
     t = 0
-
-    while t < input.pop_age && length(populationtracker) < maxmodules
-    
-        transitionrates = get_transitionrates(populationtracker, input.b, input.d, 
-            input.bdrate, input.branchrate, input.modulesize)
-        t += 1/sum(transitionrates) .* exptime(rng)
-        # r = rand(rng)
-        # 1=moran, 2=birth, 3=death, 4=branch
-        transitionid = sample(rng, 1:4, ProbabilityWeights(transitionrates ./ sum(transitionrates)))
-        if transitionid == 1
-            #moran update of a homeostatic module
-            moduletracker, parentcell, deadcell = 
-                choose_homeostaticmodule_cells(populationtracker, input.modulesize, rng)
-            _, mutID = celldivision!(moduletracker, parentcell, mutID, 1, rng)
-            celldeath!(moduletracker, deadcell)
-            update!(moduletracker, 0, t)
-
-        elseif transitionid == 2
-            #cell division in a growing module
-            moduletracker, parentcell = 
-                choose_growingmodule_cell(populationtracker, input.modulesize, rng)
-            _, mutID = celldivision!(moduletracker, parentcell, mutID, 1, rng, fixedmu=true)
-            update!(moduletracker, 1, t)
-
-        elseif transitionid == 3
-            #cell division in a growing module
-            _, deadcell = 
-                choose_nonhomeostatic_cell(populationtracker, input.modulesize, rng)
-            celldeath!(moduletracker, deadcell)
-            update!(moduletracker, -1, t)
-
-        elseif transitionid == 4
-            #branching of a homeostatic module to create a new module
-            parentmodule = choose_homeostaticmodule(populationtracker, input.modulesize, rng)
-            _, newmodule = 
-                sample_new_module!(parentmodule, length(populationtracker) + 1, 
-                    input.branchinitsize, t, rng)
-            push!(populationtracker, newmodule)
-        end
-    end
-    populationtracker = processresults!(populationtracker, input.μ, input.clonalmutations, rng)
+    populationtracker = 
+        simulate!(populationtracker, input, rng, maxmodules, t=t, mutID=mutID)
+    populationtracker = 
+        processresults!(populationtracker, input.μ, input.clonalmutations, rng)
     return Population(input, populationtracker)
+end
+
+function simulate!(populationtracker, input, rng, maxmodules=1e6; t=0, mutID=1)
+    while t < input.pop_age && length(populationtracker) < maxmodules
+        populationtracker, mutID, t = 
+            update_population!(populationtracker, input, mutID, t, rng)
+    end
+    return populationtracker
+end
+
+function update_population!(populationtracker, input, mutID, t, rng)
+
+    transitionrates = get_transitionrates(populationtracker, input.b, input.d, 
+    input.bdrate, input.branchrate, input.modulesize)
+    t += 1/sum(transitionrates) .* exptime(rng)
+
+    #choose transition type: 1=moran, 2=birth, 3=death, 4=branch
+    transitionid = sample(rng, 1:4, ProbabilityWeights(transitionrates ./ sum(transitionrates)))
+    if transitionid == 1
+    #moran update of a homeostatic module
+    moduletracker, parentcell, deadcell = 
+        choose_homeostaticmodule_cells(populationtracker, input.modulesize, rng)
+    _, mutID = celldivision!(moduletracker, parentcell, mutID, 1, rng)
+    celldeath!(moduletracker, deadcell)
+    update!(moduletracker, 0, t)
+
+    elseif transitionid == 2
+        #cell division in a growing module
+        moduletracker, parentcell = 
+            choose_growingmodule_cell(populationtracker, input.modulesize, rng)
+        _, mutID = celldivision!(moduletracker, parentcell, mutID, 1, rng, fixedmu=true)
+        update!(moduletracker, 1, t)
+
+    elseif transitionid == 3
+        #cell division in a growing module
+        _, deadcell = 
+            choose_nonhomeostatic_cell(populationtracker, input.modulesize, rng)
+        celldeath!(moduletracker, deadcell)
+        update!(moduletracker, -1, t)
+
+    elseif transitionid == 4
+        #branching of a homeostatic module to create a new module
+        parentmodule = choose_homeostaticmodule(populationtracker, input.modulesize, rng)
+        _, newmodule = 
+            sample_new_module!(parentmodule, length(populationtracker) + 1, 
+                input.branchinitsize, t, rng)
+        push!(populationtracker, newmodule)
+    end
+    return populationtracker, mutID, t
 end
 
 function update!(moduletracker, ΔN, newtime)
@@ -113,8 +127,8 @@ function multilevel_simulation_fast(input::MultilevelInput;
 
     populationtracker = initialize_population(
         input.modulesize, 
-        clonalmutations=input.clonalmutations
-        )
+        clonalmutations=0
+    )
     
     for moduletracker in populationtracker
         check_module_number(moduletracker.id, populationtracker, maxmodules, showprogress)
