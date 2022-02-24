@@ -1,5 +1,5 @@
-settings.json
-data/*
-
-.DS_Store
-*.pdf
+.vscode/*
+*.jl.*.cov
+*.jl.cov
+*.jl.mem
+/Manifest.toml
