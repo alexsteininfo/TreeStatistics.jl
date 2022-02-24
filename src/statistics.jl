@@ -3,7 +3,7 @@
 
 calculate the number of mutations per cell in each module 
 """
-mutations_per_cell(population) = map(mutations_per_cell, population)
+mutations_per_cell(population::MultiSimulation) = map(mutations_per_cell, population)
 
 """
     mutations_per_cell(simulation::Simulation)
@@ -15,9 +15,9 @@ mutations_per_cell(simulation::Simulation) = mutations_per_cell(simulation.outpu
 """
     mutations_per_cell(moduletracker::ModuleTracker)
 """
-function mutations_per_cell(moduletracker::ModuleTracker)
-    return map(cell -> length(cell.mutations), moduletracker.cells)
-end
+mutations_per_cell(moduletracker::ModuleTracker) = mutations_per_cell(moduletracker.cells)
+
+mutations_per_cell(cells::Array{Cell, 1}) = map(cell -> length(cell.mutations), cells)
 
 """
     average_mutations_per_module(population)
@@ -68,7 +68,7 @@ end
 
 returns the number of clonal mutations in each module/simulated population
 """
-function clonal_mutations(population)
+function clonal_mutations(population::MultiSimulation)
     return map(clonal_mutations, population)
 end
 
@@ -99,7 +99,7 @@ function clonal_mutation_ids(moduletracker::ModuleTracker)
 end
 
 """
-    pairwise_fixed_differences(population, <idx=nothing, diagonals=flase>)
+    pairwise_fixed_differences(population; idx=nothing, diagonals=false)
 
 Calculate the number of pairwise fixed differences between modules. Return an n x n matrix, 
 such that the value at (i,j) is the pairwise fixed differences between modules i and j, and
@@ -164,13 +164,16 @@ Return number of cells in the population at times in 1:tstep:tend
 function cellpopulationsize(population, tstep)
     tend = maximum(moduletracker.tvec[end] for moduletracker in population)
     popvec = Int64[]
-    for time in 1:tstep:tend
+    for time in 0:tstep:tend
         pop = 0
         for moduletracker in population
             N0 = 0
             for (N, t) in zip(moduletracker.Nvec, moduletracker.tvec)
-                if t > time
+                if t > time 
                     pop += N0
+                    break
+                elseif t == moduletracker.tvec[end]
+                    pop += N
                     break
                 else
                     N0 = N
@@ -179,7 +182,7 @@ function cellpopulationsize(population, tstep)
         end
         push!(popvec, pop)
     end
-    return collect(1:tstep:tend), popvec
+    return collect(0:tstep:tend), popvec
 end
 
     
