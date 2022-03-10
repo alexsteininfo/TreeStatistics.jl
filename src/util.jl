@@ -69,13 +69,13 @@ function Base.show(io::IO, population::Population)
     @printf("===================================================================\n")
     @printf("Multilevel branching module simulation\n\n")
     @printf("Input parameters: \n")
-    @printf("\tMax age = %.2f\n", siminput.pop_age)
+    @printf("\tMax age = %.2f\n", siminput.maxtime)
     _showrates(siminput)
     @printf("\tBranching rate = %.4f\n", siminput.branchrate)
     @printf("\tNew module size = %d\n", siminput.branchinitsize)
     @printf("\tMature module size = %d\n", siminput.modulesize)
     @printf("\tNumber of clonal mutations: %d\n", siminput.clonalmutations)
-    @printf("\tNumber of subclones: %d\n\n", siminput.numclones)  
+    # @printf("\tNumber of subclones: %d\n\n", siminput.numclones)  
 
     @printf("Population data\n")
     @printf("\tPopulation age = %d\n", age(population))
@@ -83,29 +83,29 @@ function Base.show(io::IO, population::Population)
 
     # @printf("Clonal mutations per module")
 
-    if siminput.numclones > 0
-        for i in 1:siminput.numclones
-            @printf("Subclone %d \n", i)
-            @printf("\tFitness advantage: %.2f\n", siminput.selection[i])
-            @printf("\tEvent time: %.2f\n", 
-                siminput.tevent[i])
-            @printf("\tAverage frequency: %.2f (std: %.2f)\n", 
-                        _get_mean_std(population.output, :freq, i)...)
-            @printf("\tAverage number of mutations in subclone: %d (std: %.2f)\n", 
-                        _get_mean_std(population.output, :mutations, i)...)
-            @printf("\tAverage population size when subclone emerges: %d (std: %.2f)\n", 
-                        _get_mean_std(population.output, :N0, i)...)
-            @printf("\tAverage time when subclone emerges: %.2f (std: %.2f)\n", 
-                        _get_mean_std(population.output, :time, i)...)
-            @printf("\tDistribution of subclone parents (0 is host): ")
-            s = join([@sprintf("%d => %d", parent, freq) 
-                        for (parent, freq) in parenttype_dist(population.output, i)]
-                        , ", ")
-            @printf("%s\n\n",s)
-        end
-    else
-        @printf("No clones, tumour growth was neutral\n\n")
-    end
+    # if siminput.numclones > 0
+    #     for i in 1:siminput.numclones
+    #         @printf("Subclone %d \n", i)
+    #         @printf("\tFitness advantage: %.2f\n", siminput.selection[i])
+    #         @printf("\tEvent time: %.2f\n", 
+    #             siminput.tevent[i])
+    #         @printf("\tAverage frequency: %.2f (std: %.2f)\n", 
+    #                     _get_mean_std(population.output, :freq, i)...)
+    #         @printf("\tAverage number of mutations in subclone: %d (std: %.2f)\n", 
+    #                     _get_mean_std(population.output, :mutations, i)...)
+    #         @printf("\tAverage population size when subclone emerges: %d (std: %.2f)\n", 
+    #                     _get_mean_std(population.output, :N0, i)...)
+    #         @printf("\tAverage time when subclone emerges: %.2f (std: %.2f)\n", 
+    #                     _get_mean_std(population.output, :time, i)...)
+    #         @printf("\tDistribution of subclone parents (0 is host): ")
+    #         s = join([@sprintf("%d => %d", parent, freq) 
+    #                     for (parent, freq) in parenttype_dist(population.output, i)]
+    #                     , ", ")
+    #         @printf("%s\n\n",s)
+    #     end
+    # else
+    #     @printf("No clones, tumour growth was neutral\n\n")
+    # end
 
 end
 

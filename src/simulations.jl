@@ -129,7 +129,7 @@ Run branching process simulation, starting in state defined by moduletracker.
 See also [`branchingprocess`](@ref)
 """
 function branchingprocess!(moduletracker::ModuleTracker, b, d, Nmax, μ, rng::AbstractRNG; 
-    numclones=0, fixedmu=false, selection=selection, tevent=Float64[], 
+    numclones=0, fixedmu=false, selection=Float64[], tevent=Float64[], 
     maxclonesize=200, tmax=Inf)
 
     t, N = moduletracker.tvec[end], moduletracker.Nvec[end]
@@ -178,14 +178,19 @@ function branchingprocess!(moduletracker::ModuleTracker, b, d, Nmax, μ, rng::Ab
                     Rmax = (maximum(birthrates[1:nclonescurrent])
                                 + maximum(deathrates[1:nclonescurrent]))
             end
+            moduletracker = update_time_popsize!(moduletracker, t, N)
+
 
         elseif r < br + dr
             #cell dies
             moduletracker = celldeath!(moduletracker, randcell)
             N -= 1
+            moduletracker = update_time_popsize!(moduletracker, t, N)
+            #return empty moduletracker if all cells have died
+            if N == 0
+                return moduletracker
+            end
         end
-
-        moduletracker = update_time_popsize!(moduletracker, t, N)
 
         #if population of all clones is sufficiently large no new mutations
         #are acquired, can use this approximation as only mutations above 1%
@@ -565,7 +570,11 @@ function copycell(cellold::Cell)
   end
 
 function exptime(rng::AbstractRNG)
-    - log(rand(rng))
+    rand(rng, Exponential(1))
+end
+
+function exptime(rng::AbstractRNG, λ)
+    rand(rng, Exponential(1/λ))
 end
 
 function no_mutations(cell)

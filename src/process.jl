@@ -1,48 +1,85 @@
 function processresults!(moduletracker::ModuleTracker, μ, clonalmutations, rng::AbstractRNG)
 
-    maxmutation = maximum(maximum(cell.mutations) for cell in moduletracker.cells)
-    mutationsN = rand(rng, Poisson(μ), maxmutation) 
+    maxmutation = get_maxmutation(moduletracker)
     mutationids = get_mutationids(μ, maxmutation, clonalmutations, rng)
     
-    for cell in moduletracker.cells
-        cell.mutations = reduce(vcat, mutationids[cell.mutations])
-        if clonalmutations > 0
-            prepend!(cell.mutations, 1:clonalmutations)
+    for moduletracker in populationtracker
+        if maxmutation > 0
+            for cell in moduletracker.cells
+                cell.mutations = reduce(vcat, mutationids[cell.mutations])
+                if clonalmutations > 0
+                    prepend!(cell.mutations, 1:clonalmutations)
+                end
+            end
+        elseif clonalmutations > 0
+            for cell in moduletracker.cells
+                cell.mutations = collect(1:clonalmutations)
+            end
+        end
+        #get list of mutations in each subclone
+        if maxmutation > 0 || clonalmutations > 0
+            for subclone in moduletracker.subclones
+                subclone.mutations = reduce(vcat, mutationids[subclone.mutations])
+                prepend!(subclone.mutations, 1:clonalmutations)
+            end
         end
     end
-
-    #get list of mutations in each subclone
-    for subclone in moduletracker.subclones
-        subclone.mutations = reduce(vcat, mutationids[subclone.mutations])
-        prepend!(subclone.mutations, 1:clonalmutations)
-    end
-
     return moduletracker
 end
 
 function processresults!(populationtracker::Array{ModuleTracker, 1}, μ, clonalmutations, 
     rng::AbstractRNG)
     
-    maxmutation = maximum(maximum(cell.mutations) 
-        for moduletracker in populationtracker for cell in moduletracker.cells
-    )
+    maxmutation = get_maxmutation(populationtracker)
     mutationids = get_mutationids(μ, maxmutation, clonalmutations, rng)
     
     for moduletracker in populationtracker
-        for cell in moduletracker.cells
-            cell.mutations = reduce(vcat, mutationids[cell.mutations])
-            if clonalmutations > 0
-                prepend!(cell.mutations, 1:clonalmutations)
+        if maxmutation > 0
+            for cell in moduletracker.cells
+                cell.mutations = reduce(vcat, mutationids[cell.mutations])
+                if clonalmutations > 0
+                    prepend!(cell.mutations, 1:clonalmutations)
+                end
+            end
+        elseif clonalmutations > 0
+            for cell in moduletracker.cells
+                cell.mutations = collect(1:clonalmutations)
             end
         end
-
         #get list of mutations in each subclone
-        for subclone in moduletracker.subclones
-            subclone.mutations = reduce(vcat, mutationids[subclone.mutations])
-            prepend!(subclone.mutations, 1:clonalmutations)
+        if maxmutation > 0 || clonalmutations > 0
+            for subclone in moduletracker.subclones
+                subclone.mutations = reduce(vcat, mutationids[subclone.mutations])
+                prepend!(subclone.mutations, 1:clonalmutations)
+            end
         end
     end
     return populationtracker
+end
+
+function get_maxmutation(populationtracker::Array{ModuleTracker, 1})
+    mutationlist = [mutation 
+        for moduletracker in populationtracker
+            for cell in moduletracker.cells
+                for mutation in cell.mutations
+    ]
+    if length(mutationlist) == 0
+        return 0
+    else
+        return maximum(mutationlist)
+    end
+end
+
+function get_maxmutation(moduletracker::ModuleTracker)
+    mutationlist = [mutation 
+        for cell in moduletracker.cells
+            for mutation in cell.mutations
+    ]
+    if length(mutationlist) == 0
+        return 0
+    else
+        return maximum(mutationlist)
+    end
 end
 
 function get_mutationids(μ, maxmutation, clonalmutations, rng)

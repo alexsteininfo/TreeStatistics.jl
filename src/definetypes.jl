@@ -86,16 +86,14 @@ struct BranchingMoranInput <: SimulationInput
     ploidy::Int64
 end
 struct MultilevelInput <: SimulationInput
-    numclones::Int64 
     modulesize::Int64
-    pop_age::Float64
+    maxtime::Float64
+    maxmodules::Int64
     clonalmutations::Int64
-    selection::Array{Float64,1}
     μ::Float64
     bdrate::Float64
     b::Float64
     d::Float64
-    tevent::Array{Float64,1}
     fixedmu::Bool
     branchrate::Float64
     branchinitsize::Int64
@@ -221,26 +219,23 @@ function BranchingMoranInput(;numclones = 1, Nmax = 10000, ploidy = 2, μ = 10.0
     
 end
 
-function MultilevelInput(;numclones=1, modulesize=200, ploidy=2, μ=10.0, clonalmutations=μ, 
-    selection=fill(0.0,numclones), bdrate=log(2.0), b=log(2), d=0, pop_age=15,
-    tevent=collect(1.0:0.5:(1+numclones)/2), fixedmu=false, branchrate=5, 
+function MultilevelInput(;modulesize=200, ploidy=2, μ=10.0, clonalmutations=μ, 
+    bdrate=log(2.0), b=log(2), d=0, maxtime=15, maxmodules=10000, fixedmu=false, branchrate=5, 
     branchfraction=0.1, branchinitsize=nothing)
 
     return MultilevelInput(
-            numclones,
             modulesize,
-            pop_age,
+            maxtime,
+            maxmodules,
             clonalmutations,
-            selection,
             μ,
             bdrate,
             b,
             d,
-            tevent,
             fixedmu,
             branchrate,
             branchinitsize !== nothing ? branchinitsize : ceil(modulesize * branchfraction),
-            ploidy
+            ploidy,
     )
 end
 
