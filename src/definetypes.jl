@@ -240,5 +240,6 @@ function MultilevelInput(;modulesize=200, ploidy=2, μ=10.0, clonalmutations=μ,
 end
 
 age(moduletracker::ModuleTracker) = moduletracker.tvec[end]
+age(populationtracker::Vector{ModuleTracker}) = maximum(map(age, populationtracker))
 age(simulation::Simulation) = age(simulation.output)
 age(multisim::MultiSimulation) = maximum(age(output) for output in multisim.output)

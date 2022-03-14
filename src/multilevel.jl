@@ -81,11 +81,11 @@ function simulate!(populationtracker, maxtime, maxmodules, b, d, bdrate, branchr
     modulesize, branchinitsize, rng)
 
     mutID = getmutID(populationtracker[1].cells) #get id of next mutation
-    t = 0
+    t = age(populationtracker)
     while t < maxtime && length(populationtracker) < maxmodules
         populationtracker, mutID, t = 
             update_population!(populationtracker, b, d, bdrate, branchrate, modulesize, 
-            branchinitsize, mutID, t, maxtime, rng)
+                branchinitsize, mutID, t, maxtime, rng)
         #returns empty list of modules if population dies out
         if length(populationtracker) == 0
             return populationtracker
@@ -120,7 +120,7 @@ function update_population!(populationtracker, b, d, bdrate, branchrate, modules
             1:4, 
             ProbabilityWeights(transitionrates ./ sum(transitionrates))
         )
-        populationtracker = transition!(
+        populationtracker, mutID = transition!(
             populationtracker, 
             transitionid, 
             modulesize, 
@@ -144,15 +144,15 @@ function transition!(populationtracker, transitionid, modulesize, branchinitsize
     μ, rng)
     
     if transitionid == 1
-        moranupdate!(populationtracker, modulesize, mutID, t, μ, rng)
+        _, mutID = moranupdate!(populationtracker, modulesize, mutID, t, μ, rng)
     elseif transitionid == 2
-        birthupdate!(populationtracker, modulesize, mutID, t, μ, rng)
+        _, mutID = birthupdate!(populationtracker, modulesize, mutID, t, μ, rng)
     elseif transitionid == 3
         deathupdate!(populationtracker, modulesize, t, rng)
     elseif transitionid == 4
         modulebranchingupdate!(populationtracker, modulesize, branchinitsize, t, rng)
     end
-    return populationtracker
+    return populationtracker, mutID
 end
 
 """
@@ -167,7 +167,7 @@ function moranupdate!(populationtracker, modulesize, mutID, t, μ, rng)
     _, mutID = celldivision!(moduletracker, parentcell, mutID, μ, rng)
     celldeath!(moduletracker, deadcell)
     updatemodulehistory!(moduletracker, 0, t)
-    return populationtracker
+    return populationtracker, mutID
 end
 
 """
@@ -180,7 +180,7 @@ function birthupdate!(populationtracker, modulesize, mutID, t, μ, rng)
         choose_growingmodule_cell(populationtracker, modulesize, rng)
     _, mutID = celldivision!(moduletracker, parentcell, mutID, μ, rng, fixedmu=true)
     updatemodulehistory!(moduletracker, 1, t)
-    return populationtracker
+    return populationtracker, mutID
 end
 
 """
