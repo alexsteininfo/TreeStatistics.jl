@@ -153,3 +153,4 @@ function parenttype_dist(output, i)
     parenttypes = sort(collect(countmap(parenttypes)))
     return parenttypes
 end
+

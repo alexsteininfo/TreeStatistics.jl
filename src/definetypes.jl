@@ -219,7 +219,7 @@ function BranchingMoranInput(;numclones = 1, Nmax = 10000, ploidy = 2, μ = 10.0
     
 end
 
-function MultilevelInput(;modulesize=200, ploidy=2, μ=10.0, clonalmutations=μ, 
+function MultilevelInput(;modulesize=200, ploidy=2, μ=10.0, clonalmutations=0, 
     bdrate=log(2.0), b=log(2), d=0, maxtime=15, maxmodules=10000, fixedmu=false, branchrate=5, 
     branchfraction=0.1, branchinitsize=nothing)
 

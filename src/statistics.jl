@@ -81,7 +81,7 @@ end
 
 
 """
-    clonal_mutation_ids(multisim::MultiSimulation, idx=nothing)
+    clonal_mutation_ids(population, idx=nothing)
 """
 function clonal_mutation_ids(population, idx=nothing)
     if isnothing(idx)
@@ -99,7 +99,31 @@ function clonal_mutation_ids(moduletracker::ModuleTracker)
 end
 
 """
-    pairwise_fixed_differences(population; idx=nothing, diagonals=false)
+    pairwise_fixed_differences(population[, idx])
+
+Calculate the number of pairwise fixed differences between every pair of modules and return
+as a dictionary (number differneces => frequency). If `idx` is given, only include listed 
+modules.
+"""
+
+function pairwise_fixed_differences(population, idx=nothing)
+    clonalmuts = clonal_mutation_ids(population, idx)
+    return pairwise_fixed_differences(clonalmuts)
+end
+
+function pairwise_fixed_differences(clonalmuts::Vector{Vector{Int64}})
+    n = length(clonalmuts)
+    pfd_vec = Int64[]
+    for i in 1:n
+        for j in i+1:n 
+            push!(pfd_vec, length(symdiff(clonalmuts[i], clonalmuts[j])))
+        end
+    end
+    return countmap(pfd_vec)
+end
+
+"""
+    pairwise_fixed_differences_matrix(population[, idx], diagonals=false)
 
 Calculate the number of pairwise fixed differences between modules. Return an n x n matrix, 
 such that the value at (i,j) is the pairwise fixed differences between modules i and j, and
@@ -109,8 +133,12 @@ If idx is given only compare specified modules, otherwise compare all modules in
 population. If diagonals is true include comparison with self (i.e. number of fixed clonal 
 mutations in each module).
 """
-function pairwise_fixed_differences(population; idx=nothing, diagonals=false)
+function pairwise_fixed_differences_matrix(population, idx=nothing; diagonals=false)
     clonalmuts = clonal_mutation_ids(population, idx)
+    return pairwise_fixed_differences_matrix(clonalmuts, diagonals=diagonals)
+end
+
+function pairwise_fixed_differences_matrix(clonalmuts::Vector{Vector{Int64}}; diagonals=false)
     n = length(clonalmuts)
     pfd = zeros(Int64, n, n)
     for i in 1:n
@@ -123,15 +151,19 @@ function pairwise_fixed_differences(population; idx=nothing, diagonals=false)
 end
 
 """
-    pairwise_fixed_differences_statistics(population, <idx=nothing, diagonals=flase>)
+    pairwise_fixed_differences_statistics(population[, idx], clonal=false)
 
 Calculate the mean and variance of the number of pairwise fixed differences between modules. 
 If idx is given only compare specified modules, otherwise compare all modules in the 
 population. If clonal is true also calculate mean and variance of number of clonal mutations
 in each module.
 """
-function pairwise_fixed_differences_statistics(population; idx=nothing, clonal=true)
+function pairwise_fixed_differences_statistics(population, idx=nothing; clonal=true)
     clonalmuts = clonal_mutation_ids(population, idx)
+    return pairwise_fixed_differences_statistics(clonalmuts; clonal=clonal)
+end
+
+function pairwise_fixed_differences_statistics(clonalmuts::Vector{Vector{Int64}}; clonal=true)
     n = length(clonalmuts)
     pfd = Int64[]
     for i in 1:n
@@ -145,6 +177,33 @@ function pairwise_fixed_differences_statistics(population; idx=nothing, clonal=t
     else
         return mean(pfd), var(pfd)
     end
+end
+
+"""
+    shared_fixed_mutations(population[, idx])
+"""
+function shared_fixed_mutations(population, idx=nothing)
+    clonalmuts = clonal_mutation_ids(population, idx)
+    return shared_fixed_mutations(clonalmuts)
+end
+
+function shared_fixed_mutations(clonalmuts::Vector{Vector{Int64}})
+    clonalmuts_vec = reduce(union, clonalmuts)
+    nclonalmuts = map(
+        x -> number_modules_with_mutation(clonalmuts, x), clonalmuts_vec
+    )
+    return countmap(nclonalmuts)
+end
+
+
+function number_modules_with_mutation(clonalmuts_by_module, mutationid)
+    n = 0
+    for muts in clonalmuts_by_module
+        if mutationid in muts
+            n += 1
+        end
+    end
+    return n
 end
 
 

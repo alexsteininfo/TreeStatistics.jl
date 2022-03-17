@@ -1,3 +1,31 @@
+function run_multilevel_from_file(filename, outputdir)
+    inputdict = JSON.parsefile(filename, dicttype=Dict{Symbol, Any})
+    input = loadinput(MultilevelInput, inputdict[:input])
+    seeds = inputdict[:seeds]
+    output = inputdict[:output]
+    if inputdict[:repeat] > 1
+        for i in 1:inputdict[:repeat]
+            rng, seed = seeds !== nothing ? (MersenneTwister(seeds[i]), seeds[i]) : (MersenneTwister(), nothing)
+            population = multilevel_simulation(input, rng, Symbol(inputdict[:simtype]))
+            saveoutput(population, output, outputdir, seed, i)
+        end
+    else
+        rng = MersenneTwister(seeds)
+        population = multilevel_simulation(input, rng, Symbol(inputdict[:simtype]))
+        saveoutput(population, output, outputdir, seeds, 1)
+    end
+end
+
+function run_multilevel_from_file(filename, outputdir, id)
+    inputdict = JSON.parsefile(filename, dicttype=Dict{Symbol, Any})
+    input = loadinput(MultilevelInput, inputdict[:input])
+    seed = (inputdict[:seeds])[id]
+    output = inputdict[:output]
+    rng = MersenneTwister(seed)
+    population = multilevel_simulation(input, rng, Symbol(inputdict[:simtype]))
+    saveoutput(population, output, outputdir, seed, id)
+end
+
 """
     multilevel_simulation(input::MultilevelInput, rng::AbstractRNG = MersenneTwister; 
         <keyword arguments>)
@@ -29,7 +57,7 @@ function multilevel_simulation(input::MultilevelInput, rng::AbstractRNG=Random.G
             input.modulesize, 
             clonalmutations=0
         )
-        if simtype == :normal
+        if simtype == :normal || simtype == "normal"
             populationtracker = 
                 simulate!(
                     populationtracker, 
@@ -43,7 +71,7 @@ function multilevel_simulation(input::MultilevelInput, rng::AbstractRNG=Random.G
                     input.branchinitsize, 
                     rng
                 )
-        elseif simtype == :fixedtime
+        elseif simtype == :fixedtime || simtype == "fixedtime"
             populationtracker = 
                 simulatefixedtime!(
                     populationtracker, 
@@ -57,7 +85,8 @@ function multilevel_simulation(input::MultilevelInput, rng::AbstractRNG=Random.G
                     input.branchinitsize, 
                     rng
                 )
-
+        else
+            error("incorrect value for simtype")
         end
         if length(populationtracker) != 0
             break

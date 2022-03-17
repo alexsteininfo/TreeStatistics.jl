@@ -16,11 +16,12 @@
     )
     population = multilevel_simulation(input, rng, :fixedtime)
     @test age(population) < 400
-
+    
+    b, d = 0.1, 0.0
     modulesize = 6
     branchinitsize = 2
     branchrate = 1/5
-    maxtime = 10
+    maxtime = 100
 
     moduletracker = SomaticEvolution.initialize_population(
         modulesize, 
@@ -66,17 +67,17 @@
 end
 
 input = MultilevelInput(
-            modulesize=4, 
-            fixedmu=true, 
-            b=0.1, 
-            d=0,
-            bdrate=0.01, 
-            clonalmutations=0, 
-            maxtime=1*365, 
-            branchrate=3/365, 
-            branchfraction=0.2, 
-            μ=1
-        )
+    modulesize=4, 
+    fixedmu=true, 
+    b=0.1, 
+    d=0,
+    bdrate=0.01, 
+    clonalmutations=0, 
+    maxtime=1*365, 
+    branchrate=3/365, 
+    branchfraction=0.2, 
+    μ=1
+)
 
 mt1 = SomaticEvolution.ModuleTracker(
     [1, 2, 3, 4, 4, 4, 4, 4, 4, 4, 3, 4, 4, 4, 4], 
@@ -115,8 +116,12 @@ population = SomaticEvolution.Population(input, [mt1, mt2, mt3])
     @test all(average_mutations(population, true) .≈ (3.875, 5.267857142857143))
     @test clonal_mutations(population) == [0, 2, 1]
     @test clonal_mutation_ids(population) == [[], [1, 13], [1]]
-    @test pairwise_fixed_differences(population, diagonals=true) == [0 0 0; 2 2 0; 1 1 1]
-    @test pairwise_fixed_differences(population, idx=[2,3]) == [0 0; 1 0]
+    @test pairwise_fixed_differences_matrix(population, diagonals=true) == [0 0 0; 2 2 0; 1 1 1]
+    @test pairwise_fixed_differences_matrix(population, [2,3]) == [0 0; 1 0]
+    @test pairwise_fixed_differences(population) == Dict{Int64, Int64}(1=>2, 2=>1)
+    @test pairwise_fixed_differences(population, [2,3]) == Dict{Int64, Int64}(1=>1)
+    @test shared_fixed_mutations(population) == Dict{Int64, Int64}(1=>1, 2=>1)
+    @test shared_fixed_mutations(population, [2,3]) == Dict{Int64, Int64}(1=>1, 2=>1)
     @test all(pairwise_fixed_differences_statistics(population, clonal=true) .≈ (1.3333333333333333,0.33333333333333333,1,1))
     @test newmoduletimes(population) ≈ [0.0, 187.1205185574646, 257.22794191422554]
     @test all(cellpopulationsize(population, 50) .≈ ([0,50,100,150,200,250],[1, 4, 4, 4, 5, 8]))

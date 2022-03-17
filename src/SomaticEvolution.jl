@@ -11,6 +11,8 @@ using LaTeXStrings
 using Printf
 using CSV
 using Plots
+using JSON
+using DelimitedFiles
 
 
 export Cell,
@@ -46,7 +48,9 @@ branchingprocess,
 moranprocess,
 get_simulation,
 pairwise_fixed_differences,
+pairwise_fixed_differences_matrix,
 pairwise_fixed_differences_statistics,
+shared_fixed_mutations,
 newmoduletimes,
 cellpopulationsize,
 average_mutations,
@@ -56,7 +60,10 @@ clonal_mutation_ids,
 clonal_mutations,
 subclonefreq,
 getVAFresult,
-age
+age,
+saveinput,
+loadinput,
+run_multilevel_from_file
 
 
 include("definetypes.jl")
@@ -69,6 +76,7 @@ include("multirun.jl")
 include("plot.jl")
 include("util.jl")
 include("statistics.jl")
+include("io.jl")
 
 
 
