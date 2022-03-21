@@ -182,9 +182,16 @@ end
 
 @userplot PairwiseDistributionPlot
 
-@recipe function f(pdp::PairwiseDistributionPlot; sampleids=nothing, samplesize=nothing)
+@recipe function f(pdp::PairwiseDistributionPlot; sampleids=nothing, samplesize=nothing,
+    showclonal=false)
+
     if typeof(pdp.args[1]) <: Dict
-        data = reduce(vcat, [fill(key, val) for (key,val) in pdp.args[1]])
+        pfddata = reduce(vcat, [fill(key, val) for (key,val) in pdp.args[1]])
+        if length(pdp.args) > 1
+            clonal = pdp.args[2]
+        else 
+            showclonal = false
+        end
     else
         pfdmatrix = pdp.args[1]
         n = size(pfdmatrix)[1]
@@ -195,7 +202,7 @@ end
             pfdmatrix = pfdmatrix[sampleids, sampleids]
             n = length(sampleids)
         end
-        data = convert_pfdmatrix_to_vector(pfdmatrix)
+        pfddata, clonal = convert_pfdmatrix_to_vector(pfdmatrix)
     end
     @series begin
         grid --> false
@@ -205,17 +212,29 @@ end
         legend --> false
         titlefontsize -->10
         titlelocation --> :left
-        data
+        pfddata
+    end
+    if showclonal
+        @series begin
+            seriestype --> :vline
+            legend --> false
+            fillcolor --> :darkred
+            linewidth --> 2
+            grid --> false
+            [mean(clonal)]
+        end
     end
 end
 
 function convert_pfdmatrix_to_vector(pfdmatrix)
     n = size(pfdmatrix)[1]
     vals = Int64[]
+    clonal = Int64[]
     for i in 1:n
+        push!(clonal, pfdmatrix[i,i])
         for j in i+1:n
             push!(vals, pfdmatrix[j,i])
         end
     end
-    return vals
+    return vals, clonal
 end

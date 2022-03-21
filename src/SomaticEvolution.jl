@@ -13,6 +13,7 @@ using CSV
 using Plots
 using JSON
 using DelimitedFiles
+using AbstractTrees
 
 
 export Cell,
@@ -56,6 +57,7 @@ cellpopulationsize,
 average_mutations,
 average_mutations_per_module,
 mutations_per_cell,
+mutation_ids_by_cell,
 clonal_mutation_ids,
 clonal_mutations,
 subclonefreq,
@@ -77,6 +79,7 @@ include("plot.jl")
 include("util.jl")
 include("statistics.jl")
 include("io.jl")
+include("trees.jl")
 
 
 

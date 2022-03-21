@@ -19,6 +19,16 @@ mutations_per_cell(moduletracker::ModuleTracker) = mutations_per_cell(moduletrac
 
 mutations_per_cell(cells::Array{Cell, 1}) = map(cell -> length(cell.mutations), cells)
 
+
+mutation_ids_by_cell(moduletracker::ModuleTracker, idx=nothing) = mutation_ids_by_cell(moduletracker.cells, idx)
+
+function mutation_ids_by_cell(cells::Array{Cell, 1}, idx=nothing)
+    if isnothing(idx) 
+        return map(cell -> cell.mutations, cells)
+    else
+        return map(cell --> cell.mutations, cells[idx])
+    end
+end
 """
     average_mutations_per_module(population)
 
@@ -99,6 +109,28 @@ function clonal_mutation_ids(moduletracker::ModuleTracker)
 end
 
 """
+    pairwise_fixed_differences(simulation::Simulation[, idx])
+
+Calculate the number of pairwise fixed differences between every pair of cells and return
+as a dictionary (number differneces => frequency). If `idx` is given, only include listed 
+cells.
+"""
+
+function pairwise_fixed_differences(simulation::Simulation, idx=nothing)
+    return pairwise_fixed_differences(simulation.output, idx)
+end
+
+"""
+    pairwise_fixed_differences(moduletracker::ModuleTracker[, idx])
+
+See pairwise_fixed_differences(simulation::Simulation)
+"""
+
+function pairwise_fixed_differences(moduletracker::ModuleTracker, idx=nothing)
+    muts = mutation_ids_by_cell(moduletracker, idx)
+    return pairwise_fixed_differences(muts)
+end
+"""
     pairwise_fixed_differences(population[, idx])
 
 Calculate the number of pairwise fixed differences between every pair of modules and return
@@ -111,12 +143,12 @@ function pairwise_fixed_differences(population, idx=nothing)
     return pairwise_fixed_differences(clonalmuts)
 end
 
-function pairwise_fixed_differences(clonalmuts::Vector{Vector{Int64}})
-    n = length(clonalmuts)
+function pairwise_fixed_differences(muts::Vector{Vector{Int64}})
+    n = length(muts)
     pfd_vec = Int64[]
     for i in 1:n
         for j in i+1:n 
-            push!(pfd_vec, length(symdiff(clonalmuts[i], clonalmuts[j])))
+            push!(pfd_vec, length(symdiff(muts[i], muts[j])))
         end
     end
     return countmap(pfd_vec)
@@ -138,13 +170,22 @@ function pairwise_fixed_differences_matrix(population, idx=nothing; diagonals=fa
     return pairwise_fixed_differences_matrix(clonalmuts, diagonals=diagonals)
 end
 
-function pairwise_fixed_differences_matrix(clonalmuts::Vector{Vector{Int64}}; diagonals=false)
-    n = length(clonalmuts)
+function pairwise_fixed_differences_matrix(simulation::Simulation, idx=nothing; diagonals=false)
+    return pairwise_fixed_differences_matrix(simulation.output, idx, diagonals=diafgonals)
+end
+
+function pairwise_fixed_differences_matrix(moduletracker::ModuleTracker, idx=nothing; diagonals=false)
+    muts = mutation_ids_by_cell(moduletracker, idx)
+    return pairwise_fixed_differences_matrix(muts, diagonals=diagonals)
+end
+
+function pairwise_fixed_differences_matrix(muts::Vector{Vector{Int64}}; diagonals=false)
+    n = length(muts)
     pfd = zeros(Int64, n, n)
     for i in 1:n
-        if diagonals pfd[i,i] = length(clonalmuts[i]) end
+        if diagonals pfd[i,i] = length(muts[i]) end
         for j in i+1:n
-            pfd[j,i] = length(symdiff(clonalmuts[i], clonalmuts[j]))
+            pfd[j,i] = length(symdiff(muts[i], muts[j]))
         end
     end
     return pfd
