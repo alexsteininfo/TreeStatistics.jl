@@ -1,96 +1,90 @@
-function processresults!(moduletracker::ModuleTracker, μ, clonalmutations, rng::AbstractRNG)
+function processresults!(moduletracker::ModuleTracker, μ, clonalmutations, rng::AbstractRNG;
+    fixedmu=false)
 
-    maxmutation = get_maxmutation(moduletracker)
-    mutationids = get_mutationids(μ, maxmutation, clonalmutations, rng)
+    mutationlist = get_mutationlist(moduletracker)
+    expandedmutationids = 
+        get_expandedmutationids(μ, mutationlist, clonalmutations, rng, fixedmu=fixedmu)
+    expandmutations!(moduletracker, expandedmutationids, clonalmutations)
+    
+    return moduletracker
+end
+
+function processresults!(populationtracker::Array{ModuleTracker, 1}, μ, clonalmutations, 
+    rng::AbstractRNG; fixedmu=false)
+    
+    mutationlist = get_mutationlist(populationtracker)
+    expandedmutationids = 
+        get_expandedmutationids(μ, mutationlist, clonalmutations, rng, fixedmu=fixedmu)
     
     for moduletracker in populationtracker
-        if maxmutation > 0
-            for cell in moduletracker.cells
-                cell.mutations = reduce(vcat, mutationids[cell.mutations])
-                if clonalmutations > 0
-                    prepend!(cell.mutations, 1:clonalmutations)
-                end
-            end
-        elseif clonalmutations > 0
-            for cell in moduletracker.cells
-                cell.mutations = collect(1:clonalmutations)
+        expandmutations!(moduletracker, expandedmutationids, clonalmutations)
+    end
+    return populationtracker
+end
+
+function expandmutations!(moduletracker, expandedmutationids, clonalmutations)
+
+    if length(expandedmutationids) > 0
+        for cell in moduletracker.cells
+            cell.mutations = expandmutations(expandedmutationids, cell.mutations)
+            if clonalmutations > 0
+                prepend!(cell.mutations, 1:clonalmutations)
             end
         end
-        #get list of mutations in each subclone
-        if maxmutation > 0 || clonalmutations > 0
-            for subclone in moduletracker.subclones
-                subclone.mutations = reduce(vcat, mutationids[subclone.mutations])
-                prepend!(subclone.mutations, 1:clonalmutations)
-            end
+    elseif clonalmutations > 0
+        for cell in moduletracker.cells
+            cell.mutations = collect(1:clonalmutations)
+        end
+    end
+    #get list of mutations in each subclone
+    if length(expandedmutationids) > 0
+        for subclone in moduletracker.subclones
+            subclone.mutations = expandmutations(expandedmutationids, subclone.mutations)
         end
     end
     return moduletracker
 end
 
-function processresults!(populationtracker::Array{ModuleTracker, 1}, μ, clonalmutations, 
-    rng::AbstractRNG)
-    
-    maxmutation = get_maxmutation(populationtracker)
-    mutationids = get_mutationids(μ, maxmutation, clonalmutations, rng)
-    
-    for moduletracker in populationtracker
-        if maxmutation > 0
-            for cell in moduletracker.cells
-                cell.mutations = reduce(vcat, mutationids[cell.mutations])
-                if clonalmutations > 0
-                    prepend!(cell.mutations, 1:clonalmutations)
-                end
-            end
-        elseif clonalmutations > 0
-            for cell in moduletracker.cells
-                cell.mutations = collect(1:clonalmutations)
-            end
-        end
-        #get list of mutations in each subclone
-        if maxmutation > 0 || clonalmutations > 0
-            for subclone in moduletracker.subclones
-                subclone.mutations = reduce(vcat, mutationids[subclone.mutations])
-                prepend!(subclone.mutations, 1:clonalmutations)
-            end
-        end
-    end
-    return populationtracker
+function expandmutations(expandedmutationids, originalmutations)
+    return reduce(
+        vcat, 
+        filter(!isempty, map(x -> expandedmutationids[x], originalmutations)),
+        init=Int64[]
+    )
 end
 
-function get_maxmutation(populationtracker::Array{ModuleTracker, 1})
+function get_mutationlist(populationtracker::Array{ModuleTracker, 1})
+    #get list of all mutations assigned to each cell
     mutationlist = [mutation 
         for moduletracker in populationtracker
             for cell in moduletracker.cells
                 for mutation in cell.mutations
     ]
-    if length(mutationlist) == 0
-        return 0
-    else
-        return maximum(mutationlist)
-    end
+    return sort(unique(mutationlist))
 end
 
-function get_maxmutation(moduletracker::ModuleTracker)
+function get_mutationlist(moduletracker::ModuleTracker)
+    #get list of all mutations assigned to each cell
     mutationlist = [mutation 
         for cell in moduletracker.cells
             for mutation in cell.mutations
     ]
-    if length(mutationlist) == 0
-        return 0
-    else
-        return maximum(mutationlist)
-    end
+    return unique(mutationlist)
 end
 
-function get_mutationids(μ, maxmutation, clonalmutations, rng)
-    mutationsN = rand(rng, Poisson(μ), maxmutation) 
-    mutationids = Vector{Int64}[]
+function get_expandedmutationids(μ, mutationlist, clonalmutations, rng; fixedmu=false)
+    if fixedmu 
+        mutationsN = fill(μ, length(mutationlist))
+    else
+        mutationsN = rand(rng, Poisson(μ), length(mutationlist)) 
+    end
+    expandedmutationids = Dict{Int64, Vector{Int64}}()
     i = clonalmutations + 1
-    for N in mutationsN
-        push!(mutationids, collect(i:i+N-1))
+    for (mutkey, N) in zip(mutationlist, mutationsN)
+        push!(expandedmutationids, mutkey=>collect(i:i+N-1))
         i += N
     end
-    return mutationids
+    return expandedmutationids
 end
 
 function remove_undetectable!(moduletracker::ModuleTracker, clonefreq, clonefreqp, numclones, detectableclones)

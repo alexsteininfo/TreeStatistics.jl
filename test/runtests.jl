@@ -3,7 +3,7 @@ using Test
 using Random
 using StatsBase
 
-tests = ["initialisation","multilevel","simulations","testio"]
+tests = ["initialisation","multilevel","simulations","testio","process_mutations"]
 
 @testset "SomaticEvolution.jl" begin
     for test in tests

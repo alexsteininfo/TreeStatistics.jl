@@ -21,7 +21,7 @@ function run1simulation(input::BranchingMoranInput, rng::AbstractRNG = Random.GL
         tevent = input.tevent)
 
     moduletracker = 
-        processresults!(moduletracker, input.μ, input.clonalmutations, rng)
+        processresults!(moduletracker, input.μ, input.clonalmutations, rng, fixedmu=input.fixedmu)
     
     return Simulation(input, moduletracker)
 end
@@ -43,7 +43,7 @@ function run1simulation(input::BranchingInput, rng::AbstractRNG = Random.GLOBAL_
     #Add mutations and process simulation output to get SimResults.
     #Remove undetectable subclones from moduletracker
     moduletracker = 
-        processresults!(moduletracker, input.μ, input.clonalmutations, rng)
+        processresults!(moduletracker, input.μ, input.clonalmutations, rng, fixedmu=input.fixedmu)
 
     return Simulation(input, moduletracker)
 end
@@ -67,7 +67,7 @@ function run1simulation(input::MoranInput, rng::AbstractRNG = Random.GLOBAL_RNG)
     #Add mutations and process simulation output to get SimResults.
     #Remove undetectable subclones from moduletracker   
     moduletracker = 
-        processresults!(moduletracker, input.μ, input.clonalmutations, rng)
+        processresults!(moduletracker, input.μ, input.clonalmutations, rng, fixedmu=input.fixedmu)
     return Simulation(input,moduletracker)
 end
 
@@ -131,7 +131,7 @@ See also [`branchingprocess`](@ref)
 function branchingprocess!(moduletracker::ModuleTracker, b, d, Nmax, μ, rng::AbstractRNG; 
     numclones=0, fixedmu=false, selection=Float64[], tevent=Float64[], 
     maxclonesize=200, tmax=Inf)
-
+    
     t, N = moduletracker.tvec[end], moduletracker.Nvec[end]
     mutID = N == 1 ? 1 : getmutID(moduletracker.cells)
 
@@ -485,7 +485,8 @@ end
 
 function newmutations!(cell, μ, mutID)
     #function to add new mutations to cells based on μ
-    append!(cell.mutations, mutID:mutID + μ - 1)
+    newmutations = mutID:mutID + μ - 1
+    append!(cell.mutations, newmutations)
     mutID = mutID + μ
     return cell, mutID
 end

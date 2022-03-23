@@ -183,15 +183,10 @@ end
 @userplot PairwiseDistributionPlot
 
 @recipe function f(pdp::PairwiseDistributionPlot; sampleids=nothing, samplesize=nothing,
-    showclonal=false)
+    showclonal=false, xticks=:auto)
 
     if typeof(pdp.args[1]) <: Dict
         pfddata = reduce(vcat, [fill(key, val) for (key,val) in pdp.args[1]])
-        if length(pdp.args) > 1
-            clonal = pdp.args[2]
-        else 
-            showclonal = false
-        end
     else
         pfdmatrix = pdp.args[1]
         n = size(pfdmatrix)[1]
@@ -202,26 +197,32 @@ end
             pfdmatrix = pfdmatrix[sampleids, sampleids]
             n = length(sampleids)
         end
-        pfddata, clonal = convert_pfdmatrix_to_vector(pfdmatrix)
+        pfddata = convert_pfdmatrix_to_vector(pfdmatrix)
     end
     @series begin
         grid --> false
         seriestype := :hist
         xguide --> "Number of pairwise fixed differences"
         yguide --> "Frequency"
+        color --> :dimgrey
+        linecolor --> :dimgrey
         legend --> false
         titlefontsize -->10
         titlelocation --> :left
         pfddata
     end
-    if showclonal
+    if showclonal && length(pdp.args) > 1
         @series begin
-            seriestype --> :vline
             legend --> false
-            fillcolor --> :darkred
-            linewidth --> 2
             grid --> false
-            [mean(clonal)]
+            xguide --> "Number of pairwise fixed differences"
+            yguide --> "Frequency"
+            titlefontsize -->10
+            titlelocation --> :left
+            seriestype --> :vline
+            fillcolor --> :red
+            linewidth --> 2
+            [mean(pdp.args[2])]
         end
     end
 end
@@ -229,12 +230,10 @@ end
 function convert_pfdmatrix_to_vector(pfdmatrix)
     n = size(pfdmatrix)[1]
     vals = Int64[]
-    clonal = Int64[]
     for i in 1:n
-        push!(clonal, pfdmatrix[i,i])
         for j in i+1:n
             push!(vals, pfdmatrix[j,i])
         end
     end
-    return vals, clonal
+    return vals
 end

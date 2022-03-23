@@ -54,7 +54,7 @@ struct BranchingInput <: SimulationInput
     d::Float64
     tevent::Array{Float64,1}
     fixedmu::Bool
-    maxclonesize::Int64
+    maxclonesize::Union{Int64, Nothing}
     ploidy::Int64
 end
 
@@ -163,7 +163,7 @@ end
 function BranchingInput(;numclones = 1, Nmax = 10000, ploidy = 2, μ = 10.0, 
     clonalmutations = μ, selection = fill(0.0,numclones), b = log(2.0), d = 0.0, 
     tevent = collect(1.0:0.5:(1+numclones)/2), fixedmu = false, 
-    maxclonesize = 200)
+    maxclonesize = nothing)
 
     return BranchingInput(
             numclones,
