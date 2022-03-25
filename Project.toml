@@ -1,7 +1,7 @@
 name = "SomaticEvolution"
 uuid = "7b855ee6-6887-412f-a571-26d20a5a92d7"
 authors = ["Jessie Renton <jsr.renton@gmail.com> and contributors"]
-version = "0.1.0"
+version = "0.1.2"
 
 [deps]
 AbstractTrees = "1520ce14-60c1-5f80-bbc7-55ef81b5835c"
