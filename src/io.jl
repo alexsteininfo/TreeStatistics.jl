@@ -22,14 +22,30 @@ function saveoutput(population, output, outputdir, seed, id, rng::AbstractRNG=Ra
     outputdir = outputdir[end] == '/' ? outputdir : outputdir * '/'
     mkpath(outputdir)
 
-    if output[:compare_sampled_modules]
+    if haskeytrue(output, :compare_sampled_modules)
         save_sampled_module_compare(population, output[:nsample], outputdir, id, rng)
     end
-    if output[:pfd_matrix]
+    if haskeytrue(output, :pfd_matrix)
         save_pfd_matrix(population, outputdir, id)
+    end
+    if haskeytrue(output, :sharedfixedmuts)
+        save_sharedfixedmuts(population, outputdir, id)
+    end
+    if haskeytrue(output, :moduleancestory)
+        save_moduleancestory(population, outputdir, id)
     end
     save_other_population_data(population, output, outputdir, id)
 
+end
+
+haskeytrue(output, key) = haskey(output, key) && output[key]    
+
+function save_moduleancestory(population, outputdir, id)
+    open(outputdir*"moduleancestory.txt", "w") do io
+        for moduletracker in population
+            write(io, "$(moduletracker.parentid)    $(moduletracker.id)    $(moduletracker.tvec[1])\n")
+        end
+    end
 end
 
 function save_sampled_module_compare(population, nsample, outputdir, id, rng)
@@ -54,6 +70,13 @@ function save_pfd_matrix(population, outputdir, id)
     pfd = pairwise_fixed_differences_matrix(population, diagonals=true)
     open(outputdir*"pfdmatrix_$id.txt", "w") do io
         writedlm(io, pfd)
+    end
+end
+
+function save_sharedfixedmuts(population, outputdir, id)
+    sharedfixedmuts = shared_fixed_mutations(population)
+    open(outputdir*"sharedfixedmutsall_$i.txt", "w") do io
+        writedlm(io, sharedfixedmuts)
     end
 end
 
