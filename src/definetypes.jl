@@ -134,7 +134,6 @@ end
 struct MultiSimulation{T<:SimulationInput}
     input::T
     output::Array{ModuleTracker, 1}
-    # mutations::Array{Int64, 1}
 end
 
 function MultiSimulation{T}(input::T) where T<:SimulationInput

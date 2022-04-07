@@ -125,6 +125,8 @@ population = SomaticEvolution.Population(input, [mt1, mt2, mt3])
     @test all(pairwise_fixed_differences_statistics(population, clonal=true) .≈ (1.3333333333333333,0.33333333333333333,1,1))
     @test newmoduletimes(population) ≈ [0.0, 187.1205185574646, 257.22794191422554]
     @test all(cellpopulationsize(population, 50) .≈ ([0,50,100,150,200,250],[1, 4, 4, 4, 5, 8]))
+    @test all(meanmodulesize(population, 50) .≈ ([0,50,100,150,200,250], [1.0, 4.0, 4.0, 4.0, 2.5, 4.0]))
+    @test all(numbermodules(population, 50) .≈ ([0,50,100,150,200,250], [1, 1, 1, 1, 2, 2]))
 end
 
 @testset "updates" begin

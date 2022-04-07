@@ -257,6 +257,24 @@ Return a vector of times at which new modules arose in the population
 newmoduletimes(population) = sort([moduletracker.tvec[1] for moduletracker in population])
 
 """
+    numbermodules(population, tstep)
+
+Return number of modules in the population at times in 1:tstep:tend
+"""
+function numbermodules(population, tstep, tend=nothing)
+    if isnothing(tend)
+        tend = maximum(moduletracker.tvec[end] for moduletracker in population)
+    end
+    newmodtimes = newmoduletimes(population)
+    times = collect(0:tstep:tend)
+    nmodules = Int64[]
+    for t in times
+        push!(nmodules, sum(newmodtimes .<= t))
+    end
+    return times, nmodules
+
+end
+"""
     cellpopulationsize(population, tstep)
 
 Return number of cells in the population at times in 1:tstep:tend
@@ -285,4 +303,36 @@ function cellpopulationsize(population, tstep)
     return collect(0:tstep:tend), popvec
 end
 
+"""
+    meanmodulesize(multisimulation, tstep)
+
+Return mean modulesize in the multisimulation at times in 1:tstep:tend
+"""
+function meanmodulesize(multisimulation, tstep)
+    tend = maximum(moduletracker.tvec[end] for moduletracker in multisimulation)
+    popvec = Float64[]
+    for time in 0:tstep:tend
+        pop = 0
+        modules = 0
+        for moduletracker in multisimulation
+            if moduletracker.tvec[1] <= time 
+                modules += 1
+                N0 = 0 
+                for (N, t) in zip(moduletracker.Nvec, moduletracker.tvec)
+                    if t > time 
+                        pop += N0
+                        break
+                    elseif t == moduletracker.tvec[end]
+                        pop += N
+                        break
+                    else
+                        N0 = N
+                    end
+                end
+            end
+        end
+        push!(popvec, pop/modules)
+    end
+    return collect(0:tstep:tend), popvec
+end
     

@@ -107,7 +107,34 @@ end
     end
 end
 
-@recipe function f(multisim::MultiSimulation; plottype=:popsize, tstep=nothing)
+@recipe function f(simulation::Simulation; fitexponential=false)
+    yguide --> "Number of cells"
+    xguide --> "Time"
+    @series begin
+        seriestype --> :line
+        legend --> false
+        label --> "simulation"
+        grid --> false
+        simulation.output.tvec, simulation.output.Nvec
+    end
+    if fitexponential
+        df = DataFrame(
+            :popsizelog => log.(simulation.output.Nvec), 
+            :time => simulation.output.tvec
+        )
+        lmfit = fit(LinearModel, @formula(popsizelog ~ time + 0), df)
+        m = coef(lmfit)[1]
+        @series begin
+            seriestype --> :line
+            legend --> true
+            legend_position --> :topleft
+            label --> "b = $(round(m, digits=5))"
+            simulation.output.tvec, exp.(m*simulation.output.tvec)
+        end
+    end
+end
+
+@recipe function f(multisim::MultiSimulation; plottype=:popsize, fitexponential=false, tstep=nothing)
     if plottype == :modulesize
         yguide --> "Module size"
         xguide --> "Time"
@@ -119,13 +146,31 @@ end
             end
         end
     elseif plottype == :popsize
+        time, popsize = newmoduletimes(multisim), 1:length(multisim)
         yguide --> "Number of modules"
         xguide --> "Time"
         @series begin
             seriestype --> :line
             legend --> false
-            newmoduletimes(multisim), 1:length(multisim)
+            label --> "simulation"
+            time, popsize
         end
+        if fitexponential
+            df = DataFrame(
+                :popsizelog => log.(popsize), 
+                :time => time
+            )
+            lmfit = fit(LinearModel, @formula(popsizelog ~ time + 0), df)
+            m = coef(lmfit)[1]
+            @series begin
+                seriestype --> :line
+                legend --> true
+                legend_position --> :topleft
+                label --> "r = $(round(m, digits=5))"
+                time, exp.(m*time)
+            end
+        end
+
     elseif plottype == :cellpopsize
         tstep = isnothing(tstep) ? 1 / multisim.input.bdrate : tstep
         yguide --> "Number of cells"
@@ -135,8 +180,8 @@ end
             legend --> false
             cellpopulationsize(multisim, tstep)
         end
-
     end
+    
 end
 
 @userplot PairwisePlot

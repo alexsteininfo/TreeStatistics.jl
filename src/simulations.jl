@@ -72,6 +72,27 @@ function run1simulation(input::MoranInput, rng::AbstractRNG = Random.GLOBAL_RNG)
 end
 
 """
+    run1simulation_clonalmuts(input::MoranInput[, rng::AbstractRNG]; tstep)
+
+    Simulate a population of cells according to a Moran process for fixed time. Return 
+    a vector of the number of clonal mutations acquired at given time intervals.
+"""
+
+function run1simulation_clonalmuts(input::MoranInput, tstep, rng::AbstractRNG = Random.GLOBAL_RNG)
+
+    #Run Moran simulation starting from a population of N identical cells.
+        
+    moduletracker, clonalmuts, = 
+        moranprocess_clonalmuts(input.N, input.bdrate, input.tmax, input.μ, tstep, rng, 
+                    numclones = input.numclones, fixedmu = input.fixedmu, 
+                    clonalmutations = input.clonalmutations, selection = input.selection,
+                    tevent = input.tevent)
+
+
+    return Simulation(input,moduletracker), clonalmuts
+end
+
+"""
     branchingprocess(input::BranchingInput, rng::AbstractRNG; <keyword arguments>)
 
 Simulate a stochastic branching process with parameters defined by input and return 
@@ -293,6 +314,21 @@ function moranprocess(N, bdrate, tmax, μ, rng::AbstractRNG; numclones = 0, fixe
     fixedmu = fixedmu, selection = selection, tevent = tevent)
     return moduletracker
 end
+
+function moranprocess_clonalmuts(N, bdrate, tmax, μ, tstep, rng::AbstractRNG; numclones = 0, 
+    fixedmu = false, clonalmutations = μ, selection = Float64[], tevent = Float64[])
+
+    moduletracker = initializesim_moran(N, clonalmutations = clonalmutations)
+    clonalmuts = Int64[]
+    for t in 0:tstep:tmax
+        moduletracker = 
+            moranprocess!(moduletracker, bdrate, t, μ, rng, numclones = numclones,
+                fixedmu = fixedmu, selection = selection, tevent = tevent)
+        push!(clonalmuts, clonal_mutations(moduletracker))
+    end
+    return moduletracker, clonalmuts
+end
+
 """
     moranprocess!(moduletracker::ModuleTracker, bdrate, tmax, μ, rng::AbstractRNG; 
         <keyword-arguments>)

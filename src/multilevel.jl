@@ -403,6 +403,7 @@ function module_simulate_to_branching!(moduletracker, maxtime, b, d, bdrate,
     #if module branching will occur before maxime is reached, simulate moran process until
     #branchtime and sample new module
     if branchtime < maxtime
+
         moduletracker = 
             moranprocess!(moduletracker, bdrate, branchtime, 1, rng, numclones=0, 
                 fixedmu=true)
