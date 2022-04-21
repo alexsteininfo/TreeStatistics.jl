@@ -7,6 +7,7 @@ Represents a single cell.
 mutable struct Cell
     mutations::Array{Int64,1}
     clonetype::Int64
+    birthtime::Float64
 end
 
 mutable struct CloneTracker
@@ -53,7 +54,7 @@ struct BranchingInput <: SimulationInput
     b::Float64
     d::Float64
     tevent::Array{Float64,1}
-    fixedmu::Bool
+    mutationdist::Symbol
     maxclonesize::Union{Int64, Nothing}
     ploidy::Int64
 end
@@ -67,7 +68,7 @@ struct MoranInput <: SimulationInput
     μ::Float64
     bdrate::Float64
     tevent::Array{Float64,1}
-    fixedmu::Bool
+    mutationdist::Symbol
     ploidy::Int64
 end
 
@@ -82,7 +83,7 @@ struct BranchingMoranInput <: SimulationInput
     b::Float64
     d::Float64
     tevent::Array{Float64,1}
-    fixedmu::Bool
+    mutationdist::Symbol
     ploidy::Int64
 end
 struct MultilevelInput <: SimulationInput
@@ -94,7 +95,7 @@ struct MultilevelInput <: SimulationInput
     bdrate::Float64
     b::Float64
     d::Float64
-    fixedmu::Bool
+    mutationdist::Symbol
     branchrate::Float64
     branchinitsize::Int64
     ploidy::Int64
@@ -159,68 +160,77 @@ function get_simulation(multsim, i)
     return Simulation(multsim.input, multsim.output[i])
 end 
 
-function BranchingInput(;numclones = 1, Nmax = 10000, ploidy = 2, μ = 10.0, 
-    clonalmutations = μ, selection = fill(0.0,numclones), b = log(2.0), d = 0.0, 
-    tevent = collect(1.0:0.5:(1+numclones)/2), fixedmu = false, 
-    maxclonesize = nothing)
+function BranchingInput(;numclones=1, Nmax=10000, ploidy=2, μ=10.0, 
+    clonalmutations=μ, selection=fill(0.0,numclones), b=log(2.0), d=0.0, 
+    tevent=collect(1.0:0.5:(1+numclones)/2), fixedmu=false, mutationdist=nothing,
+    maxclonesize=nothing)
+
+    mutationdist = set_mutationdist(mutationdist, fixedmu)
 
     return BranchingInput(
-            numclones,
-            Nmax,
-            clonalmutations,
-            selection,
-            μ,
-            b,
-            d,
-            tevent,
-            fixedmu,
-            maxclonesize,
-            ploidy
+        numclones,
+        Nmax,
+        clonalmutations,
+        selection,
+        μ,
+        b,
+        d,
+        tevent,
+        mutationdist,
+        maxclonesize,
+        ploidy
     )
 end
 
-function MoranInput(;numclones = 1, N = 10000, ploidy = 2, μ = 10.0, clonalmutations = μ, 
-    selection = fill(0.0,numclones), bdrate = log(2.0), tmax = 15.0,
-    tevent = collect(1.0:0.5:(1+numclones)/2), fixedmu = false)
+function MoranInput(;numclones=1, N=10000, ploidy=2, μ=10.0, clonalmutations=μ, 
+    selection=fill(0.0,numclones), bdrate=log(2.0), tmax=15.0,
+    tevent=collect(1.0:0.5:(1+numclones)/2), fixedmu=false, mutationdist=nothing)
+
+    mutationdist = set_mutationdist(mutationdist, fixedmu)
 
     return MoranInput(
-            N,
-            numclones,
-            tmax,
-            clonalmutations,
-            selection,
-            μ,
-            bdrate,
-            tevent,
-            fixedmu,
-            ploidy
+        N,
+        numclones,
+        tmax,
+        clonalmutations,
+        selection,
+        μ,
+        bdrate,
+        tevent,
+        mutationdist,
+        ploidy
     )
 end
 
-function BranchingMoranInput(;numclones = 1, Nmax = 10000, ploidy = 2, μ = 10.0, 
-    clonalmutations = μ, selection = fill(0.0,numclones), bdrate = log(2.0), b = log(2), 
-    d = 0, tmax = 15.0, tevent = collect(1.0:0.5:(1+numclones)/2), fixedmu = false)
+function BranchingMoranInput(;numclones=1, Nmax=10000, ploidy=2, μ=10.0, 
+    clonalmutations=μ, selection=fill(0.0,numclones), bdrate=log(2.0), b=log(2), 
+    d=0, tmax=15.0, tevent=collect(1.0:0.5:(1+numclones)/2), fixedmu=false, 
+    mutationdist=nothing)
+
+    mutationdist = set_mutationdist(mutationdist, fixedmu)
 
     return BranchingMoranInput(
-            numclones,
-            Nmax,
-            tmax,
-            clonalmutations,
-            selection,
-            μ,
-            bdrate,
-            b,
-            d,
-            tevent,
-            fixedmu,
-            ploidy
+        numclones,
+        Nmax,
+        tmax,
+        clonalmutations,
+        selection,
+        μ,
+        bdrate,
+        b,
+        d,
+        tevent,
+        mutationdist,
+        ploidy
     )
     
 end
 
 function MultilevelInput(;modulesize=200, ploidy=2, μ=10.0, clonalmutations=0, 
-    bdrate=log(2.0), b=log(2), d=0, maxtime=15, maxmodules=10000, fixedmu=false, branchrate=5, 
-    branchfraction=0.1, branchinitsize=nothing)
+    bdrate=log(2.0), b=log(2), d=0, maxtime=15, maxmodules=10000, fixedmu=false, 
+    mutationdist=nothing, branchrate=5, branchfraction=0.1, branchinitsize=nothing)
+
+    mutationdist = set_mutationdist(mutationdist, fixedmu)
 
     return MultilevelInput(
             modulesize,
@@ -231,7 +241,7 @@ function MultilevelInput(;modulesize=200, ploidy=2, μ=10.0, clonalmutations=0,
             bdrate,
             b,
             d,
-            fixedmu,
+            mutationdist,
             branchrate,
             branchinitsize !== nothing ? branchinitsize : ceil(modulesize * branchfraction),
             ploidy,
@@ -242,3 +252,13 @@ age(moduletracker::ModuleTracker) = moduletracker.tvec[end]
 age(populationtracker::Vector{ModuleTracker}) = maximum(map(age, populationtracker))
 age(simulation::Simulation) = age(simulation.output)
 age(multisim::MultiSimulation) = maximum(age(output) for output in multisim.output)
+
+function set_mutationdist(mutationdist, fixedmu)
+    if isnothing(mutationdist)
+        return fixedmu ? :fixed : :poisson
+    elseif typeof(mutationdist) === String
+        return Symbol(mutationdist)
+    else 
+        return mutationdist
+    end
+end

@@ -1,3 +1,11 @@
+@testset "input" begin
+    @test SomaticEvolution.set_mutationdist(nothing, true) == :fixed
+    @test SomaticEvolution.set_mutationdist(nothing, false) == :poisson
+    @test SomaticEvolution.set_mutationdist(:geometric, false) == :geometric
+    @test SomaticEvolution.set_mutationdist(:geometric, true) == :geometric
+    @test SomaticEvolution.set_mutationdist("geometric", false) == :geometric
+end
+
 @testset "population initialization" begin
     for clonalmutations in [0,100]
         pop1 = SomaticEvolution.initialize_population(100, clonalmutations=clonalmutations)
@@ -53,8 +61,8 @@ end
         @testset "sampled" begin
             subclones = SomaticEvolution.CloneTracker[]
             cells = Cell[]
-            push!(cells, Cell([1,2,3,4], 1))
-            push!(cells, Cell([1,2,3], 1))
+            push!(cells, Cell([1,2,3,4], 1, 0))
+            push!(cells, Cell([1,2,3], 1, 0))
             id = 1
             parentid = 0
             inittime = 5

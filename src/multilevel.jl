@@ -193,7 +193,7 @@ that module one cell divides and one cell dies.
 function moranupdate!(populationtracker, modulesize, mutID, t, μ, rng)
     moduletracker, parentcell, deadcell = 
         choose_homeostaticmodule_cells(populationtracker, modulesize, rng)
-    _, mutID = celldivision!(moduletracker, parentcell, mutID, μ, rng)
+    _, mutID = celldivision!(moduletracker, parentcell, mutID, μ, t, rng)
     celldeath!(moduletracker, deadcell)
     updatemodulehistory!(moduletracker, 0, t)
     return populationtracker, mutID
@@ -207,7 +207,7 @@ Selects a cell uniformly at random from all cells in non-homeostatic modules to 
 function birthupdate!(populationtracker, modulesize, mutID, t, μ, rng)
     moduletracker, parentcell = 
         choose_growingmodule_cell(populationtracker, modulesize, rng)
-    _, mutID = celldivision!(moduletracker, parentcell, mutID, μ, rng, fixedmu=true)
+    _, mutID = celldivision!(moduletracker, parentcell, mutID, μ, t, rng, mutationdist=:fixed)
     updatemodulehistory!(moduletracker, 1, t)
     return populationtracker, mutID
 end
@@ -391,7 +391,7 @@ function module_simulate_to_branching!(moduletracker, maxtime, b, d, bdrate,
     if length(moduletracker) < modulesize
         moduletracker = 
             branchingprocess!(moduletracker, b, d, modulesize, 1, 
-                rng, numclones=0, fixedmu=true, maxclonesize=Inf, tmax=maxtime)
+                rng, numclones=0, mutationdist=:fixed, maxclonesize=Inf, tmax=maxtime)
         if length(moduletracker) == 0
             return moduletracker, nothing
         end
@@ -406,7 +406,7 @@ function module_simulate_to_branching!(moduletracker, maxtime, b, d, bdrate,
 
         moduletracker = 
             moranprocess!(moduletracker, bdrate, branchtime, 1, rng, numclones=0, 
-                fixedmu=true)
+                mutationdist=:fixed)
         
         moduletracker, newmoduletracker = 
             sample_new_module!(moduletracker, newmoduleid, branchinitsize, branchtime, rng)
@@ -418,7 +418,7 @@ function module_simulate_to_branching!(moduletracker, maxtime, b, d, bdrate,
     else
         moduletracker = 
             moranprocess!(moduletracker, bdrate, maxtime, 1, rng, numclones=0, 
-                fixedmu=true)
+                mutationdist=:fixed)
         return moduletracker, nothing
     end
 end

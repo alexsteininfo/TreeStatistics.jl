@@ -82,17 +82,17 @@ input = MultilevelInput(
 mt1 = SomaticEvolution.ModuleTracker(
     [1, 2, 3, 4, 4, 4, 4, 4, 4, 4, 3, 4, 4, 4, 4], 
     [0.0, 14.437821887595856, 38.636412371018324, 38.80067279227201, 39.07905423063021, 56.24183190197407, 61.57555456465887, 93.99343227770015, 174.7383395589789, 177.87796865140686, 187.1205185574646, 190.3156218593258, 222.64188808574013, 235.8640994797343, 242.08245554076214], 
-    Cell[Cell([3, 4, 20], 1), Cell([3, 5, 6, 8, 10, 17, 18, 19], 1), Cell([3, 4, 21, 22, 23], 1), Cell([1, 24], 1)], 
+    Cell[Cell([3, 4, 20], 1, 0), Cell([3, 5, 6, 8, 10, 17, 18, 19], 1, 0), Cell([3, 4, 21, 22, 23], 1, 0), Cell([1, 24], 1, 0)], 
     SomaticEvolution.CloneTracker[], 1, 0)
 mt2 = SomaticEvolution.ModuleTracker(
     [1, 2, 3, 4, 4, 4, 3], 
     [187.1205185574646, 207.5419622150601, 209.92705453342273, 216.2145518957684, 243.24240821372297, 252.31115142542512, 257.22794191422554], 
-    Cell[Cell([1, 13, 25, 26, 27], 1), Cell([1, 13], 1), Cell([1, 13, 25, 28, 29], 1)], 
+    Cell[Cell([1, 13, 25, 26, 27], 1, 0), Cell([1, 13], 1, 0), Cell([1, 13, 25, 28, 29], 1, 0)], 
     SomaticEvolution.CloneTracker[], 2, 1)
 mt3 = SomaticEvolution.ModuleTracker(
     [1], 
     [257.22794191422554], 
-    Cell[Cell([1], 1)], SomaticEvolution.CloneTracker[], 3, 2)
+    Cell[Cell([1], 1, 0)], SomaticEvolution.CloneTracker[], 3, 2)
 
 @testset "module sampling" begin
     rng = MersenneTwister(12)
