@@ -19,6 +19,32 @@ mutations_per_cell(moduletracker::ModuleTracker) = mutations_per_cell(moduletrac
 
 mutations_per_cell(cells::Array{Cell, 1}) = map(cell -> length(cell.mutations), cells)
 
+function mutations_per_cell(tree::BinaryNode{SimpleCell}; includeclonal=false)
+    mutspercell = Int64[]
+    for cellnode in Leaves(tree)
+        if cellnode.data.alive
+            mutations = cellnode.data.mutations
+            while true
+                if !AbstractTrees.isroot(cellnode) && (cellnode != tree|| includeclonal)
+                    cellnode = cellnode.parent
+                    mutations += cellnode.data.mutations
+                else
+                    break
+                end
+            end
+            push!(mutspercell, mutations)
+        end
+    end
+    return mutspercell
+end
+
+function acquired_mutations(tree)
+    muts = Int64[]
+    for cellnode in PreOrderDFS(tree)
+        push!(muts, cellnode.data.mutations)
+    end
+    return muts
+end
 
 mutation_ids_by_cell(moduletracker::ModuleTracker, idx=nothing) = mutation_ids_by_cell(moduletracker.cells, idx)
 
@@ -26,7 +52,7 @@ function mutation_ids_by_cell(cells::Array{Cell, 1}, idx=nothing)
     if isnothing(idx) 
         return map(cell -> cell.mutations, cells)
     else
-        return map(cell --> cell.mutations, cells[idx])
+        return map(cell -> cell.mutations, cells[idx])
     end
 end
 """
@@ -154,6 +180,53 @@ function pairwise_fixed_differences(muts::Vector{Vector{Int64}})
     return countmap(pfd_vec)
 end
 
+# function pairwise_fixed_differences_vector(tree::BinaryNode{SimpleCell}, pfd::Vector{Int64}=Int64[])
+#     if isdefined(tree, :left) && isdefined(tree, :right)
+#         for m1 in mutations_per_cell(tree.left)
+#             for m2 in mutations_per_cell(tree.right)
+#                 pfd = push!(pfd, m1+m2)
+#             end
+#         end
+#     end
+#     if isdefined(tree, :left)
+#         pairwise_fixed_differences_vector(tree.left, pfd)
+#     end
+#     if isdefined(tree, :right)
+#         pairwise_fixed_differences_vector(tree.right, pfd)
+#     end
+#     return pfd
+# end
+# SLOWER IMPLEMENTATION OF BELOW
+# function pairwise_fixed_differences(tree::BinaryNode{SimpleCell}, idx=nothing)
+#     return countmap(pairwise_fixed_differences_vector(tree))
+# end
+
+function pairwise_fixed_differences(tree::BinaryNode{SimpleCell}, idx=nothing)
+    pfd = Int64[]
+    alivecells = [cellnode for cellnode in Leaves(tree) if cellnode.data.alive]
+    alivecells = isnothing(idx) ? alivecells : alivecells[idx]
+    while length(alivecells) > 1
+        cellnode1 = popfirst!(alivecells)
+        for cellnode2 in alivecells
+            push!(pfd, pairwisedistance(cellnode1, cellnode2))
+        end
+    end
+    return countmap(pfd)
+end
+
+function pairwisedistance(cellnode1::BinaryNode, cellnode2::BinaryNode, distance=0)
+    if cellnode1.data.id > cellnode2.data.id
+        cellnode1, cellnode2 = cellnode2, cellnode1
+    end
+    if cellnode1 == cellnode2
+        return distance + 0
+    elseif cellnode1.parent == cellnode2.parent
+        return distance + cellnode1.data.mutations + cellnode2.data.mutations
+    elseif isdefined(cellnode2, :parent)
+         return distance + cellnode2.data.mutations + pairwisedistance(cellnode1, cellnode2.parent)
+    end
+end
+
 """
     pairwise_fixed_differences_matrix(population[, idx], diagonals=false)
 
@@ -171,7 +244,7 @@ function pairwise_fixed_differences_matrix(population, idx=nothing; diagonals=fa
 end
 
 function pairwise_fixed_differences_matrix(simulation::Simulation, idx=nothing; diagonals=false)
-    return pairwise_fixed_differences_matrix(simulation.output, idx, diagonals=diafgonals)
+    return pairwise_fixed_differences_matrix(simulation.output, idx, diagonals=diagonals)
 end
 
 function pairwise_fixed_differences_matrix(moduletracker::ModuleTracker, idx=nothing; diagonals=false)
@@ -186,6 +259,19 @@ function pairwise_fixed_differences_matrix(muts::Vector{Vector{Int64}}; diagonal
         if diagonals pfd[i,i] = length(muts[i]) end
         for j in i+1:n
             pfd[j,i] = length(symdiff(muts[i], muts[j]))
+        end
+    end
+    return pfd
+end
+
+function pairwise_fixed_differences_matrix(tree::BinaryNode{SimpleCell})
+    alivecells = [cellnode for cellnode in Leaves(tree) if cellnode.data.alive]
+    n = length(alivecells)
+    pfd = zeros(Int64, n, n)
+    for i in 1:n
+        cellnode1 = popfirst!(alivecells)
+        for (j, cellnode2) in enumerate(alivecells)
+            pfd[i+j, i] = pairwisedistance(cellnode1, cellnode2)
         end
     end
     return pfd
@@ -335,4 +421,47 @@ function meanmodulesize(multisimulation, tstep)
     end
     return collect(0:tstep:tend), popvec
 end
-    
+
+"""
+    time_to_MRCA(cellnode1, cellnode2, t)
+Computes the time thaat has passed between the division time of the MRCA of the two cells
+and time t.
+"""
+function time_to_MRCA(cellnode1, cellnode2, t)
+
+    #ensure cellnode1 is the oldest cell
+    if cellnode1.data.birthtime > cellnode2.data.birthtime
+        cellnode1, cellnode2 = cellnode2, cellnode1
+    end
+
+    #if either cell is the root, it is the MRCA
+    isdefined(cellnode1, :parent) || return t - deathtime(cellnode1)
+    isdefined(cellnode2, :parent) || return t - deathtime(cellnode2)
+
+    #if cells have the same parent, that is the MRCA
+    if cellnode1.parent == cellnode2.parent
+        return t - cellnode1.data.birthtime
+    else
+         return time_to_MRCA(cellnode1, cellnode2.parent, t)
+    end
+end
+
+"""
+    coalescence_times(tree, [idx]; t=nothing)
+
+Computes the coalescence time (time to MRCA) for every pair of alive cells in the tree and
+returns as a vector.
+"""
+function coalescence_times(tree, idx=nothing; t=nothing)
+    t = isnothing(t) ? age(tree) : t
+    coaltimes = Float64[]
+    alivecells = [cellnode for cellnode in Leaves(tree) if cellnode.data.alive]
+    alivecells = isnothing(idx) ? alivecells : alivecells[idx]
+    while length(alivecells) > 1
+        cellnode1 = popfirst!(alivecells)
+        for cellnode2 in alivecells
+            push!(coaltimes,time_to_MRCA(cellnode1, cellnode2, t))
+        end
+    end
+    return coaltimes
+end

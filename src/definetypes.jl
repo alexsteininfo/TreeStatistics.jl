@@ -14,6 +14,13 @@ end
 
 Cell(mutations, clonetype) = Cell(mutations, clonetype, 0.0, 0, 0)
 Cell(mutations, clonetype, birthtime) = Cell(mutations, clonetype, birthtime, 0, 0)
+
+mutable struct SimpleCell
+    id::Int64
+    alive::Bool
+    birthtime::Float64
+    mutations::Int64
+    clonetype::Int64
 end
 
 mutable struct CloneTracker

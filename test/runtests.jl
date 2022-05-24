@@ -2,8 +2,17 @@ using SomaticEvolution
 using Test
 using Random
 using StatsBase
+using AbstractTrees
 
-tests = ["initialisation","multilevel","simulations","testio","process_mutations"]
+tests = [
+    "initialisation",
+    "multilevel",
+    "simulations",
+    "testio",
+    "process_mutations",
+    "analysis",
+    "treesimulations"
+]
 
 @testset "SomaticEvolution.jl" begin
     for test in tests
