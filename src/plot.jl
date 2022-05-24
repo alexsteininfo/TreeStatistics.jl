@@ -246,14 +246,16 @@ end
     end
     @series begin
         grid --> false
-        seriestype := :hist
+        seriestype := :stephist
         xguide --> "Number of pairwise fixed differences"
         yguide --> "Frequency"
-        color --> :dimgrey
-        linecolor --> :dimgrey
+        fillcolor --> :lightgrey
+        fillrange --> 0
+        linecolor --> :black
         legend --> false
         titlefontsize -->10
         titlelocation --> :left
+        normalize --> :pdf
         pfddata
     end
     if showclonal && length(pdp.args) > 1
@@ -282,3 +284,4 @@ function convert_pfdmatrix_to_vector(pfdmatrix)
     end
     return vals
 end
+
