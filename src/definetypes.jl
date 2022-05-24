@@ -8,6 +8,12 @@ mutable struct Cell
     mutations::Array{Int64,1}
     clonetype::Int64
     birthtime::Float64
+    id::Int64
+    parentid::Int64
+end
+
+Cell(mutations, clonetype) = Cell(mutations, clonetype, 0.0, 0, 0)
+Cell(mutations, clonetype, birthtime) = Cell(mutations, clonetype, birthtime, 0, 0)
 end
 
 mutable struct CloneTracker
@@ -48,6 +54,7 @@ abstract type SimulationInput end
 struct BranchingInput <: SimulationInput
     numclones::Int64 
     Nmax::Int64
+    tmax::Float64
     clonalmutations::Int64
     selection::Array{Float64,1}
     μ::Float64
@@ -160,8 +167,8 @@ function get_simulation(multsim, i)
     return Simulation(multsim.input, multsim.output[i])
 end 
 
-function BranchingInput(;numclones=1, Nmax=10000, ploidy=2, μ=10.0, 
-    clonalmutations=μ, selection=fill(0.0,numclones), b=log(2.0), d=0.0, 
+function BranchingInput(;numclones=1, Nmax=10000, tmax=Inf, ploidy=2, μ=10.0, 
+    clonalmutations=0, selection=fill(0.0,numclones), b=log(2.0), d=0.0, 
     tevent=collect(1.0:0.5:(1+numclones)/2), fixedmu=false, mutationdist=nothing,
     maxclonesize=nothing)
 
@@ -170,6 +177,7 @@ function BranchingInput(;numclones=1, Nmax=10000, ploidy=2, μ=10.0,
     return BranchingInput(
         numclones,
         Nmax,
+        tmax,
         clonalmutations,
         selection,
         μ,
@@ -182,7 +190,7 @@ function BranchingInput(;numclones=1, Nmax=10000, ploidy=2, μ=10.0,
     )
 end
 
-function MoranInput(;numclones=1, N=10000, ploidy=2, μ=10.0, clonalmutations=μ, 
+function MoranInput(;numclones=1, N=10000, ploidy=2, μ=10.0, clonalmutations=0, 
     selection=fill(0.0,numclones), bdrate=log(2.0), tmax=15.0,
     tevent=collect(1.0:0.5:(1+numclones)/2), fixedmu=false, mutationdist=nothing)
 
@@ -203,7 +211,7 @@ function MoranInput(;numclones=1, N=10000, ploidy=2, μ=10.0, clonalmutations=μ
 end
 
 function BranchingMoranInput(;numclones=1, Nmax=10000, ploidy=2, μ=10.0, 
-    clonalmutations=μ, selection=fill(0.0,numclones), bdrate=log(2.0), b=log(2), 
+    clonalmutations=0, selection=fill(0.0,numclones), bdrate=log(2.0), b=log(2), 
     d=0, tmax=15.0, tevent=collect(1.0:0.5:(1+numclones)/2), fixedmu=false, 
     mutationdist=nothing)
 

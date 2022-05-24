@@ -22,6 +22,31 @@ function processresults!(populationtracker::Array{ModuleTracker, 1}, μ, clonalm
     return populationtracker
 end
 
+function final_timedep_mutations!(populationtracker::Array{ModuleTracker, 1}, μ, mutationdist, rng)
+    mutID = maximum(mutid 
+        for moduletracker in populationtracker 
+            for cell in moduletracker.cells
+                for mutid in cell.mutations
+    )
+    tend = age(populationtracker)
+    for moduletracker in populationtracker
+        mutID = final_timedep_mutations!(moduletracker, μ, mutationdist, tend, rng, mutID=mutID)
+    end
+end
+
+function final_timedep_mutations!(moduletracker::ModuleTracker, μ, mutationdist, rng; mutID=nothing)
+    tend = age(moduletracker)
+    if isnothing(mutID)
+        mutID = maximum(mutid for cell in moduletracker.cells for mutid in cell.mutations) + 1
+    end
+    for cell in moduletracker.cells
+        Δt = tend - cell.birthtime
+        numbermutations = numbernewmutations(rng, mutationdist, μ, Δt=Δt)
+        mutID = addnewmutations!(cell, numbermutations, mutID)
+    end
+    return mutID
+end
+
 function expandmutations!(moduletracker, expandedmutationids, clonalmutations)
 
     if length(expandedmutationids) > 0
