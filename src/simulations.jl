@@ -553,7 +553,7 @@ function numbernewmutations(rng, mutationdist, μ; Δt=nothing)
     elseif mutationdist == :poissontimedep
         return rand(rng,Poisson(μ*Δt))
     elseif mutationdist == :fixedtimedep
-        return floor(Int64,μ*Δt)
+        return round(Int64,μ*Δt)
     else
         error("$mutationdist is not a valid mutation rule")
     end

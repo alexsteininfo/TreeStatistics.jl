@@ -1,64 +1,121 @@
+"""
+    run1simulation_tree(input::BranchingInput, [rng::AbstractRNG]; timefunc=exptime)
+
+    Simulate a population of cells that grows by a branching process.
+
+    Take simulation parameters from `input` and return a BinaryNode that is the root of a 
+    phylogeny tree. By default if population goes extinct, restart simulation. 
+
+"""
 function run1simulation_tree(input::BranchingInput, rng::AbstractRNG=Random.GLOBAL_RNG; 
-    timefunc=exptime)
+    timefunc=exptime, returnextinct=false)
     
-    alivecells, root = 
-        generate_branching_tree(
-            input.b, 
-            input.d, 
-            input.Nmax, 
-            input.μ, 
-            input.mutationdist, 
-            input.clonalmutations, 
-            input.tmax, 
-            rng, 
-            timefunc=timefunc
-        )
-    return alivecells, root
+    while true
+        alivecells, root = initialize_tree(input.clonalmutations)
+        alivecells =
+            branchingprocess!(
+                alivecells,
+                input.b, 
+                input.d, 
+                input.Nmax, 
+                input.μ, 
+                input.mutationdist, 
+                input.tmax, 
+                rng, 
+                timefunc=timefunc
+            )
+        if length(alivecells) > 0 || returnextinct
+            return alivecells, root
+        end
+    end
 end
 
-function generate_branching_tree(b, d, Nmax, μ, mutationdist, clonalmutations, tmax, rng::AbstractRNG; timefunc=exptime)
-    alivecells, root, N, nextID = initialize_branching_tree(clonalmutations, 1)
-    t = 0.0
+"""
+    branchingprocess!(alivecells::Vector{BinaryNode{SimpleCell}}, b, d, Nmax, μ, mutationdist, tmax,
+        rng; timefunc=exptime)
+
+    Simulate a population of cells that grows by a branching process, starting with the 
+    population of cells given in the alivecells vector.
+
+"""
+function branchingprocess!(alivecells::Vector{BinaryNode{SimpleCell}}, b, d, Nmax, μ, mutationdist, 
+    tmax, rng::AbstractRNG; timefunc=exptime)
+
+    # set initial time, population size and next cell ID
+    t = maximum(cellnode.data.birthtime for cellnode in alivecells)
+    N = length(alivecells)
+    nextID = maximum(cellnode.data.id for cellnode in alivecells)
+
     while N < Nmax && N > 0
-        t += timefunc(rng, N * (b + d))
-        if t > tmax
-            break
-        end
+        Δt = timefunc(rng, N * (b + d))
+        t + Δt <= tmax || break # end simulation if time exceeds maximum
+        t += Δt
         N, nextID = 
-            branchingupdate!(alivecells, b, d, N, t, nextID, μ, mutationdist, rng, timefunc=timefunc)
+            branchingupdate!(alivecells, b, d, N, t, nextID, μ, mutationdist, rng, 
+                timefunc=timefunc)
     end
-    #add final mutations to all Cells
-    for cellnode in alivecells
+    #add final mutations to all alive cells if mutations are time dependent
+    if mutationdist == :fixedtimedep || mutationdist == :poissontimedep    
+        add_mutations!(alivecells, t, mutationdist, μ, rng)
+    end
+
+    return alivecells
+
+end
+
+"""
+    add_mutations(cells, t)
+
+Add mutations to vector of `cells`, that have occured between cell birth time and time t.
+
+"""
+function add_mutations!(cells, t, mutationdist, μ, rng)
+    for cellnode in cells
         Δt = t - cellnode.data.birthtime
         cellnode.data.mutations += numbernewmutations(rng, mutationdist, μ, Δt=Δt)
     end
-    return alivecells, root
-
 end
 
-#currently for neutral evolution only, add selection later
+"""
+    branchingupdate!(alivecells::Vector{BinaryNode{SimpleCell}}, b, d, N, t, nextID, μ, mutationdist, 
+        rng; timefunc=exptime)
+    
+    Single update step of branching process.
+"""
 function branchingupdate!(alivecells::Vector{BinaryNode{SimpleCell}}, b, d, N, t, 
     nextID, μ, mutationdist, rng; timefunc=exptime)
 
     randcellidx = rand(rng, 1:N)
     r = rand(rng)
     if r < b/(b+d)
-        N, nextID = celldivision!(alivecells, randcellidx, N, t, nextID, μ, mutationdist, rng)
-    else 
-        N = celldeath!(alivecells, randcellidx, N, t, rng)
+        N, nextID = 
+            celldivision!(alivecells, randcellidx, N, t, nextID, μ, mutationdist, rng)
+    else
+        N = celldeath!(alivecells, randcellidx, N, t, μ, mutationdist, rng)
     end
     return N, nextID
 end
 
-function celldivision!(alivecells::Vector{BinaryNode{SimpleCell}}, parentcellidx, N, t, nextID, μ, mutationdist, rng)
+"""
+    celldivision!(alivecells::Vector{BinaryNode{SimpleCell}}, parentcellidx, N, t, nextID, μ, 
+        mutationdist, rng)
+Remove parent cell from `alivecells` vector and add two new child cells. 
+
+If mutations are time-dependent, e.g. `mutationdist == poissontimedep`, add mutations to the
+parent cell depending on the length of its lifetime. Otherwise assign mutations to each 
+child cell.
+"""
+
+function celldivision!(alivecells::Vector{BinaryNode{SimpleCell}}, parentcellidx, N, t, nextID, μ, 
+    mutationdist, rng)
 
     parentcellnode = alivecells[parentcellidx] #get parent cell node
     deleteat!(alivecells, parentcellidx) #delete parent cell node from alivecells list
 
     #if mutations are time dependent assign mutations to parent cell and give new cells
     #no initial mutations
-    childcellmuts1, childcellmuts2 = 0, 0
     if mutationdist == :fixedtimedep || mutationdist == :poissontimedep    
+        childcellmuts1, childcellmuts2 = 0, 0
         Δt = t - parentcellnode.data.birthtime
         parentcellnode.data.mutations += numbernewmutations(rng, mutationdist, μ, Δt=Δt)
     #if mutations are not time dependent assign new child cell mutations
@@ -76,49 +133,56 @@ function celldivision!(alivecells::Vector{BinaryNode{SimpleCell}}, parentcellidx
 
 end
 
-# #currently for neutral evolution only, add selection later
-# function branchingupdate!(alivecells::Vector{BinaryNode{SimpleCell}}, b, d, Nmax, N, t, 
-#     nextID, μ, mutationdist, rng)
 
-#     t += exptime(rng, N * (b + d))
-#     randcellidx = rand(rng, 1:N)
-#     r = rand(rng)
-#     if r < b/(b+d)
-#         N, nextID = celldivision!(alivecells, randcellidx, N, t, nextID)
-#     else 
-#         N = celldeath!(alivecells, randcellidx, N, t, rng)
-#     end
-#     return N, t, nextID
-# end
+"""
+    celldeath!(alivecells::Vector{BinaryNode{SimpleCell}}, deadcellidx, N, t, [μ, 
+        mutationdist, rng])
 
-# function celldivision!(alivecells::Vector{BinaryNode{SimpleCell}}, parentcellidx, N, t, nextID)
-
-#     parentcellnode = alivecells[parentcellidx]
-#     deleteat!(alivecells, parentcellidx)
-#     childcell1 = SimpleCell(nextID, true, t, 0, parentcellnode.data.clonetype)    
-#     childcell2 = SimpleCell(nextID + 1, true, t, 0, parentcellnode.data.clonetype)
-#     push!(alivecells, leftchild(childcell1, parentcellnode))
-#     push!(alivecells, rightchild(childcell2, parentcellnode)) 
-
-#     return N + 1, nextID + 2
-
-# end
-
-function celldeath!(alivecells::Vector{BinaryNode{SimpleCell}}, deadcellidx, N, t, rng::AbstractRNG)
+Remove dead cell from `alivecells` vector and add a new cell with `alive=false` as the left
+child of the dead cell. Add time dependent mutations (if applicable) to dying cell.
+"""
+function celldeath!(alivecells::Vector{BinaryNode{SimpleCell}}, deadcellidx, N, t, μ=nothing, 
+    mutationdist=nothing, rng=nothing)
 
     deadcellnode = alivecells[deadcellidx]
+    #if mutations are time dependent, add the number accumulated by the cell
+    if mutationdist == :fixedtimedep || mutationdist == :poissontimedep
+        Δt = t - deadcellnode.data.birthtime
+        deadcellnode.data.mutations += numbernewmutations(rng, mutationdist, μ, Δt=Δt)
+    end
+
+    #remove from alivecell vector and add leftchild node containing a dead cell
     deleteat!(alivecells, deadcellidx)
     leftchild(SimpleCell(deadcellnode.data.id, false, t, 0, deadcellnode.data.clonetype), deadcellnode)
     return N - 1   
 end
 
-function initialize_branching_tree(clonalmutations, initialID)
-    initialcell = SimpleCell(1, true, 0.0, clonalmutations, 1)
-    root = BinaryNode{SimpleCell}(initialcell)
-    alivecells = [root]
-    return alivecells, root, 1, initialID + 1
+"""
+    initialize_tree(clonalmutations, [N])
+Initialize tree with `N` cells (defaults to 1) and return vector of alive cells.
+"""
+function initialize_tree(clonalmutations, N=1)
+    if N == 1
+        initialcell = SimpleCell(1, true, 0.0, clonalmutations, 1)
+        root = BinaryNode{SimpleCell}(initialcell)
+        alivecells = [root]
+        return alivecells, root
+    else 
+        initialcells = [SimpleCell(1, true, 0.0, clonalmutations, 1) for i in 1:N]
+        roots = [BinaryNode{SimpleCell}(cell) for cell in initialcells]
+        alivecells = copy(roots)
+        return alivecells, roots
+    end
 end
 
+
+"""
+    changemutations!(root::BinaryNode, μ, mutationdist, tmax, rng, clonalmutations=0)
+
+Take the phylogeny, defined by `root` and assign new mutations according the the
+`mutationdist` and other parameters.
+
+"""
 function changemutations!(root::BinaryNode, μ, mutationdist, tmax, rng, clonalmutations=0)
     if mutationdist == :fixedtimedep || mutationdist == :poissontimedep    
         for cellnode in PreOrderDFS(root)
@@ -133,41 +197,65 @@ function changemutations!(root::BinaryNode, μ, mutationdist, tmax, rng, clonalm
     root.data.mutations += clonalmutations
 end
 
-function deathtime(cellnode::BinaryNode)
-    if AbstractTrees.has_children(cellnode)
+"""
+    endtime(cellnode::BinaryNode)
+
+Return the time at which the cell divided or died. If the cell is still alive, return 
+`nothing`.
+"""
+function endtime(cellnode::BinaryNode)
+    if haschildren(cellnode)
         return cellnode.left.data.birthtime
     else
         return nothing
     end
 end 
 
+"""
+    celllifetime(cellnode::BinaryNode, [tmax])
+
+Comuptes the lifetime of a given cell. If it hasn't yet died or divided, end of lifetime is
+given by tmax (defaults to the age of the population).
+
+"""
 function celllifetime(cellnode::BinaryNode, tmax=nothing)
-    if AbstractTrees.has_children(cellnode)
+    if haschildren(cellnode)
         return cellnode.left.data.birthtime - cellnode.data.birthtime
     else
-        tmax = isnothing(tmax) ? age(root(cellnode)) : tmax
+        tmax = isnothing(tmax) ? age(getroot(cellnode)) : tmax
         return tmax - cellnode.data.birthtime
 
     end
 end
 
-function celllifetimes(tree; excludeliving=true)
+"""
+    celllifetimes(root; excludeliving=true)
+
+Computes the lifetime of each cell in the phylogeny, excluding currently alive cells by
+default.    
+"""
+function celllifetimes(root; excludeliving=true)
     lifetimes = Float64[]
     if excludeliving
-        for cellnode in PreOrderDFS(tree)
-            if AbstractTrees.has_children(cellnode)
+        for cellnode in PreOrderDFS(root)
+            if haschildren(cellnode)
                 push!(lifetimes, cellnode.left.data.birthtime - cellnode.data.birthtime)
             end
         end
     else
-        popage = age(tree)
-        for cellnode in PreOrderDFS(tree)
+        popage = age(root)
+        for cellnode in PreOrderDFS(root)
             push!(lifetimes, celllifetime(cellnode, popage))
         end
     end
     return lifetimes
 end
 
+"""
+    age(root::BinaryNode)
+
+Compute the age of the population, given by the time of the most recent cell division.
+"""
 function age(root::BinaryNode)
     age = 0
     for cellnode in Leaves(root)
@@ -178,32 +266,5 @@ function age(root::BinaryNode)
     return age
 end
 
-function asymmetrictree(n, b, μ, mutationdist, clonalmutations, rng::AbstractRNG=Random.GLOBAL_RNG)
-    alivecells, root, N, nextID = initialize_branching_tree(clonalmutations, 1)
-    t = 0.0
-    for cellnode in alivecells
-        t += exptime(rng, N * b)
-        if N >= 2^n
-            break
-        else
-            parentcellidx = findall(x->x==cellnode, alivecells)[1]
-            N, nextID = celldivision!(alivecells, parentcellidx, N, t, nextID)
-        end
-    end
-    addmutations!(root, μ, mutationdist, t, rng)
-    return alivecells, root
-end
-
-function symmetrictree(n, b, μ, mutationdist, clonalmutations, rng::AbstractRNG=Random.GLOBAL_RNG)
-    alivecells, root, N, nextID = initialize_branching_tree(clonalmutations, 1)
-    t = 0.0
-    for i in 1:n
-        for cellnode in Leaves(root)
-            t += exptime(rng, N * b)
-            parentcellidx = findall(x->x==cellnode, alivecells)[1]
-            N, nextID = celldivision!(alivecells, parentcellidx, N, t, nextID)
-        end
-    end
-    addmutations!(root, μ, mutationdist, t, rng)
-    return alivecells, root
-end
+getalivecells(root::BinaryNode) = 
+    [cellnode for cellnode in Leaves(root) if cellnode.data.alive]

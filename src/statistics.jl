@@ -203,7 +203,7 @@ end
 
 function pairwise_fixed_differences(tree::BinaryNode{SimpleCell}, idx=nothing)
     pfd = Int64[]
-    alivecells = [cellnode for cellnode in Leaves(tree) if cellnode.data.alive]
+    alivecells = getalivecells(tree)
     alivecells = isnothing(idx) ? alivecells : alivecells[idx]
     while length(alivecells) > 1
         cellnode1 = popfirst!(alivecells)
@@ -435,8 +435,8 @@ function time_to_MRCA(cellnode1, cellnode2, t)
     end
 
     #if either cell is the root, it is the MRCA
-    isdefined(cellnode1, :parent) || return t - deathtime(cellnode1)
-    isdefined(cellnode2, :parent) || return t - deathtime(cellnode2)
+    isdefined(cellnode1, :parent) || return t - endtime(cellnode1)
+    isdefined(cellnode2, :parent) || return t - endtime(cellnode2)
 
     #if cells have the same parent, that is the MRCA
     if cellnode1.parent == cellnode2.parent
