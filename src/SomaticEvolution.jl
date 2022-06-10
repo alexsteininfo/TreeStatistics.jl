@@ -15,8 +15,10 @@ using JSON
 using DelimitedFiles
 using AbstractTrees
 
-
-export Cell,
+export 
+Cell,
+SimpleCell,
+BinaryNode,
 MultiSimulation,
 SimulationTracker,
 SimulationInput,
@@ -48,12 +50,15 @@ saveinput,
 branchingprocess,
 moranprocess,
 get_simulation,
+pairwisedistance,
 pairwise_fixed_differences,
 pairwise_fixed_differences_matrix,
 pairwise_fixed_differences_statistics,
 shared_fixed_mutations,
 newmoduletimes,
+numbermodules,
 cellpopulationsize,
+meanmodulesize,
 average_mutations,
 average_mutations_per_module,
 mutations_per_cell,
@@ -65,10 +70,22 @@ getVAFresult,
 age,
 saveinput,
 loadinput,
-run_multilevel_from_file
+run_multilevel_from_file,
+endtime,
+celllifetime,
+celllifetimes,
+getalivecells,
+leftchild,
+rightchild,
+initialize_tree,
+run1simulation_tree,
+time_to_MRCA,
+coalescence_times
+
 
 
 include("definetypes.jl")
+include("trees.jl")
 include("simulations.jl")
 include("multilevel.jl")
 include("process.jl")
@@ -79,7 +96,7 @@ include("plot.jl")
 include("util.jl")
 include("statistics.jl")
 include("io.jl")
-include("trees.jl")
+include("simulation_trees.jl")
 
 
 
