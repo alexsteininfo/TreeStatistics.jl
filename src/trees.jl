@@ -45,9 +45,9 @@ Base.eltype(::Type{BinaryNode{T}}) where T = BinaryNode{T}
 # Set the traits of this kind of tree
 Base.eltype(::Type{<:TreeIterator{BinaryNode{T}}}) where T = BinaryNode{T}
 Base.IteratorEltype(::Type{<:TreeIterator{BinaryNode{T}}}) where T = Base.HasEltype()
-AbstractTrees.parentlinks(::Type{BinaryNode{T}}) where T = AbstractTrees.StoredParents()
-AbstractTrees.siblinglinks(::Type{BinaryNode{T}}) where T = AbstractTrees.StoredSiblings()
-
+AbstractTrees.ParentLinks(::Type{BinaryNode{T}}) where T = AbstractTrees.StoredParents()
+AbstractTrees.SiblingLinks(::Type{BinaryNode{T}}) where T = AbstractTrees.StoredSiblings()
+AbstractTrees.nodevalue(node::BinaryNode{T}) where T = node.data
 
 function AbstractTrees.children(node::BinaryNode)
     if isdefined(node, :left)
@@ -85,8 +85,8 @@ Base.pairs(node::BinaryNode) = enumerate(node)
 AbstractTrees.printnode(io::IO, node::BinaryNode) = print(io, node.data)
 
 function AbstractTrees.printnode(io::IO, node::BinaryNode{SimpleCell})
-    print("$(node.data.id), $(node.data.mutations) ($(popsize(node)))")
-    node.data.alive || print(" X")
+    print(io, "$(node.data.id), $(node.data.mutations) ($(popsize(node)))")
+    node.data.alive || print(io, " X")
 end
 
 function popsize(root::BinaryNode)
@@ -105,4 +105,18 @@ function popsize(root::BinaryNode, n)
     end
 end
 
-root(node::BinaryNode) = AbstractTrees.isroot(node) ? node : root(AbstractTrees.parent(node))
+# getroot(node::BinaryNode) = AbstractTrees.isroot(node) ? node : getroot(AbstractTrees.parent(node))
+
+haschildren(node::BinaryNode) = length(children(node)) != 0
+
+function Base.show(io::IO, node::BinaryNode)
+    show(io, node.data)
+end
+
+function Base.show(io::IO, nodevec::Vector{BinaryNode{T}}) where T
+    println(io, "$(length(nodevec))-element Vector{BinaryNode{$T}}:")
+    for node in nodevec
+        show(io, node)
+        print(io, "\n")
+    end
+end

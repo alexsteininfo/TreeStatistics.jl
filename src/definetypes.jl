@@ -23,6 +23,10 @@ mutable struct SimpleCell
     clonetype::Int64
 end
 
+function Base.show(io::IO, cell::SimpleCell)
+    print(io, "($(cell.id)) mutations = $(cell.mutations), t = $(cell.birthtime)")
+    cell.alive || print(io, " X")
+end
 mutable struct CloneTracker
     parenttype::Int64
     parentmodule::Int64
