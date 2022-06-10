@@ -63,7 +63,6 @@ end
 
     Simulate a population of cells according to a Moran process for fixed time.
 """
-
 function run1simulation(input::MoranInput, rng::AbstractRNG = Random.GLOBAL_RNG)
 
     #Run Moran simulation starting from a population of N identical cells.
@@ -105,8 +104,7 @@ end
 """
     branchingprocess(input::BranchingInput, rng::AbstractRNG; <keyword arguments>)
 
-Simulate a stochastic branching process with parameters defined by input and return 
-ModuleTracker. 
+Simulate a stochastic branching process and return `ModuleTracker`. 
 
 Simulation is by a rejection-kinetic Monte Carlo algorithm and starts with a single cell. 
 

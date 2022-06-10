@@ -231,32 +231,50 @@ end
     showclonal=false, xticks=:auto)
 
     if typeof(pdp.args[1]) <: Dict
-        pfddata = reduce(vcat, [fill(key, val) for (key,val) in pdp.args[1]])
+        pfddata = pdp.args[1]
+        @series begin
+            grid --> false
+            seriestype := :line
+            xguide --> "Number of pairwise fixed differences"
+            yguide --> "Frequency"
+            fillcolor --> :lightgrey
+            fillrange --> 0
+            linecolor --> :black
+            legend --> false
+            titlefontsize -->10
+            titlelocation --> :left
+            normalize --> :pdf
+            pfddata
+        end
     else
-        pfdmatrix = pdp.args[1]
-        n = size(pfdmatrix)[1]
-        if sampleids === nothing && samplesize !== nothing
-            sampleids = sample(1:n, samplesize, replace=false)
+        if typeof(pdp.args[1]) <: Vector
+            pfddata = pdp.args[1]
+        else
+            pfdmatrix = pdp.args[1]
+            n = size(pfdmatrix)[1]
+            if sampleids === nothing && samplesize !== nothing
+                sampleids = sample(1:n, samplesize, replace=false)
+            end
+            if sampleids !== nothing
+                pfdmatrix = pfdmatrix[sampleids, sampleids]
+                n = length(sampleids)
+            end
+            pfddata = convert_pfdmatrix_to_vector(pfdmatrix)
         end
-        if sampleids !== nothing
-            pfdmatrix = pfdmatrix[sampleids, sampleids]
-            n = length(sampleids)
+        @series begin
+            grid --> false
+            seriestype := :stephist
+            xguide --> "Number of pairwise fixed differences"
+            yguide --> "Frequency"
+            fillcolor --> :lightgrey
+            fillrange --> 0
+            linecolor --> :black
+            legend --> false
+            titlefontsize -->10
+            titlelocation --> :left
+            normalize --> :pdf
+            pfddata
         end
-        pfddata = convert_pfdmatrix_to_vector(pfdmatrix)
-    end
-    @series begin
-        grid --> false
-        seriestype := :stephist
-        xguide --> "Number of pairwise fixed differences"
-        yguide --> "Frequency"
-        fillcolor --> :lightgrey
-        fillrange --> 0
-        linecolor --> :black
-        legend --> false
-        titlefontsize -->10
-        titlelocation --> :left
-        normalize --> :pdf
-        pfddata
     end
     if showclonal && length(pdp.args) > 1
         @series begin
