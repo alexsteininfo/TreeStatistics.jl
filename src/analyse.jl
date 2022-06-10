@@ -43,3 +43,16 @@ function _fitinverse(df::DataFrame, fmax, cumulative)
     return df, coef(lmfit), r2(lmfit)
 end
 
+function fitexponential(x, y, zerointercept=:true)
+    df = DataFrame(:x=>x, :logy=>log.(y))
+    if zerointercept
+        lmfit = fit(LinearModel, @formula(logy ~ x + 0), df)
+        m = coef(lmfit)[1]
+        c = 0
+    else
+        lmfit = fit(LinearModel, @formula(logy ~ x), df)
+        m = coef(lmfit)[1]
+        c = coef(lmfit)[2]
+    end
+    return m, c
+end
