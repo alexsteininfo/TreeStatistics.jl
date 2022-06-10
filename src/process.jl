@@ -1,25 +1,50 @@
 function processresults!(moduletracker::ModuleTracker, μ, clonalmutations, rng::AbstractRNG;
-    fixedmu=false)
+    mutationdist=:poisson)
 
     mutationlist = get_mutationlist(moduletracker)
     expandedmutationids = 
-        get_expandedmutationids(μ, mutationlist, clonalmutations, rng, fixedmu=fixedmu)
+        get_expandedmutationids(μ, mutationlist, clonalmutations, rng, mutationdist=mutationdist)
     expandmutations!(moduletracker, expandedmutationids, clonalmutations)
     
     return moduletracker
 end
 
 function processresults!(populationtracker::Array{ModuleTracker, 1}, μ, clonalmutations, 
-    rng::AbstractRNG; fixedmu=false)
+    rng::AbstractRNG; mutationdist=:poisson)
     
     mutationlist = get_mutationlist(populationtracker)
     expandedmutationids = 
-        get_expandedmutationids(μ, mutationlist, clonalmutations, rng, fixedmu=fixedmu)
+        get_expandedmutationids(μ, mutationlist, clonalmutations, rng, mutationdist=mutationdist)
     
     for moduletracker in populationtracker
         expandmutations!(moduletracker, expandedmutationids, clonalmutations)
     end
     return populationtracker
+end
+
+function final_timedep_mutations!(populationtracker::Array{ModuleTracker, 1}, μ, mutationdist, rng)
+    mutID = maximum(mutid 
+        for moduletracker in populationtracker 
+            for cell in moduletracker.cells
+                for mutid in cell.mutations
+    )
+    tend = age(populationtracker)
+    for moduletracker in populationtracker
+        mutID = final_timedep_mutations!(moduletracker, μ, mutationdist, tend, rng, mutID=mutID)
+    end
+end
+
+function final_timedep_mutations!(moduletracker::ModuleTracker, μ, mutationdist, rng; mutID=nothing)
+    tend = age(moduletracker)
+    if isnothing(mutID)
+        mutID = maximum(mutid for cell in moduletracker.cells for mutid in cell.mutations) + 1
+    end
+    for cell in moduletracker.cells
+        Δt = tend - cell.birthtime
+        numbermutations = numbernewmutations(rng, mutationdist, μ, Δt=Δt)
+        mutID = addnewmutations!(cell, numbermutations, mutID)
+    end
+    return mutID
 end
 
 function expandmutations!(moduletracker, expandedmutationids, clonalmutations)
@@ -72,12 +97,9 @@ function get_mutationlist(moduletracker::ModuleTracker)
     return unique(mutationlist)
 end
 
-function get_expandedmutationids(μ, mutationlist, clonalmutations, rng; fixedmu=false)
-    if fixedmu 
-        mutationsN = fill(μ, length(mutationlist))
-    else
-        mutationsN = rand(rng, Poisson(μ), length(mutationlist)) 
-    end
+function get_expandedmutationids(μ, mutationlist, clonalmutations, rng; mutationdist=:poisson)
+
+    mutationsN = numberuniquemutations(rng, length(mutationlist), mutationdist, μ)
     expandedmutationids = Dict{Int64, Vector{Int64}}()
     i = clonalmutations + 1
     for (mutkey, N) in zip(mutationlist, mutationsN)
@@ -85,6 +107,20 @@ function get_expandedmutationids(μ, mutationlist, clonalmutations, rng; fixedmu
         i += N
     end
     return expandedmutationids
+end
+
+function numberuniquemutations(rng, L, mutationdist, μ)
+    #returns the number of unique mutations drawn from a distribution according to the
+    #mutation rule with mean μ, L times.
+    if mutationdist == :fixed
+        return fill(μ, L)
+    elseif mutationdist == :poisson
+        return rand(rng, Poisson(μ), L) 
+    elseif mutationdist == :geometric
+        return rand(rng, Geometric(1/(1+μ)), L)
+    else
+        error("$mutationdist is not a valid mutation rule")
+    end
 end
 
 function remove_undetectable!(moduletracker::ModuleTracker, clonefreq, clonefreqp, numclones, detectableclones)

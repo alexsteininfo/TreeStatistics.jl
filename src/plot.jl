@@ -107,7 +107,34 @@ end
     end
 end
 
-@recipe function f(multisim::MultiSimulation; plottype=:popsize, tstep=nothing)
+@recipe function f(simulation::Simulation; fitexponential=false)
+    yguide --> "Number of cells"
+    xguide --> "Time"
+    @series begin
+        seriestype --> :line
+        legend --> false
+        label --> "simulation"
+        grid --> false
+        simulation.output.tvec, simulation.output.Nvec
+    end
+    if fitexponential
+        df = DataFrame(
+            :popsizelog => log.(simulation.output.Nvec), 
+            :time => simulation.output.tvec
+        )
+        lmfit = fit(LinearModel, @formula(popsizelog ~ time + 0), df)
+        m = coef(lmfit)[1]
+        @series begin
+            seriestype --> :line
+            legend --> true
+            legend_position --> :topleft
+            label --> "b = $(round(m, digits=5))"
+            simulation.output.tvec, exp.(m*simulation.output.tvec)
+        end
+    end
+end
+
+@recipe function f(multisim::MultiSimulation; plottype=:popsize, fitexponential=false, tstep=nothing)
     if plottype == :modulesize
         yguide --> "Module size"
         xguide --> "Time"
@@ -119,13 +146,31 @@ end
             end
         end
     elseif plottype == :popsize
+        time, popsize = newmoduletimes(multisim), 1:length(multisim)
         yguide --> "Number of modules"
         xguide --> "Time"
         @series begin
             seriestype --> :line
             legend --> false
-            newmoduletimes(multisim), 1:length(multisim)
+            label --> "simulation"
+            time, popsize
         end
+        if fitexponential
+            df = DataFrame(
+                :popsizelog => log.(popsize), 
+                :time => time
+            )
+            lmfit = fit(LinearModel, @formula(popsizelog ~ time + 0), df)
+            m = coef(lmfit)[1]
+            @series begin
+                seriestype --> :line
+                legend --> true
+                legend_position --> :topleft
+                label --> "r = $(round(m, digits=5))"
+                time, exp.(m*time)
+            end
+        end
+
     elseif plottype == :cellpopsize
         tstep = isnothing(tstep) ? 1 / multisim.input.bdrate : tstep
         yguide --> "Number of cells"
@@ -135,8 +180,8 @@ end
             legend --> false
             cellpopulationsize(multisim, tstep)
         end
-
     end
+    
 end
 
 @userplot PairwisePlot
@@ -186,30 +231,50 @@ end
     showclonal=false, xticks=:auto)
 
     if typeof(pdp.args[1]) <: Dict
-        pfddata = reduce(vcat, [fill(key, val) for (key,val) in pdp.args[1]])
+        pfddata = pdp.args[1]
+        @series begin
+            grid --> false
+            seriestype := :line
+            xguide --> "Number of pairwise fixed differences"
+            yguide --> "Frequency"
+            fillcolor --> :lightgrey
+            fillrange --> 0
+            linecolor --> :black
+            legend --> false
+            titlefontsize -->10
+            titlelocation --> :left
+            normalize --> :pdf
+            pfddata
+        end
     else
-        pfdmatrix = pdp.args[1]
-        n = size(pfdmatrix)[1]
-        if sampleids === nothing && samplesize !== nothing
-            sampleids = sample(1:n, samplesize, replace=false)
+        if typeof(pdp.args[1]) <: Vector
+            pfddata = pdp.args[1]
+        else
+            pfdmatrix = pdp.args[1]
+            n = size(pfdmatrix)[1]
+            if sampleids === nothing && samplesize !== nothing
+                sampleids = sample(1:n, samplesize, replace=false)
+            end
+            if sampleids !== nothing
+                pfdmatrix = pfdmatrix[sampleids, sampleids]
+                n = length(sampleids)
+            end
+            pfddata = convert_pfdmatrix_to_vector(pfdmatrix)
         end
-        if sampleids !== nothing
-            pfdmatrix = pfdmatrix[sampleids, sampleids]
-            n = length(sampleids)
+        @series begin
+            grid --> false
+            seriestype := :stephist
+            xguide --> "Number of pairwise fixed differences"
+            yguide --> "Frequency"
+            fillcolor --> :lightgrey
+            fillrange --> 0
+            linecolor --> :black
+            legend --> false
+            titlefontsize -->10
+            titlelocation --> :left
+            normalize --> :pdf
+            pfddata
         end
-        pfddata = convert_pfdmatrix_to_vector(pfdmatrix)
-    end
-    @series begin
-        grid --> false
-        seriestype := :hist
-        xguide --> "Number of pairwise fixed differences"
-        yguide --> "Frequency"
-        color --> :dimgrey
-        linecolor --> :dimgrey
-        legend --> false
-        titlefontsize -->10
-        titlelocation --> :left
-        pfddata
     end
     if showclonal && length(pdp.args) > 1
         @series begin
@@ -237,3 +302,4 @@ function convert_pfdmatrix_to_vector(pfdmatrix)
     end
     return vals
 end
+

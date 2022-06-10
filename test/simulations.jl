@@ -1,3 +1,51 @@
+@testset "neutral run1simulation" begin
+    rng = MersenneTwister(100)
+    input = BranchingInput(
+        Nmax=10, 
+        mutationdist=:poisson, 
+        b=1, 
+        d=0.0,
+        clonalmutations=0, 
+        numclones=0,
+        μ=1
+    )
+    simulation = run1simulation(input, rng)
+    @test length(simulation.output) == 10
+    @test simulation.output.Nvec[end] == length(simulation.output.cells)
+
+    tmax=10
+    input = MoranInput(
+        N=10, 
+        tmax=tmax,
+        mutationdist=:poisson, 
+        bdrate=1.0,
+        clonalmutations=0, 
+        numclones=0,
+        μ=1
+    )
+    simulation = run1simulation(input, rng)
+    @test all(simulation.output.Nvec .== 10)
+    @test simulation.output.tvec[end] <=tmax
+    tmax=10
+    input = BranchingMoranInput(
+        Nmax=10, 
+        tmax=tmax,
+        mutationdist=:poisson, 
+        b=1, 
+        d=0.0,
+        clonalmutations=0, 
+        numclones=0,
+        μ=1
+    )
+    simulation = run1simulation(input, rng)
+    @test simulation.output.Nvec[end ]== 10
+    @test simulation.output.tvec[end] <= tmax
+end
+
+@testset "cell transitions" begin
+    
+end
+
 subclones = [
     SomaticEvolution.CloneTracker(
         1, 1, 1.4437821887595856, [2], 2, 1, 1.0, 9
