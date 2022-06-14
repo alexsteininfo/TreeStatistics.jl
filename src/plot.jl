@@ -228,10 +228,16 @@ end
 @userplot PairwiseDistributionPlot
 
 @recipe function f(pdp::PairwiseDistributionPlot; sampleids=nothing, samplesize=nothing,
-    showclonal=false, xticks=:auto)
+    showclonal=false, step=nothing, hist=false)
 
-    if typeof(pdp.args[1]) <: Dict
+    if typeof(pdp.args[1]) <: Dict && !(hist)
         pfddata = pdp.args[1]
+        pfd, freq = dict_to_sortedvecs(pfddata)
+        freq = freq ./ sum(freq)
+        if step !== nothing
+            pfd = pfd[1:step:end]
+            freq = freq[1:step:end]
+        end
         @series begin
             grid --> false
             seriestype := :line
@@ -244,11 +250,14 @@ end
             titlefontsize -->10
             titlelocation --> :left
             normalize --> :pdf
-            pfddata
+            pfd, freq
         end
     else
         if typeof(pdp.args[1]) <: Vector
             pfddata = pdp.args[1]
+        elseif typeof(pdp.args[1]) <: Dict
+            pfddict = pdp.args[1]
+            pfddata = [i for (key, value) in pfddict for i in fill(key, value)]
         else
             pfdmatrix = pdp.args[1]
             n = size(pfdmatrix)[1]
@@ -303,3 +312,8 @@ function convert_pfdmatrix_to_vector(pfdmatrix)
     return vals
 end
 
+function dict_to_sortedvecs(d)
+    dkeys = collect(keys(d))
+    p = sortperm(dkeys)
+    return dkeys[p], collect(values(d))[p]
+end
