@@ -230,8 +230,23 @@ end
 @recipe function f(pdp::PairwiseDistributionPlot; sampleids=nothing, samplesize=nothing,
     showclonal=false, step=nothing, hist=false)
 
-    if typeof(pdp.args[1]) <: Dict && !(hist)
-        pfddata = pdp.args[1]
+    pfddata = pdp.args[1]
+
+    if !(typeof(pfddata) <: Dict || typeof(pfddata) <: Vector)
+        pfdmatrix = pdp.args[1]
+        n = size(pfdmatrix)[1]
+        if sampleids === nothing && samplesize !== nothing
+            sampleids = sample(1:n, samplesize, replace=false)
+        end
+        if sampleids !== nothing
+            pfdmatrix = pfdmatrix[sampleids, sampleids]
+            n = length(sampleids)
+        end
+        pfddata = convert_pfdmatrix_to_vector(pfdmatrix)
+    end
+
+    if !(hist)
+        pfddata = typeof(pfddata) <: Vector ? countmap(pfddata) : pfddata
         pfd, freq = dict_to_sortedvecs(pfddata)
         freq = freq ./ sum(freq)
         if step !== nothing
@@ -253,22 +268,8 @@ end
             pfd, freq
         end
     else
-        if typeof(pdp.args[1]) <: Vector
-            pfddata = pdp.args[1]
-        elseif typeof(pdp.args[1]) <: Dict
-            pfddict = pdp.args[1]
+        if typeof(pfddata) <: Dict
             pfddata = [i for (key, value) in pfddict for i in fill(key, value)]
-        else
-            pfdmatrix = pdp.args[1]
-            n = size(pfdmatrix)[1]
-            if sampleids === nothing && samplesize !== nothing
-                sampleids = sample(1:n, samplesize, replace=false)
-            end
-            if sampleids !== nothing
-                pfdmatrix = pfdmatrix[sampleids, sampleids]
-                n = length(sampleids)
-            end
-            pfddata = convert_pfdmatrix_to_vector(pfdmatrix)
         end
         @series begin
             grid --> false

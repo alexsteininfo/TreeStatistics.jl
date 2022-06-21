@@ -23,6 +23,10 @@ mutable struct SimpleCell
     clonetype::Int64
 end
 
+SimpleCell(; id=1, alive=true, birthtime=0.0, mutations=0, clonetype=1) =
+    SimpleCell(id, alive, birthtime, mutations, clonetype)
+
+
 function Base.show(io::IO, cell::SimpleCell)
     print(io, "($(cell.id)) mutations = $(cell.mutations), t = $(cell.birthtime)")
     cell.alive || print(io, " X")
@@ -57,6 +61,7 @@ struct ModuleTracker
     id::Int64
     parentid::Int64
 end
+
 
 Base.length(moduletracker::ModuleTracker) = moduletracker.Nvec[end]
 
