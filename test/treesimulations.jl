@@ -2,9 +2,11 @@ rng = MersenneTwister(12)
 
 @testset "tree branching" begin
     @testset "initialisation" begin
-        alivecells, root = initialize_tree(10)
+        alivecells = initialize_tree(10)
+        root = getroot(alivecells)
         @test root.data.mutations == 10
-        alivecells, root = initialize_tree(0)
+        alivecells = initialize_tree(0)
+        root = getroot(alivecells)
         @test root.data.mutations == 0
         @test length(alivecells) == 1
         @test AbstractTrees.isroot(root)
@@ -12,7 +14,8 @@ rng = MersenneTwister(12)
     end
 
     @testset "run simulation" begin
-        alivecells, root = initialize_tree(0)
+        alivecells = initialize_tree(0)
+        root = getroot(alivecells)
         input = BranchingInput(
             Nmax=100, 
             b=1, 
@@ -22,7 +25,8 @@ rng = MersenneTwister(12)
             μ=10,
             mutationdist=:poisson
         )
-        alivecells, root = run1simulation_tree(input, rng)
+        alivecells = run1simulation_tree(input, rng)
+        root = getroot(alivecells)
         @test length(SomaticEvolution.getalivecells(root)) == 100
         @test all(cellnode.data.alive for cellnode in alivecells)
     end
