@@ -246,9 +246,12 @@ end
     end
 
     if !(hist)
+        normalize = get(plotattributes, :normalize, :pdf)
         pfddata = typeof(pfddata) <: Vector ? countmap(pfddata) : pfddata
         pfd, freq = dict_to_sortedvecs(pfddata)
-        freq = freq ./ sum(freq)
+        if normalize === true || normalize == :pdf || normalize == :probability
+            freq = freq ./ sum(freq)
+        end
         if step !== nothing
             pfd = pfd[1:step:end]
             freq = freq[1:step:end]
@@ -264,12 +267,11 @@ end
             legend --> false
             titlefontsize -->10
             titlelocation --> :left
-            normalize --> :pdf
             pfd, freq
         end
     else
         if typeof(pfddata) <: Dict
-            pfddata = [i for (key, value) in pfddict for i in fill(key, value)]
+            pfddata = [i for (key, value) in pfddata for i in fill(key, value)]
         end
         @series begin
             grid --> false
