@@ -16,7 +16,7 @@ function multiplesimulations(numsim, input; rng::AbstractRNG = Random.GLOBAL_RNG
     return results
 end
 
-function getstats(multsimlist::Array{MultiSimulation{T},1}, args::Symbol...;
+function getstats(multsimlist::Vector{MultiSimulation{T}}, args::Symbol...;
     fit_fmin=0.12, fit_fmax=0.24, sampled=true) where T <: SimulationInput
     i = 1
     dflist = DataFrame[]

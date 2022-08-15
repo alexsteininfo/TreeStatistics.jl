@@ -17,16 +17,21 @@ using AbstractTrees
 
 export 
 Cell,
-SimpleCell,
+TreeCell,
+SimpleTreeCell,
 BinaryNode,
 MultiSimulation,
 SimulationTracker,
+ModuleTracker,
+TreeModuleTracker,
 SimulationInput,
 MultilevelInput,
 BranchingMoranInput,
 BranchingInput,
 MoranInput,
 MultilevelInput,
+MultilevelBranchingInput,
+MultilevelMoranInput,
 Simulation,
 SampledData,
 PlotVAF,
@@ -35,6 +40,7 @@ VAFResult,
 
 multilevel_simulation,
 multilevel_simulation_fast,
+multilevel_simulation_timeseries,
 multiplesimulations,
 run1simulation, 
 getallelefreq,
@@ -75,19 +81,23 @@ endtime,
 celllifetime,
 celllifetimes,
 getalivecells,
-leftchild,
-rightchild,
-initialize_tree,
+leftchild!,
+rightchild!,
+initialize,
 run1simulation_tree,
 time_to_MRCA,
-coalescence_times
+coalescence_times,
+getsingleroot,
+popsize,
+newinput
 
 
-
-include("definetypes.jl")
 include("trees.jl")
+include("cells.jl")
+include("definetypes.jl")
 include("simulations.jl")
 include("multilevel.jl")
+include("multilevel_trees.jl")
 include("process.jl")
 include("sampling.jl")
 include("analyse.jl")
@@ -97,6 +107,7 @@ include("util.jl")
 include("statistics.jl")
 include("io.jl")
 include("simulation_trees.jl")
+
 
 
 
