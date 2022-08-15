@@ -21,12 +21,22 @@ function Base.show(io::IO, sresult::Simulation)
             @printf("\tTime subclone emerges: %.2f\n", subclone.time)
             @printf("\tNumber of divisions: %d\n", subclone.Ndivisions)
             @printf("\tAverage number of divisions per cell: %.2f\n", subclone.avdivisions)
-            @printf("\tPopulation size when subclone emerges: %d\n", subclone.N0)
+            @printf("\tMultiSimulation size when subclone emerges: %d\n", subclone.N0)
             @printf("\tParent of subclone (0 is host): %d\n\n", subclone.parenttype-1)
         end
     else
         @printf("No clones, tumour growth was neutral\n\n")
     end
+
+end
+
+function Base.show(io::IO, sresult::Union{MultiSimulation, MultiSimulation})
+   @printf("===================================================================\n") 
+   _showrates(sresult.input)
+   @printf("\tBranching rate: %.3f\n", sresult.input.branchrate)
+   @printf("\tBranch initial size: %.3f\n", sresult.input.branchinitsize)
+   @printf("\tModule size: %d\n", sresult.input.modulesize)
+   @printf("Final number of modules: %d", length(sresult.output))
 
 end
 
@@ -64,7 +74,7 @@ function Base.show(io::IO, sresult::MultiSimulation)
 
 end
 
-function Base.show(io::IO, population::Population)
+function Base.show(io::IO, population::MultiSimulation)
     siminput = population.input
     @printf("===================================================================\n")
     @printf("Multilevel branching module simulation\n\n")
@@ -77,8 +87,8 @@ function Base.show(io::IO, population::Population)
     @printf("\tNumber of clonal mutations: %d\n", siminput.clonalmutations)
     # @printf("\tNumber of subclones: %d\n\n", siminput.numclones)  
 
-    @printf("Population data\n")
-    @printf("\tPopulation age = %d\n", age(population))
+    @printf("MultiSimulation data\n")
+    @printf("\tMultiSimulation age = %d\n", age(population))
     @printf("\tNumber of modules = %d\n\n", length(population))
 
     # @printf("Clonal mutations per module")
