@@ -3,15 +3,17 @@
 
     Simulate a population of cells that grows by a branching process.
 
-    Take simulation parameters from `input` and return a BinaryNode that is the root of a 
-    phylogeny tree. By default if population goes extinct, restart simulation. 
+    Take simulation parameters from `input` and return `alivecells` (a vector of type 
+    BinaryNode corresponding to the alive cells at the end of the simulation) and `root` a 
+    single BinaryNode that is the root of a phylogeny tree. By default if population goes 
+    extinct, restart simulation. 
 
 """
 function run1simulation_tree(input::BranchingInput, rng::AbstractRNG=Random.GLOBAL_RNG; 
     timefunc=exptime, returnextinct=false)
     
     while true
-        alivecells, root = initialize_tree(input.clonalmutations)
+        alivecells = initialize_tree(input.clonalmutations)
         alivecells =
             branchingprocess!(
                 alivecells,
@@ -25,9 +27,34 @@ function run1simulation_tree(input::BranchingInput, rng::AbstractRNG=Random.GLOB
                 timefunc=timefunc
             )
         if length(alivecells) > 0 || returnextinct
-            return alivecells, root
+            return alivecells, getroot(alivecells[1])
         end
     end
+end
+
+"""
+    run1simulation_tree(input::MoranInput, [rng::AbstractRNG]; timefunc=exptime)
+
+    Simulate a population of cells that evolves by a Moran process.
+
+    Take simulation parameters from `input` and return `alivecells` (a vector of type 
+    BinaryNode corresponding to the alive cells at the end of the simulation) and `root` (a 
+    vector of BinaryNodes that are the roots of the phylogeny).
+"""
+function run1simulation_tree(input::MoranInput, rng::AbstractRNG=Random.GLOBAL_RNG; 
+    timefunc=exptime)
+    
+    alivecells = initialize_tree(input.clonalmutations)
+    alivecells =
+        moranprocess!(
+            alivecells,
+            input.bdrate, 
+            input.tmax, 
+            input.μ, 
+            input.mutationdist, 
+            rng, 
+            timefunc=timefunc
+        )
 end
 
 """
@@ -64,6 +91,78 @@ function branchingprocess!(alivecells::Vector{BinaryNode{SimpleCell}}, b, d, Nma
 end
 
 """
+    branchingupdate!(alivecells::Vector{BinaryNode{SimpleCell}}, b, d, N, t, nextID, μ, mutationdist, 
+        rng; timefunc=exptime)
+    
+    Single update step of branching process.
+"""
+function branchingupdate!(alivecells::Vector{BinaryNode{SimpleCell}}, b, d, N, t, 
+    nextID, μ, mutationdist, rng; timefunc=exptime)
+
+    #pick a random cell and randomly select its fate (birth or death) with probability 
+    #proportional to birth and death rates
+    randcellidx = rand(rng, 1:N) 
+    r = rand(rng) 
+    if r < b/(b+d)
+        nextID = 
+            celldivision!(alivecells, randcellidx, t, nextID, μ, mutationdist, rng)
+        N += 1
+    else
+        celldeath!(alivecells, randcellidx, t, μ, mutationdist, rng)
+        N -= 1
+    end
+    return N, nextID
+end
+
+"""
+    moranprocess!(alivecells::Vector{BinaryNode{SimpleCell}}, bdrate, tmax, μ, mutationdist, 
+        rng::AbstractRNG; timefunc=exptime)
+
+"""
+function moranprocess!(alivecells::Vector{BinaryNode{SimpleCell}}, bdrate, tmax, μ, mutationdist, 
+    rng::AbstractRNG; N=length(alivecells), timefunc=exptime)
+
+    # set initial time and next cell ID
+    t = maximum(cellnode.data.birthtime for cellnode in alivecells)
+    nextID = maximum(cellnode.data.id for cellnode in alivecells)
+
+    while true
+        Δt = timefunc(rng, N * bdrate)
+        t + Δt <= tmax || break # end simulation if time exceeds maximum
+        t += Δt
+        nextID = 
+            moranupdate!(alivecells, t, nextID, μ, mutationdist, rng; N, timefunc)
+    end
+    #add final mutations to all alive cells if mutations are time dependent
+    if mutationdist == :fixedtimedep || mutationdist == :poissontimedep    
+        add_mutations!(alivecells, t, mutationdist, μ, rng)
+    end
+
+    return alivecells
+
+end
+"""
+    moranupdate!(alivecells::Vector{BinaryNode{SimpleCell}}, t, nextID, μ, 
+        mutationdist, rng, timefunc=timefunc)
+"""
+function moranupdate!(alivecells::Vector{BinaryNode{SimpleCell}}, t, nextID, μ, 
+    mutationdist, rng; N=length(alivecells), timefunc=timefunc)
+
+    #pick a cell to divide and a cell to die
+    dividecellidx = rand(rng, 1:N) 
+    deadcellidx = rand(rng, 1:N) 
+
+    #if dead cell and divide cell are the same kill one of the new offspring after division
+    if deadcellidx == dividecellidx 
+        deadcellidx = N
+    end
+
+    nextID = celldivision!(alivecells, dividecellidx, t, nextID, μ, mutationdist, rng)
+    celldeath!(alivecells, deadcellidx, t, μ, mutationdist, rng)
+    return nextID
+end
+
+"""
     add_mutations(cells, t)
 
 Add mutations to vector of `cells`, that have occured between cell birth time and time t.
@@ -76,25 +175,6 @@ function add_mutations!(cells, t, mutationdist, μ, rng)
     end
 end
 
-"""
-    branchingupdate!(alivecells::Vector{BinaryNode{SimpleCell}}, b, d, N, t, nextID, μ, mutationdist, 
-        rng; timefunc=exptime)
-    
-    Single update step of branching process.
-"""
-function branchingupdate!(alivecells::Vector{BinaryNode{SimpleCell}}, b, d, N, t, 
-    nextID, μ, mutationdist, rng; timefunc=exptime)
-
-    randcellidx = rand(rng, 1:N)
-    r = rand(rng)
-    if r < b/(b+d)
-        N, nextID = 
-            celldivision!(alivecells, randcellidx, N, t, nextID, μ, mutationdist, rng)
-    else
-        N = celldeath!(alivecells, randcellidx, N, t, μ, mutationdist, rng)
-    end
-    return N, nextID
-end
 
 """
     celldivision!(alivecells::Vector{BinaryNode{SimpleCell}}, parentcellidx, N, t, nextID, μ, 
@@ -106,7 +186,7 @@ parent cell depending on the length of its lifetime. Otherwise assign mutations 
 child cell.
 """
 
-function celldivision!(alivecells::Vector{BinaryNode{SimpleCell}}, parentcellidx, N, t, nextID, μ, 
+function celldivision!(alivecells::Vector{BinaryNode{SimpleCell}}, parentcellidx, t, nextID, μ, 
     mutationdist, rng)
 
     parentcellnode = alivecells[parentcellidx] #get parent cell node
@@ -129,7 +209,7 @@ function celldivision!(alivecells::Vector{BinaryNode{SimpleCell}}, parentcellidx
     push!(alivecells, leftchild(childcell1, parentcellnode))
     push!(alivecells, rightchild(childcell2, parentcellnode)) 
 
-    return N + 1, nextID + 2
+    return nextID + 2
 
 end
 
@@ -141,7 +221,7 @@ end
 Remove dead cell from `alivecells` vector and add a new cell with `alive=false` as the left
 child of the dead cell. Add time dependent mutations (if applicable) to dying cell.
 """
-function celldeath!(alivecells::Vector{BinaryNode{SimpleCell}}, deadcellidx, N, t, μ=nothing, 
+function celldeath!(alivecells::Vector{BinaryNode{SimpleCell}}, deadcellidx, t, μ=nothing, 
     mutationdist=nothing, rng=nothing)
 
     deadcellnode = alivecells[deadcellidx]
@@ -154,7 +234,7 @@ function celldeath!(alivecells::Vector{BinaryNode{SimpleCell}}, deadcellidx, N, 
     #remove from alivecell vector and add leftchild node containing a dead cell
     deleteat!(alivecells, deadcellidx)
     leftchild(SimpleCell(deadcellnode.data.id, false, t, 0, deadcellnode.data.clonetype), deadcellnode)
-    return N - 1   
+    return
 end
 
 """
@@ -162,17 +242,11 @@ end
 Initialize tree with `N` cells (defaults to 1) and return vector of alive cells.
 """
 function initialize_tree(clonalmutations, N=1)
-    if N == 1
-        initialcell = SimpleCell(1, true, 0.0, clonalmutations, 1)
-        root = BinaryNode{SimpleCell}(initialcell)
-        alivecells = [root]
-        return alivecells, root
-    else 
-        initialcells = [SimpleCell(1, true, 0.0, clonalmutations, 1) for i in 1:N]
-        roots = [BinaryNode{SimpleCell}(cell) for cell in initialcells]
-        alivecells = copy(roots)
-        return alivecells, roots
-    end
+    alivecells = map(
+        id -> BinaryNode{SimpleCell}(SimpleCell(id=id, mutations=clonalmutations)), 
+        1:N
+    )
+    return alivecells
 end
 
 

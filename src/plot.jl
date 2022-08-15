@@ -100,7 +100,7 @@ end
 
 @recipe function f(output::ModuleTracker)
     @series begin
-        yguide --> "Population size"
+        yguide --> "MultiSimulation size"
         xguide --> "Time"
         seriestype --> :line
         output.tvec, output.Nvec
@@ -230,10 +230,28 @@ end
 @recipe function f(pdp::PairwiseDistributionPlot; sampleids=nothing, samplesize=nothing,
     showclonal=false, step=nothing, hist=false)
 
-    if typeof(pdp.args[1]) <: Dict && !(hist)
-        pfddata = pdp.args[1]
+    pfddata = pdp.args[1]
+
+    if !(typeof(pfddata) <: Dict || typeof(pfddata) <: Vector)
+        pfdmatrix = pdp.args[1]
+        n = size(pfdmatrix)[1]
+        if sampleids === nothing && samplesize !== nothing
+            sampleids = sample(1:n, samplesize, replace=false)
+        end
+        if sampleids !== nothing
+            pfdmatrix = pfdmatrix[sampleids, sampleids]
+            n = length(sampleids)
+        end
+        pfddata = convert_pfdmatrix_to_vector(pfdmatrix)
+    end
+
+    if !(hist)
+        normalize = get(plotattributes, :normalize, :pdf)
+        pfddata = typeof(pfddata) <: Vector ? countmap(pfddata) : pfddata
         pfd, freq = dict_to_sortedvecs(pfddata)
-        freq = freq ./ sum(freq)
+        if normalize === true || normalize == :pdf || normalize == :probability
+            freq = freq ./ sum(freq)
+        end
         if step !== nothing
             pfd = pfd[1:step:end]
             freq = freq[1:step:end]
@@ -249,26 +267,11 @@ end
             legend --> false
             titlefontsize -->10
             titlelocation --> :left
-            normalize --> :pdf
             pfd, freq
         end
     else
-        if typeof(pdp.args[1]) <: Vector
-            pfddata = pdp.args[1]
-        elseif typeof(pdp.args[1]) <: Dict
-            pfddict = pdp.args[1]
-            pfddata = [i for (key, value) in pfddict for i in fill(key, value)]
-        else
-            pfdmatrix = pdp.args[1]
-            n = size(pfdmatrix)[1]
-            if sampleids === nothing && samplesize !== nothing
-                sampleids = sample(1:n, samplesize, replace=false)
-            end
-            if sampleids !== nothing
-                pfdmatrix = pfdmatrix[sampleids, sampleids]
-                n = length(sampleids)
-            end
-            pfddata = convert_pfdmatrix_to_vector(pfdmatrix)
+        if typeof(pfddata) <: Dict
+            pfddata = [i for (key, value) in pfddata for i in fill(key, value)]
         end
         @series begin
             grid --> false
@@ -315,5 +318,10 @@ end
 function dict_to_sortedvecs(d)
     dkeys = collect(keys(d))
     p = sortperm(dkeys)
-    return dkeys[p], collect(values(d))[p]
+    pfd, freq = dkeys[p], collect(values(d))[p]
+    maxkey = pfd[end]
+    newpfd = collect(0:maxkey)
+    newfreq = zero(0:maxkey)
+    newfreq[pfd] = freq
+    return newpfd, newfreq
 end

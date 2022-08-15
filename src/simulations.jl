@@ -162,7 +162,7 @@ function branchingprocess!(moduletracker::ModuleTracker, b, d, Nmax, μ, rng::Ab
     maxclonesize=200, tmax=Inf)
     
     t, N = moduletracker.tvec[end], moduletracker.Nvec[end]
-    mutID = N == 1 ? 1 : getmutID(moduletracker.cells)
+    mutID = N == 1 ? 1 : getnextID(moduletracker.cells)
 
     nclonescurrent = length(moduletracker.subclones) + 1  
     executed = false
@@ -193,8 +193,7 @@ function branchingprocess!(moduletracker::ModuleTracker, b, d, Nmax, μ, rng::Ab
 
         if r < br 
             #cell divides
-            moduletracker, mutID = celldivision!(moduletracker, randcell, mutID, μ, t, rng,
-                mutationdist=mutationdist)
+            moduletracker, mutID = celldivision!(moduletracker, randcell, t, mutID, μ, mutationdist, rng)
             N += 1
             #check if t>=tevent for next fit subclone
             if nclonescurrent < numclones + 1 && t >= tevent[nclonescurrent]
@@ -350,7 +349,7 @@ function moranprocess!(moduletracker::ModuleTracker, bdrate, tmax, μ, rng::Abst
     numclones = 0, mutationdist=:poisson, selection = Float64[], tevent = Float64[])
 
     t, N = moduletracker.tvec[end], moduletracker.Nvec[end]
-    mutID = getmutID(moduletracker.cells)
+    mutID = getnextID(moduletracker.cells)
 
     nclonescurrent = length(moduletracker.subclones) + 1  
 
@@ -377,8 +376,7 @@ function moranprocess!(moduletracker::ModuleTracker, bdrate, tmax, μ, rng::Abst
         randcelldie = rand(rng,1:N) 
 
         #cell divides
-        moduletracker, mutID = celldivision!(moduletracker, randcelldivide, mutID, μ, t, rng,
-            mutationdist=mutationdist)
+        moduletracker, mutID = celldivision!(moduletracker, randcelldivide, t, mutID, μ, mutationdist, rng)
         
         #check if t>=tevent for next fit subclone and more subclones are expected
         if nclonescurrent < numclones + 1 && t >= tevent[nclonescurrent]
@@ -491,25 +489,14 @@ function initializesim_moran(N; clonalmutations=0)
     return moduletracker
 end
 
-function initializesim_from_cells(cells::Array{Cell,1}, subclones::Array{CloneTracker, 1}, 
-    id, parentid;
-    inittime=0.0)
-
-    #initialize time to zero
-    t = inittime
-    tvec = Float64[]
-    push!(tvec,t)
+function initializesim_from_cells(::Type{T}, cells, subclones::Vector{CloneTracker}, 
+    id, parentid; inittime=0.0) where T <: AbstractModule
 
     #population starts from list of cells
-    N = length(cells)
-    Nvec = Int64[]
-    push!(Nvec, N)
+    tvec = Float64[inittime]
+    Nvec = Int64[length(cells)]
 
-    for (i, subclone) in enumerate(subclones)
-        subclone.size = sum(cell.clonetype .== 1)
-    end
-
-    moduletracker = ModuleTracker(
+    moduletracker = T(
         Nvec,
         tvec,
         cells,
@@ -518,6 +505,17 @@ function initializesim_from_cells(cells::Array{Cell,1}, subclones::Array{CloneTr
         parentid
     )
     return moduletracker
+end
+
+function initializesim_from_cells(cells::Vector{Cell}, subclones::Vector{CloneTracker}, id, parentid; inittime=0.0)
+    return initializesim_from_cells(
+        ModuleTracker, 
+        cells, 
+        subclones,
+        id, 
+        parentid; 
+        inittime
+    )
 end
 
 function addmutations!(cell1, cell2, μ, mutID, rng, mutationdist=mutationdist, Δt=Δt)
@@ -573,8 +571,7 @@ function addnewmutations!(cell1::Cell, cell2::Cell, numbermutations, mutID)
     return mutID
 end
 
-function celldivision!(moduletracker::ModuleTracker, parentcell, mutID, μ, t,
-    rng::AbstractRNG; mutationdist=:fixed)
+function celldivision!(moduletracker::ModuleTracker, parentcell, t, mutID, μ, mutationdist, rng)
     
     Δt = t - moduletracker.cells[parentcell].birthtime
     moduletracker.cells[parentcell].birthtime = t
@@ -617,7 +614,7 @@ function cellmutation!(moduletracker::ModuleTracker, mutatingcell, N, t, nclones
     return moduletracker, nclonescurrent
 end
 
-function celldeath!(moduletracker::ModuleTracker, deadcell::Int64)
+function celldeath!(moduletracker::ModuleTracker, deadcell::Int64, args...)
     #frequency of cell type decreases
     clonetype = moduletracker.cells[deadcell].clonetype 
     if clonetype > 1
@@ -629,7 +626,7 @@ function celldeath!(moduletracker::ModuleTracker, deadcell::Int64)
     return moduletracker
 end
 
-function celldeath!(moduletracker::ModuleTracker, deadcells::Array{Int64, 1})
+function celldeath!(moduletracker::ModuleTracker, deadcells::Vector{Int64}, args...)
     for deadcell in deadcells
         clonetype = moduletracker.cells[deadcell].clonetype 
         if clonetype > 1
@@ -641,7 +638,11 @@ function celldeath!(moduletracker::ModuleTracker, deadcells::Array{Int64, 1})
     return moduletracker
 end
 
-function getmutID(cells::Vector{Cell})
+cellremoval!(moduletracker::ModuleTracker, deadcells::Vector{Int64}) = 
+    celldeath!(moduletracker, deadcells)
+
+
+function getnextID(cells::Vector{Cell})
     if all(no_mutations.(cells))
         return 1
     else

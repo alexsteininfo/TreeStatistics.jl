@@ -35,7 +35,7 @@ end
     Start with a single module comprised of a single cell that grows via a branching process  
     to size `input.modulesize`, then switches to a Moran process. 
     New modules are created with rate `input.branchrate`, by sampling cells from the parent 
-    module. Return output as a Population.
+    module. Return output as a MultiSimulation.
 
     - if `simtype == :normal`, simulation is
     implemented by a Gillespie algorithm and runs until the number of modules exceeds 
@@ -48,9 +48,11 @@ end
     than input.maxmodules and error is thrown.
 
 """
-function multilevel_simulation(input::MultilevelInput, rng::AbstractRNG=Random.GLOBAL_RNG, 
-    simtype=:normal)
+function multilevel_simulation(input::MultilevelInput, args...)
+    return multilevel_simulation(Cell, input, args...) 
+end
 
+function multilevel_simulation(::Type{Cell}, input::MultilevelBranchingInput, rng::AbstractRNG=Random.GLOBAL_RNG, simtype=:normal) 
     #if the population dies out we start a new simulation
     while true 
         populationtracker = initialize_population(
@@ -69,6 +71,8 @@ function multilevel_simulation(input::MultilevelInput, rng::AbstractRNG=Random.G
                     input.branchrate, 
                     input.modulesize, 
                     input.branchinitsize, 
+                    1, #assume a single mutation at each division and add distribution of
+                    :fixed, #mutations later
                     rng
                 )
         elseif simtype == :fixedtime || simtype == "fixedtime"
@@ -94,7 +98,66 @@ function multilevel_simulation(input::MultilevelInput, rng::AbstractRNG=Random.G
     end
     populationtracker = 
         processresults!(populationtracker, input.μ, input.clonalmutations, rng)
-    return Population(input, populationtracker)
+    return MultiSimulation(input, populationtracker)
+end
+
+function multilevel_simulation(::Type{Cell}, input::MultilevelMoranInput, rng::AbstractRNG=Random.GLOBAL_RNG) 
+    #if the population dies out we start a new simulation
+    while true 
+        populationtracker = initialize_population(
+            input.modulesize, 
+            clonalmutations=0
+        )
+        populationtracker = 
+            simulate!(
+                populationtracker, 
+                input.maxtime, 
+                input.maxmodules, 
+                input.b, 
+                input.d, 
+                input.bdrate, 
+                input.branchrate_growth, 
+                input.modulesize, 
+                input.branchinitsize, 
+                1, #assume a single mutation at each division and add distribution of
+                :fixed, #mutations later
+                rng,
+                moduleupdate=:moran
+            )
+        if length(populationtracker) != 0
+            break
+        end
+    end
+    populationtracker = 
+        processresults!(populationtracker, input.μ, input.clonalmutations, rng)
+    return MultiSimulation(input, populationtracker)
+end
+
+function multilevel_simulation_timeseries(::Type{Cell}, input::MultilevelMoranInput, timesteps, func, rng::AbstractRNG=Random.GLOBAL_RNG) 
+    populationtracker = initialize_population(
+        input.modulesize, 
+        clonalmutations=0
+    )
+    data = map(timesteps) do t
+        populationtracker = simulate!(
+            populationtracker, 
+            t,
+            input.maxmodules, 
+            input.b, 
+            input.d, 
+            input.bdrate, 
+            input.branchrate_growth, 
+            input.modulesize, 
+            input.branchinitsize, 
+            input.μ,
+            input.mutationdist,
+            rng,
+            moduleupdate=:moran
+
+        )
+        return func(populationtracker)
+    end
+    return data 
 end
 
 """
@@ -107,14 +170,15 @@ size reaches `maxmodules` or the age of the population reaches `maxtime`.
 
 """
 function simulate!(populationtracker, maxtime, maxmodules, b, d, bdrate, branchrate, 
-    modulesize, branchinitsize, rng)
+    modulesize, branchinitsize, μ, mutationdist, rng; moduleupdate=:branching)
 
-    mutID = getmutID(populationtracker[1].cells) #get id of next mutation
+    nextID = getnextID(populationtracker) #get next id
+    nextmoduleID = maximum(moduletracker.id for moduletracker in populationtracker) + 1
     t = age(populationtracker)
-    while t < maxtime && length(populationtracker) < maxmodules
-        populationtracker, mutID, t = 
+    while t < maxtime && (moduleupdate==:moran || length(populationtracker) < maxmodules)
+        populationtracker, t, nextID = 
             update_population!(populationtracker, b, d, bdrate, branchrate, modulesize, 
-                branchinitsize, mutID, t, maxtime, rng)
+                branchinitsize, t, nextID, nextmoduleID, μ, mutationdist, maxtime, maxmodules, rng; moduleupdate)
         #returns empty list of modules if population dies out
         if length(populationtracker) == 0
             return populationtracker
@@ -125,7 +189,7 @@ end
 
 """
     update_population!(populationtracker, b, d, bdrate, branchrate, modulesize, 
-        branchinitsize, mutID, t, maxtime, rng)
+        branchinitsize, nextID, t, maxtime, rng)
 
 Perform a single Gillespie step to advance the simulation of a multilevel population, and
 increase the time t → t + Δt.
@@ -136,7 +200,7 @@ selects from these transitions with probability proportional to rate. Time is in
 """
 
 function update_population!(populationtracker, b, d, bdrate, branchrate, modulesize, 
-    branchinitsize, mutID, t, maxtime, rng)
+    branchinitsize, t, nextID, nextmoduleID, μ, mutationdist, maxtime, maxmodules, rng; moduleupdate=:branching)
 
     transitionrates = get_transitionrates(populationtracker, b, d, 
         bdrate, branchrate, modulesize)
@@ -149,68 +213,77 @@ function update_population!(populationtracker, b, d, bdrate, branchrate, modules
             1:4, 
             ProbabilityWeights(transitionrates ./ sum(transitionrates))
         )
-        populationtracker, mutID = transition!(
+        populationtracker, nextID, nextmoduleID = transition!(
             populationtracker, 
             transitionid, 
             modulesize, 
             branchinitsize, 
-            mutID, 
             t, 
-            1, 
-            rng
+            nextID,
+            nextmoduleID,
+            μ, 
+            mutationdist,
+            maxmodules,
+            rng;
+            moduleupdate
         )
     end
-    return populationtracker, mutID, t
+    return populationtracker, t, nextID, nextmoduleID
 end
 
 """
-    transition!(populationtracker, transitionid, modulesize, branchinitsize, mutID, t, 
+    transition!(populationtracker, transitionid, modulesize, branchinitsize, nextID, t, 
         μ, rng)
     
 Perform a single transition step on `populationtracker`, determined by `transitionid`.
 """
-function transition!(populationtracker, transitionid, modulesize, branchinitsize, mutID, t, 
-    μ, rng)
+function transition!(populationtracker, transitionid, modulesize, branchinitsize, t, nextID, nextmoduleID,
+    μ, mutationdist, maxmodules, rng; moduleupdate=:branching)
     
     if transitionid == 1
-        _, mutID = moranupdate!(populationtracker, modulesize, mutID, t, μ, rng)
+        _, nextID = moranupdate!(populationtracker, modulesize, t, nextID, μ, mutationdist, rng)
     elseif transitionid == 2
-        _, mutID = birthupdate!(populationtracker, modulesize, mutID, t, μ, rng)
+        _, nextID = birthupdate!(populationtracker, modulesize, t, nextID, μ, mutationdist, rng)
     elseif transitionid == 3
-        deathupdate!(populationtracker, modulesize, t, rng)
+        deathupdate!(populationtracker, modulesize, t, μ, mutationdist, rng)
     elseif transitionid == 4
-        modulebranchingupdate!(populationtracker, modulesize, branchinitsize, t, rng)
+        if moduleupdate == :branching || length(populationtracker) < maxmodules
+            _, nextmoduleID = modulebranchingupdate!(populationtracker, nextmoduleID, modulesize, branchinitsize, t, rng)
+        elseif moduleupdate == :moran
+            _, nextmoduleID = modulemoranupdate!(populationtracker, nextmoduleID, modulesize, branchinitsize, t, μ, mutationdist, rng)
+        end
     end
-    return populationtracker, mutID
+    return populationtracker, nextID, nextmoduleID
 end
 
 """
-    moranupdate!(populationtracker, modulesize, mutID, t, μ, rng)
+    moranupdate!(populationtracker, modulesize, t, nextID, μ, mutationdist, rng)
 
 Selects a homeostatic module uniformly at random to undergo a single Moran update. From 
 that module one cell divides and one cell dies.
 """
-function moranupdate!(populationtracker, modulesize, mutID, t, μ, rng)
+function moranupdate!(populationtracker, modulesize, t, nextID, μ, mutationdist, rng)
     moduletracker, parentcell, deadcell = 
         choose_homeostaticmodule_cells(populationtracker, modulesize, rng)
-    _, mutID = celldivision!(moduletracker, parentcell, mutID, μ, t, rng)
-    celldeath!(moduletracker, deadcell)
+    _, nextID = celldivision!(moduletracker, parentcell, t, nextID, μ, mutationdist, rng)
+    celldeath!(moduletracker, deadcell, t, μ, mutationdist, rng)
     updatemodulehistory!(moduletracker, 0, t)
-    return populationtracker, mutID
+    return populationtracker, nextID
 end
 
 """
-    birthupdate!(populationtracker, modulesize, mutID, t, μ, rng)
+    birthupdate!(populationtracker, modulesize, t, nextID, μ, mutationdist, rng)
 
 Selects a cell uniformly at random from all cells in non-homeostatic modules to divide.
 """
-function birthupdate!(populationtracker, modulesize, mutID, t, μ, rng)
+function birthupdate!(populationtracker, modulesize, t, nextID, μ, mutationdist, rng)
     moduletracker, parentcell = 
         choose_growingmodule_cell(populationtracker, modulesize, rng)
-    _, mutID = celldivision!(moduletracker, parentcell, mutID, μ, t, rng, mutationdist=:fixed)
+    _, nextID = celldivision!(moduletracker, parentcell, t, nextID, μ, mutationdist, rng)
     updatemodulehistory!(moduletracker, 1, t)
-    return populationtracker, mutID
+    return populationtracker, nextID
 end
+
 
 """
     deathupdate!(populationtracker, modulesize, t, rng)
@@ -218,13 +291,14 @@ end
 Selects a cell uniformly at random from all cells in non-homeostatic modules to die. If 
 cell death results in an empty module, remove that module from the population.
 """
-function deathupdate!(populationtracker, modulesize, t, rng)
+
+function deathupdate!(populationtracker, modulesize, t, μ, mutationdist, rng)
     moduletracker, deadcell = 
         choose_growingmodule_cell(populationtracker, modulesize, rng)
-    celldeath!(moduletracker, deadcell)
+    celldeath!(moduletracker, deadcell, t, μ, mutationdist, rng)
     updatemodulehistory!(moduletracker, -1, t)
     if length(moduletracker) == 0
-        moduledeath!(populationtracker, moduletracker)
+        moduledeath!(populationtracker, moduletracker, t, μ, mutationdist, rng)
     end
     return populationtracker
 end
@@ -235,13 +309,22 @@ Select a homeostatic module, uniformly at random, to undergo branching. Cells ar
 (number of cells giving by `branchinitsize`) from the parent module to form a new module, 
 which is added to `populationtracker`
 """
-function modulebranchingupdate!(populationtracker, modulesize, branchinitsize, t, rng)
+function modulebranchingupdate!(populationtracker, nextmoduleID, modulesize, branchinitsize, t, rng)
     parentmodule = choose_homeostaticmodule(populationtracker, modulesize, rng)
-    _, newmodule = 
-        sample_new_module!(parentmodule, length(populationtracker) + 1, 
-            branchinitsize, t, rng)
+    _, newmodule, nextmoduleID = 
+        sample_new_module!(parentmodule, nextmoduleID, branchinitsize, t, rng)
     push!(populationtracker, newmodule)
-    return populationtracker
+    return populationtracker, nextmoduleID
+end
+
+function modulemoranupdate!(populationtracker, nextmoduleID, modulesize, branchinitsize, t, μ, mutationdist, rng)
+    parentmodule = choose_homeostaticmodule(populationtracker, modulesize, rng)
+    _, newmodule, nextmoduleID = 
+        sample_new_module!(parentmodule, nextmoduleID, branchinitsize, t, rng)
+    push!(populationtracker, newmodule)
+    deadmodule = rand(rng, populationtracker)
+    moduledeath!(populationtracker, deadmodule, t, μ, mutationdist, rng)
+    return populationtracker, nextmoduleID
 end
 
 """
@@ -267,7 +350,7 @@ end
 
 """
     choose_homeostaticmodule_cells(populationtracker, maxmodulesize, rng::AbstractRNG)
-Select a homeostatic module and two cells from the module, uniformly at random.
+Select a homeostatic module and the ids of two cells from the module, uniformly at random.
 """
 function choose_homeostaticmodule_cells(populationtracker, maxmodulesize, rng::AbstractRNG)
     chosenmodule = choose_homeostaticmodule(populationtracker, maxmodulesize, rng)
@@ -276,8 +359,8 @@ end
 
 """
     choose_growingmodule_cells(populationtracker, maxmodulesize, rng::AbstractRNG)
-Select a cell unifor´mly at random from all cells in growing (non-homeostatic) modules, and
-return the module and cell.
+Select a cell uniformly at random from all cells in growing (non-homeostatic) modules, and
+return the module and cell id.
 """
 function choose_growingmodule_cell(populationtracker, maxmodulesize, rng::AbstractRNG)
     modulesizes = map(length, populationtracker)
@@ -314,11 +397,19 @@ end
 
 """
     moduledeath!(populationtracker, moduletracker)
-Remove the given `moduletracker` from `populationtracker`.
-"""
-function moduledeath!(populationtracker, moduletracker)
+Kill all live cells in `moduletracker` and remove it from `populationtracker`.
+    """
+function moduledeath!(populationtracker, moduletracker, t, μ, mutationdist, rng)
+    length(moduletracker) == 0 || killallcells!(moduletracker.cells, t, μ, mutationdist, rng)
     return deleteat!(populationtracker, findall(x->x==moduletracker, populationtracker))
 end
+
+function moduledeath!(populationtracker, moduletracker)
+    @assert length(moduletracker) == 0 "trying to delete non-empty module"
+    return deleteat!(populationtracker, findall(x->x==moduletracker, populationtracker))
+end
+
+killallcells!(populationtracker::Vector{Cell}, args...) = nothing
 
 """
     simulatefixedtime!(populationtracker, maxtime, maxmodules, b, d, bdrate, branchrate, 
@@ -432,18 +523,18 @@ number of cells is given by `branchinitsize` and the newmodule is given initial 
 `branchtime`.
 
 """
-function sample_new_module!(moduletracker, newmoduleid, branchinitsize, branchtime, 
-    rng::AbstractRNG)
+function sample_new_module!(moduletracker::T, nextmoduleID, branchinitsize, branchtime, 
+    rng::AbstractRNG) where T<: AbstractModule
 
     sampleids = sample(rng, 1:length(moduletracker.cells), branchinitsize, replace=false)
     newmoduletracker = 
-        initializesim_from_cells(moduletracker.cells[sampleids], moduletracker.subclones, 
-            newmoduleid, moduletracker.id, inittime=branchtime)
-    moduletracker = celldeath!(moduletracker, sampleids)
+        initializesim_from_cells(T, moduletracker.cells[sampleids], moduletracker.subclones, 
+            nextmoduleID, moduletracker.id, inittime=branchtime)
+    cellremoval!(moduletracker, sampleids)
     push!(moduletracker.Nvec, moduletracker.Nvec[end] - branchinitsize)
     push!(moduletracker.tvec, branchtime)
 
-    return moduletracker, newmoduletracker
+    return moduletracker, newmoduletracker, nextmoduleID
 end
 
 """
@@ -467,3 +558,5 @@ function initialize_population(modulesize=nothing; clonalmutations=0)
 
     return population
 end
+
+getnextID(population::Vector{ModuleTracker}) = maximum(map(x->getnextID(x.cells), population))

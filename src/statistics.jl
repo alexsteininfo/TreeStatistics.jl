@@ -214,6 +214,18 @@ function pairwise_fixed_differences(tree::BinaryNode{SimpleCell}, idx=nothing)
     return countmap(pfd)
 end
 
+function pairwise_fixed_differences(sampledcells::Vector{BinaryNode{SimpleCell}})
+    pfd = Int64[]
+    while length(sampledcells) > 1
+        cellnode1 = popfirst!(sampledcells)
+        for cellnode2 in sampledcells
+            push!(pfd, pairwisedistance(cellnode1, cellnode2))
+        end
+    end
+    return countmap(pfd)
+end
+
+
 function pairwisedistance(cellnode1::BinaryNode, cellnode2::BinaryNode, distance=0)
     if cellnode1.data.id > cellnode2.data.id
         cellnode1, cellnode2 = cellnode2, cellnode1

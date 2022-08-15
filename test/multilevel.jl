@@ -1,7 +1,7 @@
 @testset "simulate to maxtime" begin
 
     rng = MersenneTwister(12)
-    input = MultilevelInput(
+    input = MultilevelBranchingInput(
         modulesize=4, 
         fixedmu=true, 
         b=0.1, 
@@ -66,7 +66,7 @@
     @test newmoduletracker === nothing
 end
 
-input = MultilevelInput(
+input = MultilevelBranchingInput(
     modulesize=4, 
     fixedmu=true, 
     b=0.1, 
@@ -107,7 +107,7 @@ mt3 = SomaticEvolution.ModuleTracker(
 end
     
 
-population = SomaticEvolution.Population(input, [mt1, mt2, mt3])
+population = SomaticEvolution.MultiSimulation(input, [mt1, mt2, mt3])
 
 #check that statistics are calculated correctly
 @testset "mutation statistics" begin
@@ -133,23 +133,23 @@ end
     rng = MersenneTwister(12)
     populationtracker = [deepcopy(mt1), deepcopy(mt1), deepcopy(mt3)]
 
-    #kills only cell in module 3 => population size goes to 2
-    SomaticEvolution.deathupdate!(populationtracker, 4, 3, rng)
+    #kills only cell in module 3 => population size goes to 2 
+    SomaticEvolution.deathupdate!(populationtracker, 4, 3, 1, :fixed, rng)
     @test length(populationtracker) == 2
 
     #one module splits into two modules of length two
-    SomaticEvolution.modulebranchingupdate!(populationtracker, 4, 2, 1.0, rng)
+    SomaticEvolution.modulebranchingupdate!(populationtracker, 2, 4, 2, 1.0, rng)
     @test length(populationtracker) == 3
     @test sum(map(x -> length(x.cells), populationtracker)) == 8
     @test sum(map(x -> x.Nvec[end], populationtracker)) == 8
 
     #birth update one module gets an extra cell
-    SomaticEvolution.birthupdate!(populationtracker, 4, 2, 1.0, 1, rng)
+    SomaticEvolution.birthupdate!(populationtracker, 4, 1.0, 2, 1, :fixed, rng)
     @test sum(map(x -> length(x.cells), populationtracker)) == 9
     @test sum(map(x -> x.Nvec[end], populationtracker)) == 9
 
     #moran update population size stays the same
-    SomaticEvolution.moranupdate!(populationtracker, 4, 3, 1.0, 1, rng)
+    SomaticEvolution.moranupdate!(populationtracker, 4, 1.0, 3, 1, :fixed, rng)
     @test sum(map(x -> length(x.cells), populationtracker)) == 9
     @test sum(map(x -> x.Nvec[end], populationtracker)) == 9
 
@@ -176,7 +176,7 @@ end
     maxtime = 1000
     maxmodules = 5
     populationtracker = SomaticEvolution.initialize_population(modulesize, clonalmutations=0)
-    mutID = SomaticEvolution.getmutID(populationtracker[1].cells) #get id of next mutation
+    mutID = SomaticEvolution.getnextID(populationtracker[1].cells) #get id of next mutation
     t = 0
     rng = MersenneTwister(1)
 
@@ -191,7 +191,7 @@ end
     ) 
     #only tranisition with non-zero rate is birth which has rate b=0.1
     @test transitionrates == [0.0, 0.1, 0.0, 0.0] 
-    populationtracker, mutID, t = 
+    populationtracker, t, mutID, nextmoduleID = 
         SomaticEvolution.update_population!(
             populationtracker, 
             b, 
@@ -200,13 +200,17 @@ end
             branchrate, 
             modulesize, 
             branchinitsize,
+            t,
             mutID, 
-            0, 
+            2,
+            1,
+            :fixed, 
             maxtime,
+            maxmodules,
             rng
     )
     #popsize is now 2
-    @test populationtracker[1].Nvec[end] == length(populationtracker[1].cells)
+    @test populationtracker[1].Nvec[end] == length(populationtracker[1].cells) == 2
     @test length(populationtracker[1].Nvec) === length(populationtracker[1].tvec) == 2
     #each cell has one mutation
     @test length(populationtracker[1].cells[1].mutations) == length(populationtracker[1].cells[2].mutations) == 1
@@ -241,7 +245,7 @@ end
 
     #check multilevel_simulation function
     rng = MersenneTwister(12)
-    input = MultilevelInput(
+    input = MultilevelBranchingInput(
             modulesize=4, 
             fixedmu=true, 
             b=0.1, 
@@ -256,7 +260,7 @@ end
     )
     population = multilevel_simulation(input, rng, :normal)
     @test length(population) == 10
-    input = MultilevelInput(
+    input = MultilevelBranchingInput(
             modulesize=4, 
             fixedmu=true, 
             b=0.1, 
@@ -274,3 +278,60 @@ end
 
 end
 
+mt1 = SomaticEvolution.ModuleTracker(
+    [1, 2, 3, 4, 4, 4, 4, 4, 4, 4, 3, 4, 4, 4, 4], 
+    [0.0, 14.437821887595856, 38.636412371018324, 38.80067279227201, 39.07905423063021, 56.24183190197407, 61.57555456465887, 93.99343227770015, 174.7383395589789, 177.87796865140686, 187.1205185574646, 190.3156218593258, 222.64188808574013, 235.8640994797343, 242.08245554076214], 
+    Cell[Cell([3, 4, 20], 1, 0), Cell([3, 5, 6, 8, 10, 17, 18, 19], 1, 0), Cell([3, 4, 21, 22, 23], 1, 0), Cell([1, 24], 1, 0)], 
+    SomaticEvolution.CloneTracker[], 1, 0)
+mt2 = SomaticEvolution.ModuleTracker(
+    [1, 2, 3, 4, 4, 4, 3], 
+    [187.1205185574646, 207.5419622150601, 209.92705453342273, 216.2145518957684, 243.24240821372297, 252.31115142542512, 257.22794191422554], 
+    Cell[Cell([1, 13, 25, 26, 27], 1, 0), Cell([1, 13], 1, 0), Cell([1, 13, 25, 28, 29], 1, 0)], 
+    SomaticEvolution.CloneTracker[], 2, 1)
+mt3 = SomaticEvolution.ModuleTracker(
+    [1], 
+    [257.22794191422554], 
+    Cell[Cell([1], 1, 0)], SomaticEvolution.CloneTracker[], 3, 2)
+
+@testset "moran updates" begin
+    rng = MersenneTwister(12)
+    populationtracker = [deepcopy(mt1), deepcopy(mt2), deepcopy(mt3)]
+    transitionrates = SomaticEvolution.get_transitionrates(
+        populationtracker, 
+        1.0, 
+        0, 
+        1.0, 
+        0.1, 
+        4
+    ) 
+    @test transitionrates == [4.0, 4.0, 0.0, 0.1]
+    SomaticEvolution.modulemoranupdate!(populationtracker, 4, 4, 2, 5, 1, :fixed, rng)
+    length(populationtracker) == 3
+
+
+end
+
+
+@testset "simulate module moran" begin
+
+    #check multilevel_simulation function
+    rng = MersenneTwister(12)
+    input = MultilevelMoranInput(
+            modulesize=4, 
+            fixedmu=true, 
+            b=0.1, 
+            d=0.01,
+            bdrate=0.01, 
+            clonalmutations=0, 
+            maxtime=365*4, 
+            maxmodules=5,
+            branchrate=3/365, 
+            branchfraction=0.2, 
+            μ=1
+    )
+    population = multilevel_simulation(input, rng)
+    @test length(population) == 5
+    @show age(population)
+    # @test age(population) < 365 * 4
+
+end

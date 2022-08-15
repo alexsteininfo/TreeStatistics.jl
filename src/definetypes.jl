@@ -1,37 +1,9 @@
 
-"""
-    Cell 
-
-Represents a single cell.
-"""
-mutable struct Cell
-    mutations::Array{Int64,1}
-    clonetype::Int64
-    birthtime::Float64
-    id::Int64
-    parentid::Int64
-end
-
-Cell(mutations, clonetype) = Cell(mutations, clonetype, 0.0, 0, 0)
-Cell(mutations, clonetype, birthtime) = Cell(mutations, clonetype, birthtime, 0, 0)
-
-mutable struct SimpleCell
-    id::Int64
-    alive::Bool
-    birthtime::Float64
-    mutations::Int64
-    clonetype::Int64
-end
-
-function Base.show(io::IO, cell::SimpleCell)
-    print(io, "($(cell.id)) mutations = $(cell.mutations), t = $(cell.birthtime)")
-    cell.alive || print(io, " X")
-end
 mutable struct CloneTracker
     parenttype::Int64
     parentmodule::Int64
     time::Float64
-    mutations::Array{Int64, 1}
+    mutations::Vector{Int64}
     N0::Int64
     Ndivisions::Int64
     avdivisions::Float64
@@ -49,16 +21,28 @@ struct Clone
     freq::Float64
     freqp::Float64
 end
-struct ModuleTracker 
-    Nvec::Array{Int64, 1}
-    tvec::Array{Float64, 1}
-    cells::Array{Cell, 1}
-    subclones::Array{CloneTracker, 1}
+
+abstract type AbstractModule end
+struct ModuleTracker <: AbstractModule
+    Nvec::Vector{Int64}
+    tvec::Vector{Float64}
+    cells::Vector{Cell}
+    subclones::Vector{CloneTracker}
     id::Int64
     parentid::Int64
 end
 
-Base.length(moduletracker::ModuleTracker) = moduletracker.Nvec[end]
+struct TreeModule{T<:AbstractTreeCell} <: AbstractModule 
+    Nvec::Vector{Int64}
+    tvec::Vector{Float64}
+    cells::Vector{BinaryNode{T}}
+    subclones::Vector{CloneTracker}
+    id::Int64
+    parentid::Int64
+end
+
+
+Base.length(moduletracker::AbstractModule) = moduletracker.Nvec[end]
 
 abstract type SimulationInput end
 
@@ -67,11 +51,11 @@ struct BranchingInput <: SimulationInput
     Nmax::Int64
     tmax::Float64
     clonalmutations::Int64
-    selection::Array{Float64,1}
+    selection::Vector{Float64}
     μ::Float64
     b::Float64
     d::Float64
-    tevent::Array{Float64,1}
+    tevent::Vector{Float64}
     mutationdist::Symbol
     maxclonesize::Union{Int64, Nothing}
     ploidy::Int64
@@ -82,10 +66,10 @@ struct MoranInput <: SimulationInput
     numclones::Int64 
     tmax::Float64
     clonalmutations::Int64
-    selection::Array{Float64,1}
+    selection::Vector{Float64}
     μ::Float64
     bdrate::Float64
-    tevent::Array{Float64,1}
+    tevent::Vector{Float64}
     mutationdist::Symbol
     ploidy::Int64
 end
@@ -95,16 +79,18 @@ struct BranchingMoranInput <: SimulationInput
     Nmax::Int64
     tmax::Float64
     clonalmutations::Int64
-    selection::Array{Float64,1}
+    selection::Vector{Float64}
     μ::Float64
     bdrate::Float64
     b::Float64
     d::Float64
-    tevent::Array{Float64,1}
+    tevent::Vector{Float64}
     mutationdist::Symbol
     ploidy::Int64
 end
-struct MultilevelInput <: SimulationInput
+
+abstract type MultilevelInput <: SimulationInput end
+struct MultilevelBranchingInput <: MultilevelInput
     modulesize::Int64
     maxtime::Float64
     maxmodules::Int64
@@ -119,18 +105,33 @@ struct MultilevelInput <: SimulationInput
     ploidy::Int64
 end
 
+struct MultilevelMoranInput <: MultilevelInput
+    modulesize::Int64
+    maxtime::Float64
+    maxmodules::Int64
+    clonalmutations::Int64
+    μ::Float64
+    bdrate::Float64
+    b::Float64
+    d::Float64
+    mutationdist::Symbol
+    branchrate_growth::Float64
+    branchrate_homeostatic::Float64
+    branchinitsize::Int64
+    ploidy::Int64
+end
 struct SimulationResult
-    subclones::Array{Clone, 1}
+    subclones::Vector{Clone}
     tend::Float64
-    trueVAF::Array{Float64,1}
-    cells::Array{Cell, 1}
-    Nvec::Array{Int64, 1}
-    tvec::Array{Float64, 1}
+    trueVAF::Vector{Float64}
+    cells::Vector{Cell}
+    Nvec::Vector{Int64}
+    tvec::Vector{Float64}
 end
 
 struct SampledData
-    VAF::Array{Float64,1}
-    depth::Array{Int64,1}
+    VAF::Vector{Float64}
+    depth::Vector{Int64}
 end
 
 struct Simulation{T<:SimulationInput}
@@ -143,24 +144,26 @@ struct VAFResult{T<:SimulationInput}
     cellularity::Float64
     detectionlimit::Float64
     input::T
-    trueVAF::Array{Float64,1}
-    sampledVAF::Array{Float64,1}
-    subclonefreq::Array{Float64, 1}
-    subclonefreqp::Array{Float64, 1}
+    trueVAF::Vector{Float64}
+    sampledVAF::Vector{Float64}
+    subclonefreq::Vector{Float64}
+    subclonefreqp::Vector{Float64}
 
 end
 
-struct MultiSimulation{T<:SimulationInput}
-    input::T
-    output::Array{ModuleTracker, 1}
+struct MultiSimulation{S<:SimulationInput, T<:AbstractModule}
+    input::S
+    output::Vector{T}
 end
 
-function MultiSimulation{T}(input::T) where T<:SimulationInput
-    return MultiSimulation(
-        input,
-        ModuleTracker[]
-    )
-end
+# function MultiSimulation(::Type{T}, input::SimulationInput) where T <:AbstractModule
+#     return MultiSimulation(
+#         input,
+#         T[]
+#     )
+# end
+
+# MultiSimulation(input::SimulationInput) = MultiSimulation(input, ModuleTracker[])
 
 Base.length(multisim::MultiSimulation) = length(multisim.output)
 Base.iterate(multisim::MultiSimulation) = iterate(multisim.output)
@@ -172,7 +175,9 @@ Base.lastindex(multisim::MultiSimulation) = lastindex(multisim.output)
 
 
 
-const Population = MultiSimulation{MultilevelInput}
+# const MultiSimulation  = MultiSimulation{T, ModuleTracker} where T<:MultilevelInput
+# const MultiSimulation = MultiSimulation{T, TreeModule} where T<:MultilevelInput 
+
 
 function get_simulation(multsim, i)
     return Simulation(multsim.input, multsim.output[i])
@@ -245,13 +250,13 @@ function BranchingMoranInput(;numclones=1, Nmax=10000, ploidy=2, μ=10.0,
     
 end
 
-function MultilevelInput(;modulesize=200, ploidy=2, μ=10.0, clonalmutations=0, 
-    bdrate=log(2.0), b=log(2), d=0, maxtime=15, maxmodules=10000, fixedmu=false, 
+function MultilevelBranchingInput(;modulesize=200, ploidy=2, μ=10.0, clonalmutations=0, 
+    bdrate=1, b=1, d=0, maxtime=15, maxmodules=10000, fixedmu=false, 
     mutationdist=nothing, branchrate=5, branchfraction=0.1, branchinitsize=nothing)
 
     mutationdist = set_mutationdist(mutationdist, fixedmu)
 
-    return MultilevelInput(
+    return MultilevelBranchingInput(
             modulesize,
             maxtime,
             maxmodules,
@@ -267,8 +272,39 @@ function MultilevelInput(;modulesize=200, ploidy=2, μ=10.0, clonalmutations=0,
     )
 end
 
-age(moduletracker::ModuleTracker) = moduletracker.tvec[end]
-age(populationtracker::Vector{ModuleTracker}) = maximum(map(age, populationtracker))
+function MultilevelMoranInput(;modulesize=200, ploidy=2, μ=10.0, clonalmutations=0, 
+    bdrate=1, b=1, d=0, maxtime=15, maxmodules=10000, fixedmu=false, 
+    mutationdist=nothing, branchrate=0.1, branchrate_growth=branchrate, 
+    branchrate_homeostatic=branchrate, branchfraction=0.1, branchinitsize=nothing)
+
+    mutationdist = set_mutationdist(mutationdist, fixedmu)
+
+    return MultilevelMoranInput(
+            modulesize,
+            maxtime,
+            maxmodules,
+            clonalmutations,
+            μ,
+            bdrate,
+            b,
+            d,
+            mutationdist,
+            branchrate_growth,
+            branchrate_homeostatic,
+            branchinitsize !== nothing ? branchinitsize : ceil(modulesize * branchfraction),
+            ploidy,
+    )
+end
+
+function newinput(input::T; kwargs...) where T <: SimulationInput
+    newkwargs = Dict(
+        field in keys(kwargs) ? field => kwargs[field] : field => getfield(input, field)
+            for field in fieldnames(T))
+    return T(;kwargs...)
+end
+
+age(moduletracker::AbstractModule) = moduletracker.tvec[end]
+age(populationtracker::Vector{T}) where T<:AbstractModule = maximum(map(age, populationtracker))
 age(simulation::Simulation) = age(simulation.output)
 age(multisim::MultiSimulation) = maximum(age(output) for output in multisim.output)
 

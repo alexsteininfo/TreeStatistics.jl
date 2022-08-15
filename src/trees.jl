@@ -89,6 +89,7 @@ function AbstractTrees.printnode(io::IO, node::BinaryNode{SimpleCell})
     node.data.alive || print(io, " X")
 end
 
+#check this, doesn't work for death rate > 0 (i.e. if some leaves are dead cells)
 function popsize(root::BinaryNode)
     N = 0
     for l in Leaves(root)

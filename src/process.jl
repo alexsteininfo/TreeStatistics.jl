@@ -9,7 +9,7 @@ function processresults!(moduletracker::ModuleTracker, μ, clonalmutations, rng:
     return moduletracker
 end
 
-function processresults!(populationtracker::Array{ModuleTracker, 1}, μ, clonalmutations, 
+function processresults!(populationtracker::Vector{ModuleTracker}, μ, clonalmutations, 
     rng::AbstractRNG; mutationdist=:poisson)
     
     mutationlist = get_mutationlist(populationtracker)
@@ -22,7 +22,7 @@ function processresults!(populationtracker::Array{ModuleTracker, 1}, μ, clonalm
     return populationtracker
 end
 
-function final_timedep_mutations!(populationtracker::Array{ModuleTracker, 1}, μ, mutationdist, rng)
+function final_timedep_mutations!(populationtracker::Vector{ModuleTracker}, μ, mutationdist, rng)
     mutID = maximum(mutid 
         for moduletracker in populationtracker 
             for cell in moduletracker.cells
@@ -78,7 +78,7 @@ function expandmutations(expandedmutationids, originalmutations)
     )
 end
 
-function get_mutationlist(populationtracker::Array{ModuleTracker, 1})
+function get_mutationlist(populationtracker::Vector{ModuleTracker})
     #get list of all mutations assigned to each cell
     mutationlist = [mutation 
         for moduletracker in populationtracker
