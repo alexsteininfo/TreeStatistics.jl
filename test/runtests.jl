@@ -1,3 +1,4 @@
+using Revise
 using SomaticEvolution
 using Test
 using Random
@@ -5,6 +6,7 @@ using StatsBase
 using AbstractTrees
 
 tests = [
+    "multilevel_tree",
     "initialisation",
     "multilevel",
     "simulations",
