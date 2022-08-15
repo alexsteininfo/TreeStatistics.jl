@@ -1,4 +1,3 @@
-using Revise
 using SomaticEvolution
 using Test
 using Random
