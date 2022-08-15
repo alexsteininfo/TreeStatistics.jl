@@ -100,7 +100,7 @@ end
 
 @recipe function f(output::ModuleTracker)
     @series begin
-        yguide --> "Population size"
+        yguide --> "MultiSimulation size"
         xguide --> "Time"
         seriestype --> :line
         output.tvec, output.Nvec
@@ -318,5 +318,10 @@ end
 function dict_to_sortedvecs(d)
     dkeys = collect(keys(d))
     p = sortperm(dkeys)
-    return dkeys[p], collect(values(d))[p]
+    pfd, freq = dkeys[p], collect(values(d))[p]
+    maxkey = pfd[end]
+    newpfd = collect(0:maxkey)
+    newfreq = zero(0:maxkey)
+    newfreq[pfd] = freq
+    return newpfd, newfreq
 end

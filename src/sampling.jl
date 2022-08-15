@@ -21,10 +21,10 @@ end
 function getVAFresult(multisim::MultiSimulation, rng::AbstractRNG=Random.GLOBAL_RNG; read_depth=100.0, 
     detectionlimit=5/read_depth, cellularity=1.0)
 
-    trueVAFs = Array{Float64, 1}[]
-    sampledVAFs = Array{Float64, 1}[]
-    freqs = Array{Float64, 1}[]
-    freqps = Array{Float64, 1}[]
+    trueVAFs = Vector{Float64}[]
+    sampledVAFs = Vector{Float64}[]
+    freqs = Vector{Float64}[]
+    freqps = Vector{Float64}[]
     
     for moduletracker in multisim
         trueVAF = getallelefreq(moduletracker)
@@ -82,7 +82,7 @@ function cellsconvert(cells)
 end
 
 """
-    sampledhist(trueVAF::Array{Float64,1}, cellnum::Int64; <keyword arguments>)
+    sampledhist(trueVAF::Vector{Float64}, cellnum::Int64; <keyword arguments>)
 
 Create synthetic experimental data by smapling from the true VAF distribution 
 according to experimental constraints. 
@@ -93,7 +93,7 @@ according to experimental constraints.
 - `cellularity = 1.0`: 
 
 """
-function sampledallelefreq(trueVAF::Array{Float64, 1}, rng::AbstractRNG; 
+function sampledallelefreq(trueVAF::Vector{Float64}, rng::AbstractRNG; 
     read_depth=100.0, detectionlimit=5/read_depth, cellularity=1.0)
 
     VAF = trueVAF * cellularity
@@ -107,7 +107,7 @@ function sampledallelefreq(trueVAF::Array{Float64, 1}, rng::AbstractRNG;
 end
 
 """
-    gethist(VAF::Array{Float64,1}; fmin = 0.0, fmax = 1.0, fstep = 0.001)
+    gethist(VAF::Vector{Float64}; fmin = 0.0, fmax = 1.0, fstep = 0.001)
 
 Fit VAF data into bins `fmin`:`fstep`:`fmax` and return DataFrame with columns
 :VAF, :freq [= ``m(f)``], :cumfreq [= ``M(f)``].
@@ -117,7 +117,7 @@ number of mutations with frequency in ``(f, 1)``, while ``m(f)`` is the number o
 frequency in ``(f - fstep, f)``.
 
 """
-function gethist(VAF::Array{Float64,1}; fmin = 0.0, fmax = 1, fstep = 0.001)
+function gethist(VAF::Vector{Float64}; fmin = 0.0, fmax = 1, fstep = 0.001)
     x = fmin:fstep:fmax
     y = fit(Histogram, VAF, x, closed=:right).weights
     dfhist = DataFrame(VAF = x[2:end], freq = y)
