@@ -30,16 +30,6 @@ function Base.show(io::IO, sresult::Simulation)
 
 end
 
-function Base.show(io::IO, sresult::Union{MultiSimulation, MultiSimulation})
-   @printf("===================================================================\n") 
-   _showrates(sresult.input)
-   @printf("\tBranching rate: %.3f\n", sresult.input.branchrate)
-   @printf("\tBranch initial size: %.3f\n", sresult.input.branchinitsize)
-   @printf("\tModule size: %d\n", sresult.input.modulesize)
-   @printf("Final number of modules: %d", length(sresult.output))
-
-end
-
 function Base.show(io::IO, sresult::MultiSimulation)
     @printf("===================================================================\n")
     @printf("Number of simulations = %d\n\n", length(sresult.output))
@@ -74,7 +64,7 @@ function Base.show(io::IO, sresult::MultiSimulation)
 
 end
 
-function Base.show(io::IO, population::MultiSimulation)
+function Base.show(io::IO, population::MultiSimulation{T, S}) where {T <: MultilevelInput, S}
     siminput = population.input
     @printf("===================================================================\n")
     @printf("Multilevel branching module simulation\n\n")

@@ -116,7 +116,7 @@ function multilevel_simulation(::Type{Cell}, input::MultilevelMoranInput, rng::A
                 input.b, 
                 input.d, 
                 input.bdrate, 
-                input.branchrate_growth, 
+                input.branchrate, 
                 input.modulesize, 
                 input.branchinitsize, 
                 1, #assume a single mutation at each division and add distribution of
@@ -146,7 +146,7 @@ function multilevel_simulation_timeseries(::Type{Cell}, input::MultilevelMoranIn
             input.b, 
             input.d, 
             input.bdrate, 
-            input.branchrate_growth, 
+            input.branchrate, 
             input.modulesize, 
             input.branchinitsize, 
             input.μ,

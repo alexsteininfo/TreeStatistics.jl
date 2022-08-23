@@ -115,8 +115,7 @@ struct MultilevelMoranInput <: MultilevelInput
     b::Float64
     d::Float64
     mutationdist::Symbol
-    branchrate_growth::Float64
-    branchrate_homeostatic::Float64
+    branchrate::Float64
     branchinitsize::Int64
     ploidy::Int64
 end
@@ -274,8 +273,7 @@ end
 
 function MultilevelMoranInput(;modulesize=200, ploidy=2, μ=10.0, clonalmutations=0, 
     bdrate=1, b=1, d=0, maxtime=15, maxmodules=10000, fixedmu=false, 
-    mutationdist=nothing, branchrate=0.1, branchrate_growth=branchrate, 
-    branchrate_homeostatic=branchrate, branchfraction=0.1, branchinitsize=nothing)
+    mutationdist=nothing, branchrate=0.1, branchfraction=0.1, branchinitsize=nothing)
 
     mutationdist = set_mutationdist(mutationdist, fixedmu)
 
@@ -289,8 +287,7 @@ function MultilevelMoranInput(;modulesize=200, ploidy=2, μ=10.0, clonalmutation
             b,
             d,
             mutationdist,
-            branchrate_growth,
-            branchrate_homeostatic,
+            branchrate,
             branchinitsize !== nothing ? branchinitsize : ceil(modulesize * branchfraction),
             ploidy,
     )
