@@ -116,6 +116,20 @@ function clonal_mutations(moduletracker::ModuleTracker)
     return length(clonal_mutation_ids(moduletracker))
 end
 
+function clonal_mutations(moduletracker::TreeModule)
+    MRCA = getMRCA(moduletracker)
+    return all_cell_mutations(MRCA)
+end
+
+function all_cell_mutations(cellnode::BinaryNode)
+    mutations = cellnode.data.mutations
+    while !isnothing(cellnode.parent)
+        cellnode = cellnode.parent
+        mutations += cellnode.data.mutations
+    end
+    return mutations
+end
+
 
 """
     clonal_mutation_ids(population, idx=nothing)
@@ -166,13 +180,9 @@ modules. If `clonal` then additionally return a dict giving the number of clonal
 and frequency.  
 """
 
-function pairwise_fixed_differences(population, idx=nothing; clonal=false)
+function pairwise_fixed_differences_clonal(population, idx=nothing)
     clonalmuts = clonal_mutation_ids(population, idx)
-    if clonal
-        return pairwise_fixed_differences(clonalmuts), countmap(map(length, clonalmuts))
-    else
-        return pairwise_fixed_differences(clonalmuts)
-    end
+    return pairwise_fixed_differences(clonalmuts), countmap(map(length, clonalmuts))
 end
 
 function pairwise_fixed_differences(muts::Vector{Vector{Int64}})
@@ -186,26 +196,32 @@ function pairwise_fixed_differences(muts::Vector{Vector{Int64}})
     return countmap(pfd_vec)
 end
 
-# function pairwise_fixed_differences_vector(root::BinaryNode{TreeCell}, pfd::Vector{Int64}=Int64[])
-#     if isdefined(root, :left) && isdefined(root, :right)
-#         for m1 in mutations_per_cell(root.left)
-#             for m2 in mutations_per_cell(root.right)
-#                 pfd = push!(pfd, m1+m2)
-#             end
-#         end
-#     end
-#     if isdefined(root, :left)
-#         pairwise_fixed_differences_vector(root.left, pfd)
-#     end
-#     if isdefined(root, :right)
-#         pairwise_fixed_differences_vector(root.right, pfd)
-#     end
-#     return pfd
-# end
-# SLOWER IMPLEMENTATION OF BELOW
-# function pairwise_fixed_differences(root::BinaryNode{TreeCell}, idx=nothing)
-#     return countmap(pairwise_fixed_differences_vector(root))
-# end
+function pairwise_fixed_differences_clonal(population::Union{MultiSimulation{T, S}, Vector{T}}, 
+    idx=nothing) where {T, S <: TreeModule}
+
+    pfdvec, clonalmutsvec = _pairwise_fixed_differences_clonal(population, idx)
+    return countmap(pfdvec), countmap(clonalmutsvec)
+end
+
+function _pairwise_fixed_differences_clonal(population::Union{MultiSimulation{T, S}, Vector{T}}, 
+    idx=nothing) where {T, S <: TreeModule}
+
+    pfd_vec = Int64[]
+    MRCA_vec = isnothing(idx) ? map(findMRCA, population) : map(findMRCA, population[idx])
+    clonalmuts = Int64[]
+    n = length(MRCA_vec)
+    for i in 1:n
+        push!(clonalmuts, all_cell_mutations(MRCA_vec[i]))
+        for j in i+1:n
+            push!(pfd_vec, pairwisedistance(MRCA_vec[i], MRCA_vec[j]))
+        end
+    end
+    return pfd_vec, clonalmuts
+end
+
+function pairwise_fixed_differences(module1::TreeModule, module2::TreeModule)
+    return pairwisedistance(findMRCA(module1), findMRCA(module2))
+end
 
 function pairwise_fixed_differences(root::BinaryNode{T}, idx=nothing) where T <: AbstractTreeCell
     pfd = Int64[]
@@ -232,16 +248,18 @@ function pairwise_fixed_differences(sampledcells::Vector{BinaryNode{TreeCell}})
 end
 
 
-function pairwisedistance(cellnode1::BinaryNode, cellnode2::BinaryNode, distance=0)
+function pairwisedistance(cellnode1::BinaryNode, cellnode2::BinaryNode)
     if cellnode1.data.id > cellnode2.data.id
         cellnode1, cellnode2 = cellnode2, cellnode1
     end
     if cellnode1 == cellnode2
-        return distance + 0
+        return 0
     elseif cellnode1.parent == cellnode2.parent
-        return distance + cellnode1.data.mutations + cellnode2.data.mutations
-    elseif isdefined(cellnode2, :parent)
-         return distance + cellnode2.data.mutations + pairwisedistance(cellnode1, cellnode2.parent)
+        return cellnode1.data.mutations + cellnode2.data.mutations
+    elseif cellnode1 == cellnode2.parent
+        return cellnode2.data.mutations
+    elseif !isnothing(cellnode2.parent)
+         return cellnode2.data.mutations + pairwisedistance(cellnode1, cellnode2.parent)
     end
 end
 
@@ -276,7 +294,23 @@ function pairwise_fixed_differences_matrix(muts::Vector{Vector{Int64}}; diagonal
     for i in 1:n
         if diagonals pfd[i,i] = length(muts[i]) end
         for j in i+1:n
-            pfd[j,i] = length(symdiff(muts[i], muts[j]))
+            pfd[j, i] = length(symdiff(muts[i], muts[j]))
+        end
+    end
+    return pfd
+end
+
+function pairwise_fixed_differences_matrix(population::MultiSimulation{T, S}, idx=nothing; 
+    diagonals=false) where {T, S <: TreeModule}
+
+    MRCA_vec = isnothing(idx) ? map(findMRCA, population) : map(findMRCA, population[idx])
+    n = length(MRCA_vec)
+    pfd = zeros(Int64, n, n)
+
+    for i in 1:n
+        if diagonals pfd[i,i] = all_cell_mutations(MRCA_vec) end
+        for j in i+1:n
+            pfd[j, i] = pairwisedistance(MRCA_vec[i], MRCA_vec[j])
         end
     end
     return pfd
@@ -296,14 +330,14 @@ function pairwise_fixed_differences_matrix(root::BinaryNode{T}) where T <: Abstr
 end
 
 """
-    pairwise_fixed_differences_statistics(population[, idx], clonal=false)
+    pairwise_fixed_differences_statistics(population, samplesize::Int64, rng)
 
 Calculate the mean and variance of the number of pairwise fixed differences between modules. 
 If idx is given only compare specified modules, otherwise compare all modules in the 
 population. If clonal is true also calculate mean and variance of number of clonal mutations
 in each module.
 """
-function pairwise_fixed_differences_statistics(population, samplesize::Int64, rng; clonal=true)
+function pairwise_fixed_differences_statistics(population, samplesize::Int64, rng)
     idx = begin
         if isnothing(samplesize) 
             nothing
@@ -311,15 +345,15 @@ function pairwise_fixed_differences_statistics(population, samplesize::Int64, rn
             sample(rng, 1:lastindex(population), samplesize, replace=false) 
         end
     end
-    return pairwise_fixed_differences_statistics(population, idx; clonal)
+    return pairwise_fixed_differences_statistics(population, idx)
 end
 
-function pairwise_fixed_differences_statistics(population, idx=nothing; clonal=true)
+function pairwise_fixed_differences_statistics(population, idx=nothing)
     clonalmuts = clonal_mutation_ids(population, idx)
-    return pairwise_fixed_differences_statistics(clonalmuts; clonal=clonal)
+    return pairwise_fixed_differences_statistics(clonalmuts)
 end
 
-function pairwise_fixed_differences_statistics(clonalmuts::Vector{Vector{Int64}}; clonal=true)
+function pairwise_fixed_differences_statistics(clonalmuts::Vector{Vector{Int64}})
     n = length(clonalmuts)
     pfd = Int64[]
     for i in 1:n
@@ -327,12 +361,15 @@ function pairwise_fixed_differences_statistics(clonalmuts::Vector{Vector{Int64}}
             push!(pfd, length(symdiff(clonalmuts[i], clonalmuts[j])))
         end
     end
-    if clonal
-        nclonalmuts = (length(cmut) for cmut in clonalmuts)
-        return mean(pfd), var(pfd), mean(nclonalmuts), var(nclonalmuts)
-    else
-        return mean(pfd), var(pfd)
-    end
+    nclonalmuts = (length(cmut) for cmut in clonalmuts)
+    return mean(pfd), var(pfd), mean(nclonalmuts), var(nclonalmuts)
+end
+
+function pairwise_fixed_differences_statistics(population::Union{MultiSimulation{T, S}, Vector{S}}, 
+    idx=nothing) where {T, S <: TreeModule}
+
+    pfd, clonalmuts = _pairwise_fixed_differences_clonal(population, idx)
+    return mean(pfd), var(pfd), mean(clonalmuts), var(clonalmuts)
 end
 
 """

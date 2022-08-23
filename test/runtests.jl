@@ -1,3 +1,4 @@
+using Revise
 using SomaticEvolution
 using Test
 using Random
@@ -22,4 +23,3 @@ tests = [
         end
     end
 end
-

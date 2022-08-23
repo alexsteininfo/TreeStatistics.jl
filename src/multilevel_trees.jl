@@ -1,5 +1,4 @@
-
-function multilevel_simulation(::Type{T}, input::MultilevelBranchingInput, rng::AbstractRNG=Random.GLOBAL_RNG) where T <: AbstractTreeCell
+function multilevel_simulation(::Type{T}, input::S, rng::AbstractRNG=Random.GLOBAL_RNG) where {T <: AbstractTreeCell, S <: MultilevelInput}
 
     #if the population dies out we start a new simulation
     while true 
@@ -21,12 +20,43 @@ function multilevel_simulation(::Type{T}, input::MultilevelBranchingInput, rng::
                 input.branchinitsize, 
                 input.μ,
                 input.mutationdist,
-                rng
+                rng,
+                moduleupdate = S == MultilevelMoranInput ? :moran : :branching
             )
         if length(populationtracker) != 0
             return MultiSimulation(input, populationtracker)
         end
     end
+end
+
+function multilevel_simulation_timeseries(::Type{T}, input::MultilevelMoranInput, timesteps, 
+    func, rng::AbstractRNG=Random.GLOBAL_RNG) where T<:AbstractTreeCell
+
+    populationtracker = initialize_population(
+        T,
+        input,
+        rng
+    )
+    data = map(timesteps) do t
+        populationtracker = simulate!(
+            populationtracker, 
+            t,
+            input.maxmodules, 
+            input.b, 
+            input.d, 
+            input.bdrate, 
+            input.branchrate, 
+            input.modulesize, 
+            input.branchinitsize, 
+            input.μ,
+            input.mutationdist,
+            rng,
+            moduleupdate=:moran
+
+        )
+        return func(populationtracker)
+    end
+    return data 
 end
 
 function initialize_population(::Type{T}, input, rng) where T <: AbstractTreeCell

@@ -60,6 +60,7 @@ pairwisedistance,
 pairwise_fixed_differences,
 pairwise_fixed_differences_matrix,
 pairwise_fixed_differences_statistics,
+pairwise_fixed_differences_clonal,
 shared_fixed_mutations,
 newmoduletimes,
 numbermodules,
@@ -89,7 +90,8 @@ time_to_MRCA,
 coalescence_times,
 getsingleroot,
 popsize,
-newinput
+newinput,
+findMRCA
 
 
 include("trees.jl")

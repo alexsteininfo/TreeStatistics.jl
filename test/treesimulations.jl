@@ -96,6 +96,10 @@ end
 
 
 #create a small tree structure with 5 nodes and 3 alive cells
+# -root -|- leftcell -|- leftleftcell
+#        |            |- leftrightcell
+#        |- rightcell
+
 function make_tree(::Type{T}) where T <: SomaticEvolution.AbstractTreeCell
     rootcell = T(id=1, birthtime=0.0, mutations=0)
     leftcell = T(id=2, birthtime=1.5355542835848743, mutations=5)
@@ -179,4 +183,12 @@ alivecells_2roots_simple = [tree_root_simple.right, tree_root_simple.left.left, 
         @test isnothing(getsingleroot(alive2roots)) 
         @test getsingleroot([root2.left, root2.right]) == root2
     end
+end
+
+@testset "MRCA" begin
+    root = make_tree(SimpleTreeCell)
+    alivecells = collect(Leaves(root))
+    @test findMRCA(alivecells) == root
+    @test findMRCA(root.left.left, root.left.right) == root.left
+    @test findMRCA(root.left.left, root.right) == root
 end

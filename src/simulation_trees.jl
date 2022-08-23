@@ -316,7 +316,7 @@ end
 Remove cells from module without killing them.
 """
 function cellremoval!(moduletracker::TreeModule, deadcells)
-    deleteat!(moduletracker.cells, deadcells)
+    deleteat!(moduletracker.cells, sort!(deadcells))
     return moduletracker.cells
 end
 
