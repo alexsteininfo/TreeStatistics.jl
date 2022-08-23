@@ -248,7 +248,7 @@ function pairwise_fixed_differences(sampledcells::Vector{BinaryNode{TreeCell}})
 end
 
 
-function pairwisedistance(cellnode1::BinaryNode, cellnode2::BinaryNode)
+function pairwisedistance_recursive(cellnode1::BinaryNode, cellnode2::BinaryNode)
     if cellnode1.data.id > cellnode2.data.id
         cellnode1, cellnode2 = cellnode2, cellnode1
     end
@@ -260,6 +260,28 @@ function pairwisedistance(cellnode1::BinaryNode, cellnode2::BinaryNode)
         return cellnode2.data.mutations
     elseif !isnothing(cellnode2.parent)
          return cellnode2.data.mutations + pairwisedistance(cellnode1, cellnode2.parent)
+    end
+end
+
+function pairwisedistance(cellnode1::BinaryNode, cellnode2::BinaryNode)
+    cellnode1 == cellnode2 && return 0
+    distance = 0
+    while true
+        #ensure that cellnode1 is higher (or equal) level in tree than cellnode2
+        if  cellnode1.data.id > cellnode2.data.id
+            cellnode1, cellnode2 = cellnode2, cellnode1
+        end
+        #if cell nodes are siblings or both are roots add their mutations to distance and return
+        if (cellnode1.parent == cellnode2.parent) || (isnothing(cellnode1.parent) && isnothing(cellnode2.parent))
+            return distance + cellnode1.data.mutations + cellnode2.data.mutations
+        #if cellnode1 is parent of cellnode2 add mutations of cellnode2 and return
+        elseif cellnode1 == cellnode2.parent
+            return distance + cellnode2.data.mutations
+        #if none of these are satisfied add cellnode2 mutations and reset cellnode2 to its parent
+        else
+            distance += cellnode2.data.mutations
+            cellnode2 = cellnode2.parent
+        end
     end
 end
 
@@ -510,10 +532,6 @@ function time_to_MRCA(cellnode1, cellnode2, t)
     else
          return time_to_MRCA(cellnode1, cellnode2.parent, t)
     end
-end
-
-function getMRCA(cellnodes)
-    
 end
 
 """

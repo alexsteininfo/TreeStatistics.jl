@@ -110,7 +110,7 @@ function getsingleroot(nodevec::Vector{BinaryNode{T}}) where T
     end
 end
 
-function findMRCA(cellnode1, cellnode2)
+function findMRCA_recursive(cellnode1, cellnode2)
     if cellnode1.data.id > cellnode2.data.id
         cellnode1, cellnode2 = cellnode2, cellnode1
     end
@@ -123,6 +123,29 @@ function findMRCA(cellnode1, cellnode2)
     end
 end
 
+function findMRCA(cellnode1, cellnode2)
+    cellnode1 == cellnode2 && return cellnode1
+    while true
+        #ensure that cellnode1 is higher (or equal) level in tree than cellnode2
+        if  cellnode1.data.id > cellnode2.data.id
+            cellnode1, cellnode2 = cellnode2, cellnode1
+        end
+        #if cell nodes are siblings return parent
+        if cellnode1.parent == cellnode2.parent
+            return cellnode1.parent
+        #if both cells are roots there is no MRCA
+        elseif isnothing(cellnode1.parent) && isnothing(cellnode2.parent)
+            return nothing
+        #if cellnode1 is parent of cellnode2 return cellnode1
+        elseif cellnode1 == cellnode2.parent
+            return cellnode1
+        #if none of these are satisfied keep looking 
+        else
+            cellnode2 = cellnode2.parent
+        end
+    end
+end
+
 function findMRCA(cellnodes::Vector)
     cellnodes = copy(cellnodes)
     cellnode1 = pop!(cellnodes)
@@ -132,6 +155,7 @@ function findMRCA(cellnodes::Vector)
     end
     return cellnode1
 end
+
 
 function findMRCA(treemodule)
     return findMRCA(treemodule.cells)
