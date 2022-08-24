@@ -325,23 +325,30 @@ end
 """
     prune_tree!(cellnode)
 
-Remove `cellnode` from tree, and recursively remove any node that has no children after its 
+Remove `cellnode` from tree, and remove any node that has no children after its 
 removal.
 
 """
 function prune_tree!(cellnode)
-    if !isnothing(cellnode.parent)
+    while true
         parent = cellnode.parent
-        cellnode.parent = nothing
-        if parent.left == cellnode
-            parent.left = nothing
-        elseif parent.right == cellnode
-            parent.right = nothing
+        if isnothing(parent)
+            return
         else
-            error("dead cell is neither left nor right child of parent")
-        end
-        if isnothing(parent.left) && isnothing(parent.right)
-            prune_tree!(parent)
+            cellnode.parent = nothing
+            if parent.left == cellnode
+                parent.left = nothing
+            elseif parent.right == cellnode
+                parent.right = nothing
+            else
+                error("dead cell is neither left nor right child of parent")
+            end
+            #if parent cell now has no children, it becomes cellnode to be removed
+            if isnothing(parent.left) && isnothing(parent.right)
+                cellnode = parent
+            else
+                return
+            end
         end
     end
 end
