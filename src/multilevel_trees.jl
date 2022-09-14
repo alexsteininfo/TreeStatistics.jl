@@ -1,16 +1,16 @@
-function multilevel_simulation(::Type{T}, input::S, rng::AbstractRNG=Random.GLOBAL_RNG) where {T <: AbstractTreeCell, S <: MultilevelInput}
+function runsimulation(::Type{T}, input::S, rng::AbstractRNG=Random.GLOBAL_RNG) where {T <: AbstractTreeCell, S <: MultilevelInput}
 
     #if the population dies out we start a new simulation
     while true 
-        populationtracker = initialize_population(
+        population = initialize_population(
             T,
             input,
             rng
         )
-        populationtracker = 
+        population = 
             simulate!(
-                populationtracker, 
-                input.maxtime, 
+                population, 
+                input.tmax, 
                 input.maxmodules, 
                 input.b, 
                 input.d, 
@@ -21,25 +21,25 @@ function multilevel_simulation(::Type{T}, input::S, rng::AbstractRNG=Random.GLOB
                 input.μ,
                 input.mutationdist,
                 rng,
-                moduleupdate = S == MultilevelMoranInput ? :moran : :branching
+                moduleupdate = S == MultilevelBranchingMoranInput ? :moran : :branching
             )
-        if length(populationtracker) != 0
-            return MultiSimulation(input, populationtracker)
+        if length(population) != 0
+            return MultiSimulation(input, population)
         end
     end
 end
 
-function multilevel_simulation_timeseries(::Type{T}, input::MultilevelMoranInput, timesteps, 
+function runsimulation_timeseries(::Type{T}, input::MultilevelBranchingMoranInput, timesteps, 
     func, rng::AbstractRNG=Random.GLOBAL_RNG) where T<:AbstractTreeCell
 
-    populationtracker = initialize_population(
+    population = initialize_population(
         T,
         input,
         rng
     )
     data = map(timesteps) do t
-        populationtracker = simulate!(
-            populationtracker, 
+        population = simulate!(
+            population, 
             t,
             input.maxmodules, 
             input.b, 
@@ -54,21 +54,13 @@ function multilevel_simulation_timeseries(::Type{T}, input::MultilevelMoranInput
             moduleupdate=:moran
 
         )
-        return func(populationtracker)
+        return func(population)
     end
     return data 
 end
 
 function initialize_population(::Type{T}, input, rng) where T <: AbstractTreeCell
-    initialmodule = TreeModule(
-        Int64[1],
-        Float64[0.0],
-        initialize(T, input, rng),
-        CloneTracker[],
-        1,
-        0
-    )
-    return TreeModule[initialmodule]
+    return TreeModule[initialize(T, input, rng)]
 end
 
 function getnextID(population::Vector{TreeModule})

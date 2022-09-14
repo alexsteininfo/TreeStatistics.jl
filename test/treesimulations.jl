@@ -2,10 +2,10 @@ rng = MersenneTwister(12)
 
 @testset "tree branching" begin
     @testset "initialisation" begin
-        alivecells = initialize(TreeCell, 10)
+        alivecells = SomaticEvolution.initialize_cells(TreeCell, 10)
         root = alivecells[1]
         @test root.data.mutations == 10
-        alivecells = initialize(SimpleTreeCell, 0)
+        alivecells = SomaticEvolution.initialize_cells(SimpleTreeCell, 0)
         root = alivecells[1]
         @test root.data.mutations == 0
         @test length(alivecells) == 1
@@ -24,17 +24,17 @@ rng = MersenneTwister(12)
             μ=10,
             mutationdist=:poisson
         )
-        alivecells = run1simulation_tree(TreeCell, input, rng)
-        alivecells_simple = run1simulation_tree(SimpleTreeCell, input, rng)
-        root = getroot(alivecells[1])
-        root_simple = getroot(alivecells_simple[1])
+        treemodule = runsimulation(TreeCell, input, rng).output
+        treemodule_simple = runsimulation(SimpleTreeCell, input, rng).output
+        root = getroot(treemodule.cells[1])
+        root_simple = getroot(treemodule_simple.cells[1])
         @test length(SomaticEvolution.getalivecells(root)) == 100
         @test length(SomaticEvolution.getalivecells(root_simple)) == 100
-        @test all(cellnode.data.alive for cellnode in alivecells)
+        @test all(cellnode.data.alive for cellnode in treemodule.cells)
     end
 
     @testset "division" begin
-        alivecells = initialize(TreeCell, 0)
+        alivecells = SomaticEvolution.initialize_cells(TreeCell, 0)
         root = getsingleroot(alivecells)
         _, nextID = SomaticEvolution.celldivision!(alivecells, 1, 1.1, 2, 10, :fixedtimedep, rng)
         @test nextID == 4
@@ -53,7 +53,7 @@ rng = MersenneTwister(12)
     end
 
     @testset "death" begin
-        alivecells = initialize(TreeCell, 0)
+        alivecells = SomaticEvolution.initialize_cells(TreeCell, 0)
         root = getsingleroot(alivecells)
         _, nextID = SomaticEvolution.celldivision!(alivecells, 1, 1.1, 2, 10, :fixedtimedep, rng)
         SomaticEvolution.celldeath!(alivecells, 1, 1.5, 10, :fixedtimedep, rng)
@@ -68,7 +68,7 @@ rng = MersenneTwister(12)
     end
 
     @testset "death simple" begin
-        alivecells = initialize(SimpleTreeCell, 0)
+        alivecells = SomaticEvolution.initialize_cells(SimpleTreeCell, 0)
         root = getsingleroot(alivecells)
         _, nextID = SomaticEvolution.celldivision!(alivecells, 1, 1.1, 2, 10, :fixedtimedep, rng)
         SomaticEvolution.celldeath!(alivecells, 1, 1.5, 10, :fixedtimedep, rng)
@@ -86,12 +86,12 @@ end
 
 @testset "tree moran" begin
     input = MoranInput(N=4, tmax=5, mutationdist=:fixed)
-    alivecells = run1simulation_tree(SimpleTreeCell, input, rng)
-    @test length(alivecells) == 4
-    @test popsize(getroot(alivecells)) == 4
-    alivecells = run1simulation_tree(TreeCell, input, rng)
-    @test length(alivecells) == 4
-    @test popsize(getroot(alivecells)) == 4
+    treemodule = runsimulation(SimpleTreeCell, input, rng).output
+    @test length(treemodule.cells) == length(treemodule) == 4
+    @test popsize(getroot(treemodule.cells)) == 4
+    treemodule = runsimulation(TreeCell, input, rng).output
+    @test length(treemodule.cells) == length(treemodule) == 4
+    @test popsize(getroot(treemodule.cells)) == 4
 end
 
 

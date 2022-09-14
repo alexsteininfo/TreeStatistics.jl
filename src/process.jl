@@ -1,45 +1,45 @@
-function processresults!(moduletracker::ModuleTracker, μ, clonalmutations, rng::AbstractRNG;
+function processresults!(cellmodule::CellModule, μ, clonalmutations, rng::AbstractRNG;
     mutationdist=:poisson)
 
-    mutationlist = get_mutationlist(moduletracker)
+    mutationlist = get_mutationlist(cellmodule)
     expandedmutationids = 
         get_expandedmutationids(μ, mutationlist, clonalmutations, rng, mutationdist=mutationdist)
-    expandmutations!(moduletracker, expandedmutationids, clonalmutations)
+    expandmutations!(cellmodule, expandedmutationids, clonalmutations)
     
-    return moduletracker
+    return cellmodule
 end
 
-function processresults!(populationtracker::Vector{ModuleTracker}, μ, clonalmutations, 
+function processresults!(population::Vector{CellModule}, μ, clonalmutations, 
     rng::AbstractRNG; mutationdist=:poisson)
     
-    mutationlist = get_mutationlist(populationtracker)
+    mutationlist = get_mutationlist(population)
     expandedmutationids = 
         get_expandedmutationids(μ, mutationlist, clonalmutations, rng, mutationdist=mutationdist)
     
-    for moduletracker in populationtracker
-        expandmutations!(moduletracker, expandedmutationids, clonalmutations)
+    for cellmodule in population
+        expandmutations!(cellmodule, expandedmutationids, clonalmutations)
     end
-    return populationtracker
+    return population
 end
 
-function final_timedep_mutations!(populationtracker::Vector{ModuleTracker}, μ, mutationdist, rng)
+function final_timedep_mutations!(population::Vector{CellModule}, μ, mutationdist, rng)
     mutID = maximum(mutid 
-        for moduletracker in populationtracker 
-            for cell in moduletracker.cells
+        for cellmodule in population 
+            for cell in cellmodule.cells
                 for mutid in cell.mutations
     )
-    tend = age(populationtracker)
-    for moduletracker in populationtracker
-        mutID = final_timedep_mutations!(moduletracker, μ, mutationdist, tend, rng, mutID=mutID)
+    tend = age(population)
+    for cellmodule in population
+        mutID = final_timedep_mutations!(cellmodule, μ, mutationdist, tend, rng, mutID=mutID)
     end
 end
 
-function final_timedep_mutations!(moduletracker::ModuleTracker, μ, mutationdist, rng; mutID=nothing)
-    tend = age(moduletracker)
+function final_timedep_mutations!(cellmodule::CellModule, μ, mutationdist, rng; mutID=nothing)
+    tend = age(cellmodule)
     if isnothing(mutID)
-        mutID = maximum(mutid for cell in moduletracker.cells for mutid in cell.mutations) + 1
+        mutID = maximum(mutid for cell in cellmodule.cells for mutid in cell.mutations) + 1
     end
-    for cell in moduletracker.cells
+    for cell in cellmodule.cells
         Δt = tend - cell.birthtime
         numbermutations = numbernewmutations(rng, mutationdist, μ, Δt=Δt)
         mutID = addnewmutations!(cell, numbermutations, mutID)
@@ -47,27 +47,27 @@ function final_timedep_mutations!(moduletracker::ModuleTracker, μ, mutationdist
     return mutID
 end
 
-function expandmutations!(moduletracker, expandedmutationids, clonalmutations)
+function expandmutations!(cellmodule, expandedmutationids, clonalmutations)
 
     if length(expandedmutationids) > 0
-        for cell in moduletracker.cells
+        for cell in cellmodule.cells
             cell.mutations = expandmutations(expandedmutationids, cell.mutations)
             if clonalmutations > 0
                 prepend!(cell.mutations, 1:clonalmutations)
             end
         end
     elseif clonalmutations > 0
-        for cell in moduletracker.cells
+        for cell in cellmodule.cells
             cell.mutations = collect(1:clonalmutations)
         end
     end
     #get list of mutations in each subclone
     if length(expandedmutationids) > 0
-        for subclone in moduletracker.subclones
+        for subclone in cellmodule.subclones
             subclone.mutations = expandmutations(expandedmutationids, subclone.mutations)
         end
     end
-    return moduletracker
+    return cellmodule
 end
 
 function expandmutations(expandedmutationids, originalmutations)
@@ -78,20 +78,20 @@ function expandmutations(expandedmutationids, originalmutations)
     )
 end
 
-function get_mutationlist(populationtracker::Vector{ModuleTracker})
+function get_mutationlist(population::Vector{CellModule})
     #get list of all mutations assigned to each cell
     mutationlist = [mutation 
-        for moduletracker in populationtracker
-            for cell in moduletracker.cells
+        for cellmodule in population
+            for cell in cellmodule.cells
                 for mutation in cell.mutations
     ]
     return sort(unique(mutationlist))
 end
 
-function get_mutationlist(moduletracker::ModuleTracker)
+function get_mutationlist(cellmodule::CellModule)
     #get list of all mutations assigned to each cell
     mutationlist = [mutation 
-        for cell in moduletracker.cells
+        for cell in cellmodule.cells
             for mutation in cell.mutations
     ]
     return unique(mutationlist)
@@ -123,18 +123,18 @@ function numberuniquemutations(rng, L, mutationdist, μ)
     end
 end
 
-function remove_undetectable!(moduletracker::ModuleTracker, clonefreq, clonefreqp, numclones, detectableclones)
+function remove_undetectable!(cellmodule::CellModule, clonefreq, clonefreqp, numclones, detectableclones)
     #if there are clones outside the detectable range remove them from the data
     if sum(detectableclones) < numclones
         numclones = sum(detectableclones)
         clonefreq = clonefreq[detectableclones]
         clonefreqp = clonefreqp[detectableclones]
-        moduletracker.subclones = moduletracker.subclones[detectableclones]
+        cellmodule.subclones = cellmodule.subclones[detectableclones]
         pushfirst!(detectableclones, true)
-        moduletracker.clonesize = moduletracker.clonesize[detectableclones]
+        cellmodule.clonesize = cellmodule.clonesize[detectableclones]
         detectableclones = detectableclones[1:length(br)]
     end
-    return moduletracker, clonefreq, clonefreqp, numclones
+    return cellmodule, clonefreq, clonefreqp, numclones
 end
 
 

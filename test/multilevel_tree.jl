@@ -5,16 +5,16 @@
     modulesize = 4
     branchinitsize = 1
     branchrate = 0.01
-    maxtime = 1000
+    tmax = 1000
     maxmodules = 5
     mutationdist = :fixed
     μ = 1
 
-    input = MultilevelBranchingInput(;b, d, bdrate, modulesize, branchinitsize, branchrate, maxtime, maxmodules, μ, mutationdist)
+    input = MultilevelBranchingInput(;b, d, bdrate, modulesize, branchinitsize, branchrate, tmax, maxmodules, μ, mutationdist)
 
     rng = MersenneTwister(1)
-    populationtracker = SomaticEvolution.initialize_population(TreeCell, input, rng)
-    nextID = SomaticEvolution.getnextID(populationtracker) #get id of next cell
+    population = SomaticEvolution.initialize_population(TreeCell, input, rng)
+    nextID = SomaticEvolution.getnextID(population) #get id of next cell
     nextmoduleID = 2
     @test nextID == 2
     t = 0
@@ -22,7 +22,7 @@
 
     #check first update is correct
     transitionrates = SomaticEvolution.get_transitionrates(
-        populationtracker, 
+        population, 
         b, 
         d, 
         bdrate, 
@@ -31,9 +31,9 @@
     ) 
     #only tranisition with non-zero rate is birth which has rate b=0.1
     @test transitionrates == [0.0, 0.1, 0.0, 0.0] 
-    populationtracker, t, nextID = 
+    population, t, nextID = 
         SomaticEvolution.update_population!(
-            populationtracker, 
+            population, 
             b, 
             d, 
             bdrate, 
@@ -45,17 +45,17 @@
             nextmoduleID,
             μ,
             mutationdist, 
-            maxtime,
+            tmax,
             maxmodules,
             rng
     )
     #popsize is now 2
-    @test populationtracker[1].Nvec[end] == length(populationtracker[1].cells)
-    @test length(populationtracker[1].Nvec) === length(populationtracker[1].tvec) == 2
+    @test population[1].Nvec[end] == length(population[1].cells)
+    @test length(population[1].Nvec) === length(population[1].tvec) == 2
     #each cell has one mutation
-    @test populationtracker[1].cells[1].data.mutations == populationtracker[1].cells[2].data.mutations == 1
+    @test population[1].cells[1].data.mutations == population[1].cells[2].data.mutations == 1
 
-    #check multilevel_simulation function
+    #check runsimulation function
     rng = MersenneTwister(12)
     input = MultilevelBranchingInput(
             modulesize=4, 
@@ -64,15 +64,15 @@
             d=0.01,
             bdrate=0.01, 
             clonalmutations=0, 
-            maxtime=20*365, 
+            tmax=20*365, 
             maxmodules=10,
             branchrate=3/365, 
             branchfraction=0.2, 
             μ=1
     )
-    population = multilevel_simulation(SimpleTreeCell, input, rng)
+    population = runsimulation(SimpleTreeCell, input, rng)
     @test length(population) == 10
-    population = multilevel_simulation(TreeCell, input, rng)
+    population = runsimulation(TreeCell, input, rng)
     @test length(population) == 10
     input = MultilevelBranchingInput(
             modulesize=4, 
@@ -81,15 +81,15 @@
             d=0,
             bdrate=0.1, 
             clonalmutations=0, 
-            maxtime=365*100, 
+            tmax=365*100, 
             maxmodules=10,
             branchrate=3/365, 
             branchfraction=0.2, 
             μ=1
     )
-    population = multilevel_simulation(SimpleTreeCell, input, rng)
+    population = runsimulation(SimpleTreeCell, input, rng)
     @test age(population) <= 365*50
-    population = multilevel_simulation(TreeCell, input, rng)
+    population = runsimulation(TreeCell, input, rng)
 end
 
 # 1 -- 2 -- 3 -- 5 -- 7 -- 8 -- 16 -- 19

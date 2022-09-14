@@ -42,8 +42,8 @@ haskeytrue(output, key) = haskey(output, key) && output[key]
 
 function save_moduleancestory(population, outputdir, id)
     open(outputdir*"moduleancestory.txt", "w") do io
-        for moduletracker in population
-            write(io, "$(moduletracker.parentid)    $(moduletracker.id)    $(moduletracker.tvec[1])\n")
+        for cellmodule in population
+            write(io, "$(cellmodule.parentid)    $(cellmodule.id)    $(cellmodule.tvec[1])\n")
         end
     end
 end
@@ -94,11 +94,11 @@ function save_other_population_data(population, output, outputdir, id)
     end
     if output[:pfd_stats]
         pfd_mean, pfd_var, fixedmutations_mean, fixedmutations_var = 
-            pairwise_fixed_differences_statistics(population, clonal=true)
+            pairwise_fixed_differences_statistics(population)
         outputdict[:pfd_mean] = pfd_mean
         outputdict[:pfd_var] = pfd_var
-        outputdict[:fixedmutations_mean] = fixed_mutations_mean
-        outputdict[:fixedmutations_var] = fixed_mutations_var
+        outputdict[:fixedmutations_mean] = fixedmutations_mean
+        outputdict[:fixedmutations_var] = fixedmutations_var
     end
     open(outputdir*"summarydata_$id.json", "w") do io
         JSON.print(io, outputdict, 4)

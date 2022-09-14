@@ -26,11 +26,11 @@ function getVAFresult(multisim::MultiSimulation, rng::AbstractRNG=Random.GLOBAL_
     freqs = Vector{Float64}[]
     freqps = Vector{Float64}[]
     
-    for moduletracker in multisim
-        trueVAF = getallelefreq(moduletracker)
+    for cellmodule in multisim
+        trueVAF = getallelefreq(cellmodule)
         sampledVAF = sampledallelefreq(trueVAF, rng, read_depth=read_depth, 
             detectionlimit=detectionlimit, cellularity=cellularity)
-        freq, freqp = subclonefreq(moduletracker)
+        freq, freqp = subclonefreq(cellmodule)
         push!(trueVAFs, trueVAF)
         push!(sampledVAFs, sampledVAF)
         push!(freqs, freq)
@@ -53,9 +53,9 @@ function getallelefreq(simulation::Simulation)
     return getallelefreq(simulation.output, simulation.input.ploidy)
 end
 
-function getallelefreq(moduletracker::ModuleTracker, ploidy)
-    mutations = cellsconvert(moduletracker.cells).mutations
-    return getallelefreq(mutations, moduletracker.Nvec[end], ploidy)
+function getallelefreq(cellmodule::CellModule, ploidy)
+    mutations = cellsconvert(cellmodule.cells).mutations
+    return getallelefreq(mutations, cellmodule.Nvec[end], ploidy)
 end
 
 function getallelefreq(mutations, N, ploidy=2)
@@ -131,14 +131,14 @@ function addcumfreq!(df,colname)
     return df
 end
 
-function subclonefreq(moduletracker)
+function subclonefreq(cellmodule)
     #get proportion of cells in each subclone
-    clonesize = getclonesize(moduletracker)
+    clonesize = getclonesize(cellmodule)
     clonefreqp = clonesize[2:end]/sum(clonesize)
     clonefreq = copy(clonefreqp)
     if length(clonefreqp) > 1
         clonefreq, subclonalmutations = 
-            calculateclonefreq!(clonefreq, subclonalmutations, moduletracker.subclones)
+            calculateclonefreq!(clonefreq, subclonalmutations, cellmodule.subclones)
     end
     return clonefreq, clonefreqp
 end

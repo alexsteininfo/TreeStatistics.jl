@@ -98,7 +98,7 @@ end
 
 
 
-@recipe function f(output::ModuleTracker)
+@recipe function f(output::CellModule)
     @series begin
         yguide --> "MultiSimulation size"
         xguide --> "Time"
@@ -138,11 +138,11 @@ end
     if plottype == :modulesize
         yguide --> "Module size"
         xguide --> "Time"
-        for moduletracker in multisim
+        for cellmodule in multisim
             @series begin
                 seriestype --> :line
                 legend --> false
-                moduletracker.tvec, moduletracker.Nvec
+                cellmodule.tvec, cellmodule.Nvec
             end
         end
     elseif plottype == :popsize
@@ -322,6 +322,6 @@ function dict_to_sortedvecs(d)
     maxkey = pfd[end]
     newpfd = collect(0:maxkey)
     newfreq = zero(0:maxkey)
-    newfreq[pfd] = freq
+    newfreq[pfd .+ 1] = freq
     return newpfd, newfreq
 end

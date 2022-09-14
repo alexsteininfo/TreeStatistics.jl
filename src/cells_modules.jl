@@ -42,3 +42,36 @@ function Base.show(io::IO, cell::TreeCell)
     print(io, "($(cell.id)) mutations = $(cell.mutations), t = $(cell.birthtime)")
     cell.alive || print(io, " X")
 end
+
+mutable struct CloneTracker
+    parenttype::Int64
+    parentmodule::Int64
+    time::Float64
+    mutations::Vector{Int64}
+    N0::Int64
+    Ndivisions::Int64
+    avdivisions::Float64
+    size::Int64
+end
+
+abstract type AbstractModule end
+struct CellModule <: AbstractModule
+    Nvec::Vector{Int64}
+    tvec::Vector{Float64}
+    cells::Vector{Cell}
+    subclones::Vector{CloneTracker}
+    id::Int64
+    parentid::Int64
+end
+
+struct TreeModule{T<:AbstractTreeCell} <: AbstractModule 
+    Nvec::Vector{Int64}
+    tvec::Vector{Float64}
+    cells::Vector{BinaryNode{T}}
+    subclones::Vector{CloneTracker}
+    id::Int64
+    parentid::Int64
+end
+
+
+Base.length(abstractmodule::AbstractModule) = abstractmodule.Nvec[end]

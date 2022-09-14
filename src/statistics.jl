@@ -2,21 +2,20 @@
 """
     mutations_per_cell(population)
 
-calculate the number of mutations per cell in each module 
+Calculate the number of mutations per cell in each module.
 """
 mutations_per_cell(population::MultiSimulation) = map(mutations_per_cell, population)
 
 """
     mutations_per_cell(simulation::Simulation)
-
-calculate the number of mutations per cell
+Calculate the number of mutations per cell
 """
 mutations_per_cell(simulation::Simulation) = mutations_per_cell(simulation.output)
 
 """
-    mutations_per_cell(moduletracker::ModuleTracker)
+    mutations_per_cell(cellmodule::CellModule)
 """
-mutations_per_cell(moduletracker::ModuleTracker) = mutations_per_cell(moduletracker.cells)
+mutations_per_cell(cellmodule::CellModule) = mutations_per_cell(cellmodule.cells)
 
 mutations_per_cell(cells::Vector{Cell}) = map(cell -> length(cell.mutations), cells)
 
@@ -39,6 +38,22 @@ function mutations_per_cell(root::BinaryNode{T}; includeclonal=false) where T <:
     return mutspercell
 end
 
+function mutations_per_cell(treemodule::TreeModule)
+    mutspercell = Int64[]
+    for cellnode in treemodule.cells
+        mutations = cellnode.data.mutations
+        while true
+            if !AbstractTrees.isroot(cellnode) && (cellnode != root|| includeclonal)
+                cellnode = cellnode.parent
+                mutations += cellnode.data.mutations
+            else
+                break
+            end
+        end
+        push!(mutspercell, mutations)
+    end
+end
+
 function acquired_mutations(root)
     muts = Int64[]
     for cellnode in PreOrderDFS(root)
@@ -47,7 +62,7 @@ function acquired_mutations(root)
     return muts
 end
 
-mutation_ids_by_cell(moduletracker::ModuleTracker, idx=nothing) = mutation_ids_by_cell(moduletracker.cells, idx)
+mutation_ids_by_cell(cellmodule::CellModule, idx=nothing) = mutation_ids_by_cell(cellmodule.cells, idx)
 
 function mutation_ids_by_cell(cells::Vector{Cell}, idx=nothing)
     if isnothing(idx) 
@@ -72,7 +87,7 @@ calculate the mean number of mutations in whole population (and variance if vari
 """
 function average_mutations(population, variance=false)
     mutations = (length(cell.mutations) 
-        for moduletracker in population for cell in moduletracker.cells)
+        for cellmodule in population for cell in cellmodule.cells)
     if variance
         return mean(mutations), var(mutations)
     else
@@ -85,16 +100,20 @@ end
 """
 average_mutations(simulation::Simulation) = average_mutations(simulation.output)
 """
-    average_mutations(moduletracker::ModuleTracker)
+    average_mutations(cellmodule::CellModule)
 """
-function average_mutations(moduletracker::ModuleTracker)
-    return mean(length(cell.mutations) for cell in moduletracker.cells)
+function average_mutations(cellmodule::CellModule)
+    return mean(length(cell.mutations) for cell in cellmodule.cells)
+end
+
+function average_mutations(treemodule::TreeModule)
+    return mean(mutations_per_cell(treemodule))
 end
 
 """
     clonal_mutations(simulation::Simulation)
 
-returns the number of clonal mutations, i.e. mutations present in every cell
+Returns the number of clonal mutations, i.e. mutations present in every cell
 """
 function clonal_mutations(simulation::Simulation)
     return clonal_mutations(simulation.output)
@@ -102,22 +121,23 @@ end
 
 """
     clonal_mutations(multisim::MultiSimulation)
-
-returns the number of clonal mutations in each module/simulated population
 """
 function clonal_mutations(population::MultiSimulation)
     return map(clonal_mutations, population)
 end
 
 """
-    clonal_mutations(output::SimulationResult)
+    clonal_mutations(cellmodule::CellModule)
 """
-function clonal_mutations(moduletracker::ModuleTracker)
-    return length(clonal_mutation_ids(moduletracker))
+function clonal_mutations(cellmodule::CellModule)
+    return length(clonal_mutation_ids(cellmodule))
 end
 
-function clonal_mutations(moduletracker::TreeModule)
-    MRCA = getMRCA(moduletracker)
+"""
+    clonal_mutations(treemodule::TreeModule)
+"""
+function clonal_mutations(cellmodule::TreeModule)
+    MRCA = getMRCA(cellmodule)
     return all_cell_mutations(MRCA)
 end
 
@@ -143,10 +163,10 @@ function clonal_mutation_ids(population, idx=nothing)
 end
 
 """
-    clonal_mutation_ids(moduletracker)
+    clonal_mutation_ids(cellmodule)
 """
-function clonal_mutation_ids(moduletracker::ModuleTracker)
-    return intersect([cell.mutations for cell in moduletracker.cells]...)
+function clonal_mutation_ids(cellmodule::CellModule)
+    return intersect([cell.mutations for cell in cellmodule.cells]...)
 end
 
 """
@@ -162,13 +182,13 @@ function pairwise_fixed_differences(simulation::Simulation, idx=nothing)
 end
 
 """
-    pairwise_fixed_differences(moduletracker::ModuleTracker[, idx])
+    pairwise_fixed_differences(cellmodule::CellModule[, idx])
 
 See pairwise_fixed_differences(simulation::Simulation)
 """
 
-function pairwise_fixed_differences(moduletracker::ModuleTracker, idx=nothing)
-    muts = mutation_ids_by_cell(moduletracker, idx)
+function pairwise_fixed_differences(cellmodule::CellModule, idx=nothing)
+    muts = mutation_ids_by_cell(cellmodule, idx)
     return pairwise_fixed_differences(muts)
 end
 """
@@ -285,6 +305,10 @@ function pairwisedistance(cellnode1::BinaryNode, cellnode2::BinaryNode)
     end
 end
 
+function pairwisedistance(cell1::Cell, cell2::Cell)
+    return length(symdiff(cell1.mutations, cell2.mutations))
+end
+
 """
     pairwise_fixed_differences_matrix(population[, idx], diagonals=false)
 
@@ -305,8 +329,8 @@ function pairwise_fixed_differences_matrix(simulation::Simulation, idx=nothing; 
     return pairwise_fixed_differences_matrix(simulation.output, idx, diagonals=diagonals)
 end
 
-function pairwise_fixed_differences_matrix(moduletracker::ModuleTracker, idx=nothing; diagonals=false)
-    muts = mutation_ids_by_cell(moduletracker, idx)
+function pairwise_fixed_differences_matrix(cellmodule::CellModule, idx=nothing; diagonals=false)
+    muts = mutation_ids_by_cell(cellmodule, idx)
     return pairwise_fixed_differences_matrix(muts, diagonals=diagonals)
 end
 
@@ -428,7 +452,7 @@ end
 
 Return a vector of times at which new modules arose in the population
 """
-newmoduletimes(population) = sort([moduletracker.tvec[1] for moduletracker in population])
+newmoduletimes(population) = sort([cellmodule.tvec[1] for cellmodule in population])
 
 """
     numbermodules(population, tstep)
@@ -437,7 +461,7 @@ Return number of modules in the population at times in 1:tstep:tend
 """
 function numbermodules(population, tstep, tend=nothing)
     if isnothing(tend)
-        tend = maximum(moduletracker.tvec[end] for moduletracker in population)
+        tend = maximum(cellmodule.tvec[end] for cellmodule in population)
     end
     newmodtimes = newmoduletimes(population)
     times = collect(0:tstep:tend)
@@ -454,17 +478,17 @@ end
 Return number of cells in the population at times in 1:tstep:tend
 """
 function cellpopulationsize(population, tstep)
-    tend = maximum(moduletracker.tvec[end] for moduletracker in population)
+    tend = maximum(cellmodule.tvec[end] for cellmodule in population)
     popvec = Int64[]
     for time in 0:tstep:tend
         pop = 0
-        for moduletracker in population
+        for cellmodule in population
             N0 = 0
-            for (N, t) in zip(moduletracker.Nvec, moduletracker.tvec)
+            for (N, t) in zip(cellmodule.Nvec, cellmodule.tvec)
                 if t > time 
                     pop += N0
                     break
-                elseif t == moduletracker.tvec[end]
+                elseif t == cellmodule.tvec[end]
                     pop += N
                     break
                 else
@@ -483,20 +507,20 @@ end
 Return mean modulesize in the multisimulation at times in 1:tstep:tend
 """
 function meanmodulesize(multisimulation, tstep)
-    tend = maximum(moduletracker.tvec[end] for moduletracker in multisimulation)
+    tend = maximum(cellmodule.tvec[end] for cellmodule in multisimulation)
     popvec = Float64[]
     for time in 0:tstep:tend
         pop = 0
         modules = 0
-        for moduletracker in multisimulation
-            if moduletracker.tvec[1] <= time 
+        for cellmodule in multisimulation
+            if cellmodule.tvec[1] <= time 
                 modules += 1
                 N0 = 0 
-                for (N, t) in zip(moduletracker.Nvec, moduletracker.tvec)
+                for (N, t) in zip(cellmodule.Nvec, cellmodule.tvec)
                     if t > time 
                         pop += N0
                         break
-                    elseif t == moduletracker.tvec[end]
+                    elseif t == cellmodule.tvec[end]
                         pop += N
                         break
                     else

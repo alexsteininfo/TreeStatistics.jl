@@ -8,9 +8,9 @@ end
 
 function multiplesimulations(numsim, input; rng::AbstractRNG = Random.GLOBAL_RNG)
     
-    results = MultiSimulation(input, ModuleTracker[])
+    results = MultiSimulation(input, CellModule[])
     for i in 1:numsim
-        simdata = run1simulation(input, rng)
+        simdata = runsimulation(input, rng)
         push!(results.output, simdata.output)
     end
     return results

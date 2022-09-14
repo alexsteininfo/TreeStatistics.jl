@@ -1,4 +1,4 @@
-@testset "neutral run1simulation" begin
+@testset "neutral runsimulation" begin
     rng = MersenneTwister(100)
     input = BranchingInput(
         Nmax=10, 
@@ -9,7 +9,7 @@
         numclones=0,
         μ=1
     )
-    simulation = run1simulation(input, rng)
+    simulation = runsimulation(input, rng)
     @test length(simulation.output) == 10
     @test simulation.output.Nvec[end] == length(simulation.output.cells)
 
@@ -23,7 +23,7 @@
         numclones=0,
         μ=1
     )
-    simulation = run1simulation(input, rng)
+    simulation = runsimulation(input, rng)
     @test all(simulation.output.Nvec .== 10)
     @test simulation.output.tvec[end] <=tmax
     tmax=10
@@ -37,8 +37,8 @@
         numclones=0,
         μ=1
     )
-    simulation = run1simulation(input, rng)
-    @test simulation.output.Nvec[end ]== 10
+    simulation = runsimulation(input, rng)
+    @test simulation.output.Nvec[end]== 10
     @test simulation.output.tvec[end] <= tmax
 end
 

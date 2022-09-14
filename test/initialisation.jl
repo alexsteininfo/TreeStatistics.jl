@@ -66,7 +66,7 @@ end
             id = 1
             parentid = 0
             inittime = 5
-            initmodule = SomaticEvolution.initializesim_from_cells(cells, subclones, id,
+            initmodule = SomaticEvolution.initialize_from_cells(cells, subclones, id,
                 parentid, inittime=inittime)
             @test initmodule.Nvec[1] == length(cells)
             @test length(initmodule.Nvec) == length(initmodule.tvec) == 1
