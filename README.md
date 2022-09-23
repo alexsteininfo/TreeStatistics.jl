@@ -32,7 +32,7 @@ simulations (see `?SimulationInput` for options). Keyword arguments for each inp
   ```
   using SomaticEvolution, Random
 
-  input = MultilvelBranchingMoranInput(Nmax=100)
+  input = MultilvelBranchingMoranInput(maxmodules=100)
   rng = Random.seed!(12)
   simulation = runsimulation(input, rng)
   ```
