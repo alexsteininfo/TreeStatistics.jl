@@ -137,7 +137,7 @@ end
     clonal_mutations(treemodule::TreeModule)
 """
 function clonal_mutations(cellmodule::TreeModule)
-    MRCA = getMRCA(cellmodule)
+    MRCA = findMRCA(cellmodule)
     return all_cell_mutations(MRCA)
 end
 

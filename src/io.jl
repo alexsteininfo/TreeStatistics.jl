@@ -1,5 +1,7 @@
 typedict(x) = Dict(fn=>getfield(x, fn) for fn in fieldnames(typeof(x)))
 
+inputdict(x) = push!(typedict(x), :type => string(typeof(x)))
+
 function saveinput(input, filename)
     filename = filename[end-4:end] == ".json" ? filename : filename * ".json"
     inputdict = typedict(input)
@@ -8,13 +10,23 @@ function saveinput(input, filename)
     end
 end
 
-function loadinput(inputtype, filename)
+function loadinput(::Type{T}, filename) where T
     inputdict = JSON.parsefile(filename, dicttype=Dict{Symbol, Any})
-    loadinput(inputtype, inputdict::Dict)
+    loadinput(T, inputdict::Dict)
 end
 
-function loadinput(inputtype, inputdict::Dict)
-    return inputtype(;inputdict...)
+function loadinput(filename)
+    inputdict = JSON.parsefile(filename, dicttype=Dict{Symbol, Any})
+    loadinput(inputdict::Dict)
+end
+
+function loadinput(inputdict::Dict)
+    T = eval(Symbol(pop!(inputdict, :type)))
+    return T(;inputdict...)
+end
+
+function loadinput(::Type{T}, inputdict::Dict) where T
+    return T(;inputdict...)
 end
 
 

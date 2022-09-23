@@ -116,7 +116,7 @@ Input for a single level branching process simulation that starts with a single 
 - `Nmax::Int64 = 10000`: maximum number of cells
 - `tmax::Float64 = Inf`: maximum time to run simulation
 - `ploidy::Int64 = 2`: cell ploidy (per cell mutation rate is `ploidy * μ`)
-- `μ::Float64 = 10.0`: mutation rate per division per set of chromosomes
+- `μ::Float64 = 10.0`: mutation rate per division per cell
 - `clonalmutations::Int64 = 0`: number of mutations shared by all cells
 - `b::Float64 = log(2.0)`: birth rate for wild-type cells
 - `d::Float64 = 0.0`: death rate for wild-type cells
@@ -161,7 +161,7 @@ Input for a single level Moran process simulation that starts with a `N` identic
 - `N::Int64 = 10000`: number of cells
 - `tmax::Float64 = Inf`: maximum time to run simulation
 - `ploidy::Int64 = 2`: cell ploidy (per cell mutation rate is `ploidy * μ`)
-- `μ::Float64 = 10.0`: mutation rate per division per set of chromosomes
+- `μ::Float64 = 10.0`: mutation rate per division per cell
 - `clonalmutations::Int64 = 0`: number of mutations shared by all cells
 - `bdrate::Float64 = log(2.0)`: birth/death rate for wild-type cells
 - `numclones::Int64 = 0`: number of mutant subclones
@@ -202,7 +202,7 @@ Input for a single level simulation that starts with a single cell and simulated
 - `Nmax::Int64 = 10000`: maximum number of cells
 - `tmax::Float64 = Inf`: maximum time to run simulation
 - `ploidy::Int64 = 2`: cell ploidy (per cell mutation rate is `ploidy * μ`)
-- `μ::Float64 = 10.0`: mutation rate per division per set of chromosomes
+- `μ::Float64 = 10.0`: mutation rate per division per cell
 - `clonalmutations::Int64 = 0`: number of mutations shared by all cells
 - `b::Float64 = log(2.0)`: birth rate for wild-type cells in branching phase
 - `d::Float64 = 0.0`: death rate for wild-type cells in branching phase
@@ -253,7 +253,7 @@ modules branch at rate `branchrate`) with no death.
 - `maxmodules::Int64 = 10000`: maximum number of modules in population 
 - `tmax::Float64 = Inf`: maximum time to run simulation
 - `ploidy::Int64 = 2`: cell ploidy (per cell mutation rate is `ploidy * μ`)
-- `μ::Float64 = 10.0`: mutation rate per division per set of chromosomes
+- `μ::Float64 = 10.0`: mutation rate per division per cell
 - `clonalmutations::Int64 = 0`: number of mutations shared by all cells
 - `b::Float64 = 1.0`: birth rate for wild-type cells in branching phase
 - `d::Float64 = 0.0`: death rate for wild-type cells in branching phase
@@ -306,7 +306,7 @@ modules branch at rate `branchrate`) with no death. Once module population reach
 - `maxmodules::Int64 = 10000`: maximum number of modules in population 
 - `tmax::Float64 = Inf`: maximum time to run simulation
 - `ploidy::Int64 = 2`: cell ploidy (per cell mutation rate is `ploidy * μ`)
-- `μ::Float64 = 10.0`: mutation rate per division per set of chromosomes
+- `μ::Float64 = 10.0`: mutation rate per division per cell
 - `clonalmutations::Int64 = 0`: number of mutations shared by all cells
 - `b::Float64 = 1.0`: birth rate for wild-type cells in branching phase
 - `d::Float64 = 0.0`: death rate for wild-type cells in branching phase
