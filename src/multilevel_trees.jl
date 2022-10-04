@@ -29,15 +29,18 @@ function runsimulation(::Type{T}, input::S, rng::AbstractRNG=Random.GLOBAL_RNG) 
     end
 end
 
-function runsimulation_timeseries(::Type{T}, input::S, timesteps, 
+function runsimulation_timeseries_returnfinalpop(::Type{T}, input::S, timesteps, 
     func, rng::AbstractRNG=Random.GLOBAL_RNG) where {T <: AbstractTreeCell, S <: MultilevelInput}
 
+    moduleupdate = S == MultilevelBranchingMoranInput ? :moran : :branching
     population = initialize_population(
         T,
         input,
         rng
     )
-    data = map(timesteps) do t
+    data = []
+    t0 = 0.0
+    for t in timesteps
         population = simulate!(
             population, 
             t,
@@ -50,13 +53,15 @@ function runsimulation_timeseries(::Type{T}, input::S, timesteps,
             input.branchinitsize, 
             input.μ,
             input.mutationdist,
-            rng,
-            moduleupdate = S == MultilevelBranchingMoranInput ? :moran : :branching
-
+            rng;
+            moduleupdate,
+            t0
         )
-        return func(population)
+        (moduleupdate == :branching && length(population) >= input.maxmodules) && break
+        push!(data, func(population))
+        t0 = t
     end
-    return data 
+    return data, population
 end
 
 function initialize_population(::Type{T}, input, rng) where T <: AbstractTreeCell

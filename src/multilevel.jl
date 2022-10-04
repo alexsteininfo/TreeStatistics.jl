@@ -133,12 +133,14 @@ function runsimulation(::Type{Cell}, input::MultilevelBranchingMoranInput, rng::
     return MultiSimulation(input, population)
 end
 
-function runsimulation_timeseries(::Type{Cell}, input::MultilevelBranchingMoranInput, timesteps, func, rng::AbstractRNG=Random.GLOBAL_RNG) 
+function runsimulation_timeseries_returnfinalpop(::Type{Cell}, input::MultilevelBranchingMoranInput, timesteps, func, rng::AbstractRNG=Random.GLOBAL_RNG) 
     population = initialize_population(
         input.modulesize, 
         clonalmutations=0
     )
-    data = map(timesteps) do t
+    data = []
+    t0 = 0.0
+    for t in timesteps
         population = simulate!(
             population, 
             t,
@@ -151,18 +153,23 @@ function runsimulation_timeseries(::Type{Cell}, input::MultilevelBranchingMoranI
             input.branchinitsize, 
             input.μ,
             input.mutationdist,
-            rng,
-            moduleupdate=:moran
-
+            rng;
+            moduleupdate=:moran,
+            t0
         )
-        return func(population)
+        length(population) < input.maxmodules || break
+        push!(data, func(population))
+        t0 = t
     end
-    return data 
+    return data, population
 end
 
+function runsimulation_timeseries(::Type{T}, input::MultilevelBranchingMoranInput, timesteps, func, rng::AbstractRNG=Random.GLOBAL_RNG) where T
+    return runsimulation_timeseries_returnfinalpop(T, input, timesteps, func, rng)[1] 
+end
 """
     simulate!(population, tmax, maxmodules, b, d, bdrate, branchrate, 
-        modulesize, branchinitsize, rng)
+        modulesize, branchinitsize, rng; moduleupdate=:branching[, t0])
 
 Run a single multilevel simulation using the Gillespie algorithm, with the 
 `population` giving the initial state. Simulation runs until the module population 
@@ -170,11 +177,11 @@ size reaches `maxmodules` or the age of the population reaches `tmax`.
 
 """
 function simulate!(population, tmax, maxmodules, b, d, bdrate, branchrate, 
-    modulesize, branchinitsize, μ, mutationdist, rng; moduleupdate=:branching)
+    modulesize, branchinitsize, μ, mutationdist, rng; moduleupdate=:branching, t0=nothing)
 
     nextID = getnextID(population) #get next id
     nextmoduleID = maximum(cellmodule.id for cellmodule in population) + 1
-    t = age(population)
+    t = isnothing(t0) ? age(population) : t0
     while t < tmax && (moduleupdate==:moran || length(population) < maxmodules)
         population, t, nextID = 
             update_population!(population, b, d, bdrate, branchrate, modulesize, 

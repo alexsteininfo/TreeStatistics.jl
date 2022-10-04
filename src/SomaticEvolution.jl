@@ -36,6 +36,7 @@ VAFResult,
 #functions for running multilevel or single-level simulations
 runsimulation,
 runsimulation_timeseries,
+runsimulation_timeseries_returnfinalpop,
 run1simulation, 
 multilevel_simulation,
 multilevel_simulation_timeseries,
