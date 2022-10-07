@@ -164,7 +164,7 @@ function runsimulation_timeseries_returnfinalpop(::Type{Cell}, input::Multilevel
     return data, population
 end
 
-function runsimulation_timeseries(::Type{T}, input::MultilevelBranchingMoranInput, timesteps, func, rng::AbstractRNG=Random.GLOBAL_RNG) where T
+function runsimulation_timeseries(::Type{T}, input::MultilevelInput, timesteps, func, rng::AbstractRNG=Random.GLOBAL_RNG) where T
     return runsimulation_timeseries_returnfinalpop(T, input, timesteps, func, rng)[1] 
 end
 """

@@ -33,11 +33,7 @@ function runsimulation_timeseries_returnfinalpop(::Type{T}, input::S, timesteps,
     func, rng::AbstractRNG=Random.GLOBAL_RNG) where {T <: AbstractTreeCell, S <: MultilevelInput}
 
     moduleupdate = S == MultilevelBranchingMoranInput ? :moran : :branching
-    population = initialize_population(
-        T,
-        input,
-        rng
-    )
+    population = initialize_population(T, input, rng)
     data = []
     t0 = 0.0
     for t in timesteps
@@ -57,6 +53,7 @@ function runsimulation_timeseries_returnfinalpop(::Type{T}, input::S, timesteps,
             moduleupdate,
             t0
         )
+        #stop branching process simulations if maximum population size is exceeded
         (moduleupdate == :branching && length(population) >= input.maxmodules) && break
         push!(data, func(population))
         t0 = t

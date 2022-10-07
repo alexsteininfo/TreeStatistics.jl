@@ -17,16 +17,31 @@ function runsimulation(::Type{T}, input::SinglelevelInput, rng::AbstractRNG=Rand
 
 end
 
-# function runsimulation(cell::AbstractTreeCell, input::SinglelevelInput, rng::AbstractRNG=Random.GLOBAL_RNG; 
-#     timefunc=exptime)
+function runsimulation_timeseries_returnfinalpop(::Type{T}, input::SinglelevelInput, 
+    timesteps, func, rng::AbstractRNG=Random.GLOBAL_RNG; timefunc=exptime)  where T <: AbstractCell
 
-#     return simulate!([BinaryNode(cell)], input, rng; timefunc)
+    treemodule = initialize(T, input, rng)
+    data = []
+    t0 = 0.0
+    for t in timesteps
+        simulate!(treemodule, input, rng; timefunc, t0, tmax=t)
+        #stop branchingprocess simulations if maximum population size is exceeded
+        popsize_exceeded(length(treemodule), input) && break
+        push!(data, func(treemodule))
+        t0 = t
+    end
+    return data, treemodule
+end
 
-# end
+function runsimulation_timeseries(::Type{T}, input::SinglelevelInput, timesteps, func, rng::AbstractRNG=Random.GLOBAL_RNG) where T
+    return runsimulation_timeseries_returnfinalpop(T, input, timesteps, func, rng)[1] 
+end
+
+popsize_exceeded(popsize, input::BranchingInput) = popsize > input.Nmax
+popsize_exceeded(popsize, input::SinglelevelInput) = false
 
 function simulate!(treemodule::TreeModule, input::BranchingInput, rng::AbstractRNG=Random.GLOBAL_RNG; 
-    timefunc=exptime)
-    
+    timefunc=exptime, t0=nothing, tmax=nothing)
     branchingprocess!(
         treemodule,
         input.b, 
@@ -34,51 +49,58 @@ function simulate!(treemodule::TreeModule, input::BranchingInput, rng::AbstractR
         input.Nmax, 
         input.μ, 
         input.mutationdist, 
-        input.tmax, 
+        isnothing(tmax) ? input.tmax : minimum((tmax, input.tmax)),
         rng;
-        timefunc
+        timefunc,
+        t0
     )
     return treemodule
 end
 
 function simulate!(treemodule::TreeModule, input::MoranInput, rng::AbstractRNG=Random.GLOBAL_RNG; 
-    timefunc=exptime) where T <: AbstractTreeCell
+    timefunc=exptime, t0=nothing, tmax=nothing) where T <: AbstractTreeCell
     
     moranprocess!(
         treemodule,
         input.bdrate, 
-        input.tmax, 
+        isnothing(tmax) ? input.tmax : minimum((tmax, input.tmax)),
         input.μ, 
         input.mutationdist, 
         rng;
-        timefunc
+        timefunc,
+        t0
     )
     return treemodule
 end
 
 function simulate!(treemodule::TreeModule, input::BranchingMoranInput, rng::AbstractRNG=Random.GLOBAL_RNG; 
-    timefunc=exptime) where T <: AbstractTreeCell
+    timefunc=exptime, t0=nothing, tmax=nothing) where T <: AbstractTreeCell
     
-    branchingprocess!(
-        treemodule,
-        input.b, 
-        input.d, 
-        input.Nmax, 
-        input.μ, 
-        input.mutationdist, 
-        input.tmax, 
-        rng; 
-        timefunc
-    )
+    if length(treemodule) < input.Nmax
+        branchingprocess!(
+            treemodule,
+            input.b, 
+            input.d, 
+            input.Nmax, 
+            input.μ, 
+            input.mutationdist, 
+            isnothing(tmax) ? input.tmax : minimum((tmax, input.tmax)),
+            rng; 
+            timefunc,
+            t0
+        )
+        t0 = age(treemodule)
+    end
 
     moranprocess!(
         treemodule,
         input.bdrate, 
-        input.tmax, 
+        isnothing(tmax) ? input.tmax : minimum((tmax, input.tmax)),
         input.μ, 
         input.mutationdist, 
         rng;
-        timefunc
+        timefunc,
+        t0
     )
     return treemodule
 end
@@ -91,10 +113,11 @@ Simulate a population of cells, defined by `treemodule` that grows by a branchin
 
 """
 function branchingprocess!(treemodule::TreeModule, b, d, Nmax, μ, mutationdist, 
-    tmax, rng::AbstractRNG; timefunc=exptime) where T <: AbstractTreeCell
+    tmax, rng::AbstractRNG; timefunc=exptime, t0=nothing) where T <: AbstractTreeCell
 
     # set initial time, population size and next cell ID
-    t = maximum(cellnode.data.birthtime for cellnode in treemodule.cells)
+    t = !isnothing(t0) ? t0 : maximum(cellnode.data.birthtime for cellnode in treemodule.cells)
+
     N = length(treemodule.cells)
     nextID = maximum(cellnode.data.id for cellnode in treemodule.cells)
 
@@ -150,10 +173,10 @@ end
 Simulate a population of cells in `treemodule` with Moran process dynamics.
 """
 function moranprocess!(treemodule::TreeModule, bdrate, tmax, μ, mutationdist, rng; 
-    N=length(treemodule), timefunc=exptime) where T <: AbstractTreeCell
+    N=length(treemodule), timefunc=exptime, t0=nothing) where T <: AbstractTreeCell
 
     # set initial time and next cell ID
-    t = maximum(cellnode.data.birthtime for cellnode in treemodule.cells)
+    t = !isnothing(t0) ? t0 : maximum(cellnode.data.birthtime for cellnode in treemodule.cells)
     nextID = maximum(cellnode.data.id for cellnode in treemodule.cells)
 
     while true

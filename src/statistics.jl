@@ -43,15 +43,16 @@ function mutations_per_cell(treemodule::TreeModule)
     for cellnode in treemodule.cells
         mutations = cellnode.data.mutations
         while true
-            if !AbstractTrees.isroot(cellnode) && (cellnode != root|| includeclonal)
+            if isnothing(cellnode.parent)
+                break
+            else
                 cellnode = cellnode.parent
                 mutations += cellnode.data.mutations
-            else
-                break
             end
         end
         push!(mutspercell, mutations)
     end
+    return mutspercell
 end
 
 function acquired_mutations(root)
