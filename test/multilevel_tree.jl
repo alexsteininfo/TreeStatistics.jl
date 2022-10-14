@@ -72,6 +72,7 @@
     )
     population = runsimulation(SimpleTreeCell, input, rng)
     @test length(population) == 10
+    @test sort(moduleid.(population)) == sort(unique(moduleid.(population)))
     population = runsimulation(TreeCell, input, rng)
     @test length(population) == 10
     input = MultilevelBranchingInput(
@@ -151,12 +152,33 @@ population = [module1, module2, module3]
     @test pairwise_fixed_differences_clonal(population) == (Dict(68 => 1, 102 => 1, 54 => 1), Dict(42 => 1, 32 => 1, 66 => 1))
 end
 
+@testset "simulate module moran" begin
 
+    #check runsimulation function
+    rng = MersenneTwister(12)
+    input = MultilevelBranchingMoranInput(
+            modulesize=4, 
+            fixedmu=true, 
+            b=0.1, 
+            d=0.01,
+            bdrate=0.01, 
+            clonalmutations=0, 
+            tmax=365*4, 
+            maxmodules=5,
+            branchrate=3/365, 
+            branchfraction=0.2, 
+            μ=1
+    )
+    population = runsimulation(SimpleTreeCell, input, rng)
+    @test sort(moduleid.(population)) == sort(unique(moduleid.(population)))
+    @test length(population) == 5
 
+    population = runsimulation(TreeCell, input, rng)
+    @test sort(moduleid.(population)) == sort(unique(moduleid.(population)))
+    @test length(population) == 5
+    # @test age(population) < 365 * 4
 
-
-
-
+end
 
 
 

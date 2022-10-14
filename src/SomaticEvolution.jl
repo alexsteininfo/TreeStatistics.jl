@@ -86,6 +86,7 @@ coalescence_times,
 getsingleroot,
 popsize,
 findMRCA,
+moduleid,
 
 #util
 newinput,

@@ -75,3 +75,5 @@ end
 
 
 Base.length(abstractmodule::AbstractModule) = abstractmodule.Nvec[end]
+
+moduleid(abstractmodule::AbstractModule) = abstractmodule.id

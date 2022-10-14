@@ -104,6 +104,11 @@ mt3 = SomaticEvolution.CellModule(
     @test newcellmodule.id == 2
     @test newcellmodule.Nvec == [1]
     @test newcellmodule.tvec == [1.0]
+    cellmodule = deepcopy(mt1)
+    nextmoduleID = 2
+    population, nextmoduleID = SomaticEvolution.modulebranchingupdate!([cellmodule], nextmoduleID, 4, 1, 2.0, rng)
+    @test nextmoduleID == 3
+    @test moduleid.(population) == [1,2]
 end
     
 
@@ -260,6 +265,7 @@ end
     )
     population = runsimulation(input, rng, :normal)
     @test length(population) == 10
+    @test sort(moduleid.(population)) == sort(unique(moduleid.(population)))
     input = MultilevelBranchingInput(
             modulesize=4, 
             fixedmu=true, 
@@ -330,6 +336,7 @@ end
             μ=1
     )
     population = runsimulation(input, rng)
+    @test sort(moduleid.(population)) == sort(unique(moduleid.(population)))
     @test length(population) == 5
     # @test age(population) < 365 * 4
 

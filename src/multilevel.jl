@@ -183,7 +183,7 @@ function simulate!(population, tmax, maxmodules, b, d, bdrate, branchrate,
     nextmoduleID = maximum(cellmodule.id for cellmodule in population) + 1
     t = isnothing(t0) ? age(population) : t0
     while t < tmax && (moduleupdate==:moran || length(population) < maxmodules)
-        population, t, nextID = 
+        population, t, nextID, nextmoduleID = 
             update_population!(population, b, d, bdrate, branchrate, modulesize, 
                 branchinitsize, t, nextID, nextmoduleID, μ, mutationdist, tmax, maxmodules, rng; moduleupdate)
         #returns empty list of modules if population dies out
@@ -318,20 +318,20 @@ which is added to `population`
 """
 function modulebranchingupdate!(population, nextmoduleID, modulesize, branchinitsize, t, rng)
     parentmodule = choose_homeostaticmodule(population, modulesize, rng)
-    _, newmodule, nextmoduleID = 
+    _, newmodule = 
         sample_new_module!(parentmodule, nextmoduleID, branchinitsize, t, rng)
     push!(population, newmodule)
-    return population, nextmoduleID
+    return population, nextmoduleID + 1
 end
 
 function modulemoranupdate!(population, nextmoduleID, modulesize, branchinitsize, t, μ, mutationdist, rng)
     parentmodule = choose_homeostaticmodule(population, modulesize, rng)
-    _, newmodule, nextmoduleID = 
+    _, newmodule = 
         sample_new_module!(parentmodule, nextmoduleID, branchinitsize, t, rng)
     push!(population, newmodule)
     deadmodule = rand(rng, population)
     moduledeath!(population, deadmodule, t, μ, mutationdist, rng)
-    return population, nextmoduleID
+    return population, nextmoduleID + 1
 end
 
 """
@@ -545,7 +545,7 @@ function sample_new_module!(cellmodule::T, nextmoduleID, branchinitsize, brancht
     push!(cellmodule.Nvec, cellmodule.Nvec[end] - branchinitsize)
     push!(cellmodule.tvec, branchtime)
 
-    return cellmodule, newcellmodule, nextmoduleID
+    return cellmodule, newcellmodule
 end
 
 """
