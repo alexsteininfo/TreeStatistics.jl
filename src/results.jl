@@ -56,8 +56,12 @@ function Base.show(io::IO, abstractmodule::AbstractModule)
 end
 
 function Base.show(io::IO, population::Vector{T}) where T<:AbstractModule
-    @printf(io, "Final size = %d modules\n", length(population))
-    @printf(io, "Final time = %.2f", age(population))
+    if length(population) == 0
+        @printf(io, "Empty population")
+    else
+        @printf(io, "Final size = %d modules\n", length(population))
+        @printf(io, "Final time = %.2f", age(population))
+    end
 end
 
 function Base.show(io::IO, input::BranchingInput)

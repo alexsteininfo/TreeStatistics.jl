@@ -7,7 +7,8 @@ function runsimulation(::Type{T}, input::S, rng::AbstractRNG=Random.GLOBAL_RNG) 
             input,
             rng
         )
-        population = 
+        nextID, nextmoduleID = 2, 2
+        population, = 
             simulate!(
                 population, 
                 input.tmax, 
@@ -20,6 +21,8 @@ function runsimulation(::Type{T}, input::S, rng::AbstractRNG=Random.GLOBAL_RNG) 
                 input.branchinitsize, 
                 input.μ,
                 input.mutationdist,
+                nextID,
+                nextmoduleID,
                 rng,
                 moduleupdate = S == MultilevelBranchingMoranInput ? :moran : :branching
             )
@@ -34,10 +37,11 @@ function runsimulation_timeseries_returnfinalpop(::Type{T}, input::S, timesteps,
 
     moduleupdate = S == MultilevelBranchingMoranInput ? :moran : :branching
     population = initialize_population(T, input, rng)
+    nextID, nextmoduleID = 2, 2
     data = []
     t0 = 0.0
     for t in timesteps
-        population = simulate!(
+        population, nextID, nextmoduleID = simulate!(
             population, 
             t,
             input.maxmodules, 
@@ -49,6 +53,8 @@ function runsimulation_timeseries_returnfinalpop(::Type{T}, input::S, timesteps,
             input.branchinitsize, 
             input.μ,
             input.mutationdist,
+            nextID,
+            nextmoduleID,
             rng;
             moduleupdate,
             t0

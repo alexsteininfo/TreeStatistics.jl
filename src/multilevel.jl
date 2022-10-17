@@ -60,7 +60,8 @@ function runsimulation(::Type{Cell}, input::MultilevelBranchingInput, rng::Abstr
             clonalmutations=0
         )
         if simtype == :normal || simtype == "normal"
-            population = 
+            nextID, nextmoduleID = 2, 2
+            population,  = 
                 simulate!(
                     population, 
                     input.tmax, 
@@ -73,6 +74,8 @@ function runsimulation(::Type{Cell}, input::MultilevelBranchingInput, rng::Abstr
                     input.branchinitsize, 
                     1, #assume a single mutation at each division and add distribution of
                     :fixed, #mutations later
+                    nextID,
+                    nextmoduleID,
                     rng
                 )
         elseif simtype == :fixedtime || simtype == "fixedtime"
@@ -108,7 +111,8 @@ function runsimulation(::Type{Cell}, input::MultilevelBranchingMoranInput, rng::
             input.modulesize, 
             clonalmutations=0
         )
-        population = 
+        nextID, nextmoduleID = 2, 2
+        population, = 
             simulate!(
                 population, 
                 input.tmax, 
@@ -121,6 +125,8 @@ function runsimulation(::Type{Cell}, input::MultilevelBranchingMoranInput, rng::
                 input.branchinitsize, 
                 1, #assume a single mutation at each division and add distribution of
                 :fixed, #mutations later
+                nextID,
+                nextmoduleID,
                 rng,
                 moduleupdate=:moran
             )
@@ -140,8 +146,9 @@ function runsimulation_timeseries_returnfinalpop(::Type{Cell}, input::Multilevel
     )
     data = []
     t0 = 0.0
+    nextID, nextmoduleID = 2, 2
     for t in timesteps
-        population = simulate!(
+        population, nextID, nextmoduleID = simulate!(
             population, 
             t,
             input.maxmodules, 
@@ -153,6 +160,8 @@ function runsimulation_timeseries_returnfinalpop(::Type{Cell}, input::Multilevel
             input.branchinitsize, 
             input.μ,
             input.mutationdist,
+            nextID,
+            nextmoduleID,
             rng;
             moduleupdate=:moran,
             t0
@@ -177,10 +186,8 @@ size reaches `maxmodules` or the age of the population reaches `tmax`.
 
 """
 function simulate!(population, tmax, maxmodules, b, d, bdrate, branchrate, 
-    modulesize, branchinitsize, μ, mutationdist, rng; moduleupdate=:branching, t0=nothing)
+    modulesize, branchinitsize, μ, mutationdist, nextID, nextmoduleID, rng; moduleupdate=:branching, t0=nothing)
 
-    nextID = getnextID(population) #get next id
-    nextmoduleID = maximum(cellmodule.id for cellmodule in population) + 1
     t = isnothing(t0) ? age(population) : t0
     while t < tmax && (moduleupdate==:moran || length(population) < maxmodules)
         population, t, nextID, nextmoduleID = 
@@ -188,10 +195,10 @@ function simulate!(population, tmax, maxmodules, b, d, bdrate, branchrate,
                 branchinitsize, t, nextID, nextmoduleID, μ, mutationdist, tmax, maxmodules, rng; moduleupdate)
         #returns empty list of modules if population dies out
         if length(population) == 0
-            return population
+            return population, nextID, nextmoduleID
         end
     end
-    return population
+    return population, nextID, nextmoduleID
 end
 
 """
