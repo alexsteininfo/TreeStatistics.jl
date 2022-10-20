@@ -217,12 +217,34 @@ function pairwise_fixed_differences(muts::Vector{Vector{Int64}})
     return countmap(pfd_vec)
 end
 
+function pairwise_fixed_differences(population::Union{MultiSimulation{T, S}, Vector{T}}, 
+    idx=nothing) where {T, S <: TreeModule}
+
+    pfdvec = _pairwise_fixed_differences(population, idx)
+    return countmap(pfdvec)
+end
+
 function pairwise_fixed_differences_clonal(population::Union{MultiSimulation{T, S}, Vector{T}}, 
     idx=nothing) where {T, S <: TreeModule}
 
     pfdvec, clonalmutsvec = _pairwise_fixed_differences_clonal(population, idx)
     return countmap(pfdvec), countmap(clonalmutsvec)
 end
+
+function _pairwise_fixed_differences(population::Union{MultiSimulation{T, S}, Vector{T}}, 
+    idx=nothing) where {T, S <: TreeModule}
+
+    pfd_vec = Int64[]
+    MRCA_vec = isnothing(idx) ? map(findMRCA, population) : map(findMRCA, population[idx])
+    n = length(MRCA_vec)
+    for i in 1:n
+        for j in i+1:n
+            push!(pfd_vec, pairwisedistance(MRCA_vec[i], MRCA_vec[j]))
+        end
+    end
+    return pfd_vec
+end
+
 
 function _pairwise_fixed_differences_clonal(population::Union{MultiSimulation{T, S}, Vector{T}}, 
     idx=nothing) where {T, S <: TreeModule}
@@ -257,7 +279,7 @@ function pairwise_fixed_differences(root::BinaryNode{T}, idx=nothing) where T <:
     return countmap(pfd)
 end
 
-function pairwise_fixed_differences(sampledcells::Vector{BinaryNode{TreeCell}})
+function pairwise_fixed_differences(sampledcells::Vector{BinaryNode{T}}) where T <: AbstractTreeCell
     pfd = Int64[]
     while length(sampledcells) > 1
         cellnode1 = popfirst!(sampledcells)

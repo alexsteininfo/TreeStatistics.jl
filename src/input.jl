@@ -216,11 +216,12 @@ Input for a single level simulation that starts with a single cell and simulated
     mutations (:poisson, :fixed, :poissontimedep, :fixedtimedep, :geometric)
 """
 function BranchingMoranInput(;numclones=1, Nmax=10000, ploidy=2, μ=10.0, 
-    clonalmutations=0, selection=fill(0.0,numclones), bdrate=log(2.0), b=log(2), 
+    clonalmutations=0, selection=fill(0.0,numclones), bdrate=nothing, b=nothing, 
     d=0, tmax=15.0, tevent=collect(1.0:0.5:(1+numclones)/2), fixedmu=false, 
     mutationdist=nothing)
 
     mutationdist = set_mutationdist(mutationdist, fixedmu)
+    b, bdrate = set_cell_birthrates(b, bdrate)
 
     return BranchingMoranInput(
         numclones,
@@ -269,10 +270,11 @@ modules branch at rate `branchrate`) with no death.
     mutations (:poisson, :fixed, :poissontimedep, :fixedtimedep, :geometric)
 """
 function MultilevelBranchingInput(;modulesize=200, ploidy=2, μ=10.0, clonalmutations=0, 
-    bdrate=1, b=1, d=0, tmax=15, maxmodules=10000, fixedmu=false, 
+    bdrate=nothing, b=nothing, d=0, tmax=15, maxmodules=10000, fixedmu=false, 
     mutationdist=nothing, branchrate=5, branchfraction=0.1, branchinitsize=nothing)
 
     mutationdist = set_mutationdist(mutationdist, fixedmu)
+    b, bdrate = set_cell_birthrates(b, bdrate)
 
     return MultilevelBranchingInput(
             modulesize,
@@ -322,10 +324,11 @@ modules branch at rate `branchrate`) with no death. Once module population reach
     mutations (:poisson, :fixed, :poissontimedep, :fixedtimedep, :geometric)
 """
 function MultilevelBranchingMoranInput(;modulesize=200, ploidy=2, μ=10.0, clonalmutations=0, 
-    bdrate=1, b=1, d=0, tmax=15, maxmodules=10000, fixedmu=false, 
+    bdrate=nothing, b=nothing, d=0, tmax=15, maxmodules=10000, fixedmu=false, 
     mutationdist=nothing, branchrate=0.1, branchfraction=0.1, branchinitsize=nothing)
 
     mutationdist = set_mutationdist(mutationdist, fixedmu)
+    b, bdrate = set_cell_birthrates(b, bdrate)
 
     return MultilevelBranchingMoranInput(
             modulesize,
@@ -372,5 +375,19 @@ function set_mutationdist(mutationdist, fixedmu)
         return Symbol(mutationdist)
     else 
         return mutationdist
+    end
+end
+
+function set_cell_birthrates(b, bdrate)
+    return begin
+        if isnothing(b) && isnothing(bdrate)
+            1.0, 1.0
+        elseif isnothing(b)
+            bdrate, bdrate
+        elseif isnothing(bdrate)
+            b, b
+        else
+            b, bdrate
+        end
     end
 end
