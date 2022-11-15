@@ -60,7 +60,8 @@ function simulate!(cellmodule::CellModule, input::BranchingMoranInput,
         t0,
         numclones=input.numclones, 
         selection=input.selection, 
-        tevent=input.tevent
+        tevent=input.tevent,
+        moranincludeself=input.moranincludeself
     )
 
     return cellmodule
@@ -104,7 +105,8 @@ function simulate!(cellmodule::CellModule, input::MoranInput,
         t0,
         numclones=input.numclones, 
         selection=input.selection, 
-        tevent=input.tevent
+        tevent=input.tevent,
+        moranincludeself=input.moranincludeself
     )
 
     return cellmodule
@@ -132,7 +134,9 @@ function runsimulation_clonalmuts(::Type{Cell}, input::MoranInput, tstep, rng::A
             rng; 
             numclones=input.numclones, 
             selection=input.selection, 
-            tevent=input.tevent)
+            tevent=input.tevent,
+            moranincludeself=input.moranincludeself
+        )
         push!(clonalmuts, clonal_mutations(cellmodule))
     end
     return cellmodule, clonalmuts
@@ -294,7 +298,7 @@ See also [`moranprocess`](@ref)
 """
 function moranprocess!(cellmodule::CellModule, bdrate, tmax, μ, mutationdist, 
     rng::AbstractRNG; numclones=0, selection=Float64[], tevent=Float64[],
-    timefunc=exptime, t0=nothing)
+    timefunc=exptime, t0=nothing, moranincludeself=true)
 
     t = !isnothing(t0) ? t0 : cellmodule.tvec[end]
     N = cellmodule.Nvec[end]
@@ -313,19 +317,25 @@ function moranprocess!(cellmodule::CellModule, bdrate, tmax, μ, mutationdist,
 
         #pick a cell to divide proportional to clonetype
         if nclonescurrent == 1
-            randcelldivide = rand(rng, 1:N)
+            dividecellidx = rand(rng, 1:N)
         else
             p = [cell.clonetype==1 ? 1 : 1 + selection[cell.clonetype - 1] 
                     for cell in cellmodule.cells] 
             p /= sum(p)
-            randcelldivide = sample(rng, 1:N, ProbabilityWeights(p)) 
+            dividecellidx = sample(rng, 1:N, ProbabilityWeights(p)) 
         end
 
         #pick a random cell to die
-        randcelldie = rand(rng,1:N) 
-
+        deadcellidx = if moranincludeself 
+            deadcellidx = rand(rng, 1:N)
+            #if dead cell and divide cell are the same kill one of the offspring
+            deadcellidx = deadcellidx == dividecellidx ? N : deadcellidx
+        else
+            #exclude dividecellidx
+            deadcellidx = rand(rng, deleteat!(collect(1:N), dividecellidx))
+        end
         #cell divides
-        cellmodule, mutID = celldivision!(cellmodule, randcelldivide, t, mutID, μ, mutationdist, rng)
+        cellmodule, mutID = celldivision!(cellmodule, dividecellidx, t, mutID, μ, mutationdist, rng)
         
         #check if t>=tevent for next fit subclone and more subclones are expected
         if nclonescurrent < numclones + 1 && t >= tevent[nclonescurrent]
@@ -333,7 +343,7 @@ function moranprocess!(cellmodule::CellModule, bdrate, tmax, μ, mutationdist,
         end
 
         #cell dies
-        cellmodule = celldeath!(cellmodule, randcelldie)
+        cellmodule = celldeath!(cellmodule, deadcellidx)
 
         cellmodule = update_time_popsize!(cellmodule, t, N)
 

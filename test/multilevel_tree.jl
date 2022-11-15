@@ -13,6 +13,7 @@
     input = MultilevelBranchingInput(;b, d, bdrate, modulesize, branchinitsize, branchrate, tmax, maxmodules, μ, mutationdist)
 
     rng = MersenneTwister(1)
+    moranincludeself=true
     population = SomaticEvolution.initialize_population(TreeCell, input, rng)
     nextID = SomaticEvolution.getnextID(population) #get id of next cell
     nextmoduleID = 2
@@ -47,6 +48,7 @@
             mutationdist, 
             tmax,
             maxmodules,
+            moranincludeself,
             rng
     )
     #popsize is now 2

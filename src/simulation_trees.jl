@@ -68,7 +68,8 @@ function simulate!(treemodule::TreeModule, input::MoranInput, rng::AbstractRNG=R
         input.mutationdist, 
         rng;
         timefunc,
-        t0
+        t0,
+        moranincludeself=input.moranincludeself
     )
     return treemodule
 end
@@ -100,7 +101,8 @@ function simulate!(treemodule::TreeModule, input::BranchingMoranInput, rng::Abst
         input.mutationdist, 
         rng;
         timefunc,
-        t0
+        t0,
+        moranincludeself=input.moranincludeself
     )
     return treemodule
 end
@@ -173,7 +175,7 @@ end
 Simulate a population of cells in `treemodule` with Moran process dynamics.
 """
 function moranprocess!(treemodule::TreeModule, bdrate, tmax, μ, mutationdist, rng; 
-    N=length(treemodule), timefunc=exptime, t0=nothing) where T <: AbstractTreeCell
+    N=length(treemodule), timefunc=exptime, t0=nothing, moranincludeself=true) where T <: AbstractTreeCell
 
     # set initial time and next cell ID
     t = !isnothing(t0) ? t0 : maximum(cellnode.data.birthtime for cellnode in treemodule.cells)
@@ -184,7 +186,7 @@ function moranprocess!(treemodule::TreeModule, bdrate, tmax, μ, mutationdist, r
         t + Δt <= tmax || break # end simulation if time exceeds maximum
         t += Δt
         _, nextID = 
-            moranupdate!(treemodule, t, nextID, μ, mutationdist, rng; N, timefunc)
+            moranupdate!(treemodule, t, nextID, μ, mutationdist, rng; N, timefunc, moranincludeself)
     end
     #add final mutations to all alive cells if mutations are time dependent
     if mutationdist == :fixedtimedep || mutationdist == :poissontimedep    
@@ -201,16 +203,18 @@ end
 Single update step of Moran process.
 """
 function moranupdate!(treemodule::TreeModule, t, nextID, μ, mutationdist, rng; 
-    N=length(treemodule), timefunc=timefunc) where T <: AbstractTreeCell
+    N=length(treemodule), timefunc=timefunc, moranincludeself=true) where T <: AbstractTreeCell
 
     #pick a cell to divide and a cell to die
     dividecellidx = rand(rng, 1:N) 
-    deadcellidx = rand(rng, 1:N) 
-
-    #if dead cell and divide cell are the same kill one of the new offspring after division
-    if deadcellidx == dividecellidx 
-        deadcellidx = N
-    end
+    deadcellidx = if moranincludeself 
+            deadcellidx = rand(rng, 1:N)
+            #if dead cell and divide cell are the same kill one of the offspring
+            deadcellidx = deadcellidx == dividecellidx ? N : deadcellidx
+        else
+            #exclude dividecellidx
+            deadcellidx = rand(rng, deleteat!(collect(1:N), dividecellidx))
+        end
 
     _, nextID = celldivision!(treemodule, dividecellidx, t, nextID, μ, mutationdist, rng)
     celldeath!(treemodule, deadcellidx, t, μ, mutationdist, rng)

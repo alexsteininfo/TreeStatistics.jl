@@ -49,6 +49,7 @@ struct MoranInput <: SinglelevelInput
     tevent::Vector{Float64}
     mutationdist::Symbol
     ploidy::Int64
+    moranincludeself::Bool
 end
 
 """
@@ -67,6 +68,7 @@ struct BranchingMoranInput <: SinglelevelInput
     tevent::Vector{Float64}
     mutationdist::Symbol
     ploidy::Int64
+    moranincludeself::Bool
 end
 
 abstract type MultilevelInput <: SimulationInput end
@@ -87,6 +89,7 @@ struct MultilevelBranchingInput <: MultilevelInput
     branchrate::Float64
     branchinitsize::Int64
     ploidy::Int64
+    moranincludeself::Bool
 end
 
 """
@@ -105,6 +108,7 @@ struct MultilevelBranchingMoranInput <: MultilevelInput
     branchrate::Float64
     branchinitsize::Int64
     ploidy::Int64
+    moranincludeself::Bool
 end
 
 """
@@ -171,10 +175,13 @@ Input for a single level Moran process simulation that starts with a `N` identic
     mutations accumulated at division is :poisson or :fixed
 - `mutationdist::Symbol = fixedmu ? :fixed : :poisson`: defines the distibution for new 
     mutations (:poisson, :fixed, :poissontimedep, :fixedtimedep, :geometric)
+- `moranincludeself::Bool = true`: determines whether the same cell can be chosen to both
+    divide and die in a moran step (in which case one offspring is killed)
 """
 function MoranInput(;numclones=0, N=10000, ploidy=2, μ=10.0, clonalmutations=0, 
     selection=fill(0.0,numclones), bdrate=log(2.0), tmax=15.0,
-    tevent=collect(1.0:0.5:(1+numclones)/2), fixedmu=false, mutationdist=nothing)
+    tevent=collect(1.0:0.5:(1+numclones)/2), fixedmu=false, mutationdist=nothing, 
+    moranincludeself=true)
 
     mutationdist = set_mutationdist(mutationdist, fixedmu)
 
@@ -188,7 +195,8 @@ function MoranInput(;numclones=0, N=10000, ploidy=2, μ=10.0, clonalmutations=0,
         bdrate,
         tevent,
         mutationdist,
-        ploidy
+        ploidy,
+        moranincludeself
     )
 end
 
@@ -214,11 +222,13 @@ Input for a single level simulation that starts with a single cell and simulated
     mutations accumulated at division is :poisson or :fixed
 - `mutationdist::Symbol = fixedmu ? :fixed : :poisson`: defines the distibution for new 
     mutations (:poisson, :fixed, :poissontimedep, :fixedtimedep, :geometric)
+- `moranincludeself::Bool = true`: determines whether the same cell can be chosen to both
+    divide and die in a moran step (in which case one offspring is killed)
 """
 function BranchingMoranInput(;numclones=1, Nmax=10000, ploidy=2, μ=10.0, 
     clonalmutations=0, selection=fill(0.0,numclones), bdrate=nothing, b=nothing, 
     d=0, tmax=15.0, tevent=collect(1.0:0.5:(1+numclones)/2), fixedmu=false, 
-    mutationdist=nothing)
+    mutationdist=nothing, moranincludeself=true)
 
     mutationdist = set_mutationdist(mutationdist, fixedmu)
     b, bdrate = set_cell_birthrates(b, bdrate)
@@ -235,7 +245,8 @@ function BranchingMoranInput(;numclones=1, Nmax=10000, ploidy=2, μ=10.0,
         d,
         tevent,
         mutationdist,
-        ploidy
+        ploidy,
+        moranincludeself
     )
     
 end
@@ -268,10 +279,13 @@ modules branch at rate `branchrate`) with no death.
     mutations accumulated at division is :poisson or :fixed
 - `mutationdist::Symbol = fixedmu ? :fixed : :poisson`: defines the distibution for new 
     mutations (:poisson, :fixed, :poissontimedep, :fixedtimedep, :geometric)
+- `moranincludeself::Bool = true`: determines whether the same cell can be chosen to both
+    divide and die in a moran step (in which case one offspring is killed)
 """
 function MultilevelBranchingInput(;modulesize=200, ploidy=2, μ=10.0, clonalmutations=0, 
     bdrate=nothing, b=nothing, d=0, tmax=15, maxmodules=10000, fixedmu=false, 
-    mutationdist=nothing, branchrate=5, branchfraction=0.1, branchinitsize=nothing)
+    mutationdist=nothing, branchrate=5, branchfraction=0.1, branchinitsize=nothing,
+    moranincludeself=true)
 
     mutationdist = set_mutationdist(mutationdist, fixedmu)
     b, bdrate = set_cell_birthrates(b, bdrate)
@@ -288,7 +302,8 @@ function MultilevelBranchingInput(;modulesize=200, ploidy=2, μ=10.0, clonalmuta
             mutationdist,
             branchrate,
             branchinitsize !== nothing ? branchinitsize : ceil(modulesize * branchfraction),
-            ploidy
+            ploidy,
+            moranincludeself
     )
 end
 
@@ -322,10 +337,13 @@ modules branch at rate `branchrate`) with no death. Once module population reach
     mutations accumulated at division is :poisson or :fixed
 - `mutationdist::Symbol = fixedmu ? :fixed : :poisson`: defines the distibution for new 
     mutations (:poisson, :fixed, :poissontimedep, :fixedtimedep, :geometric)
+- `moranincludeself::Bool = true`: determines whether the same cell can be chosen to both
+    divide and die in a moran step (in which case one offspring is killed)
 """
 function MultilevelBranchingMoranInput(;modulesize=200, ploidy=2, μ=10.0, clonalmutations=0, 
     bdrate=nothing, b=nothing, d=0, tmax=15, maxmodules=10000, fixedmu=false, 
-    mutationdist=nothing, branchrate=0.1, branchfraction=0.1, branchinitsize=nothing)
+    mutationdist=nothing, branchrate=0.1, branchfraction=0.1, branchinitsize=nothing,
+    moranincludeself=true)
 
     mutationdist = set_mutationdist(mutationdist, fixedmu)
     b, bdrate = set_cell_birthrates(b, bdrate)
@@ -343,6 +361,7 @@ function MultilevelBranchingMoranInput(;modulesize=200, ploidy=2, μ=10.0, clona
             branchrate,
             branchinitsize !== nothing ? branchinitsize : ceil(modulesize * branchfraction),
             ploidy,
+            moranincludeself
     )
 end
 

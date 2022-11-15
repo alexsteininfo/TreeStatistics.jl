@@ -212,6 +212,7 @@ end
             :fixed, 
             tmax,
             maxmodules,
+            true,
             rng
     )
     #popsize is now 2
@@ -244,7 +245,10 @@ end
 
     #check only homeostatic modules are chosen for Moran and module branching and that prob of choosing cells is equal
     @test all(SomaticEvolution.choose_homeostaticmodule([mt1,mt2,mt3], 4, rng)==mt1 for i in 1:10)
-    @test isapprox(mean(reduce(hcat, [[v for v in SomaticEvolution.choose_homeostaticmodule_cells([mt1,mt2,mt3], 4, rng)[2:3]] for i in 1:10000]), dims=2), [2.5, 2.5], atol=0.1)
+    @test isapprox(mean(reduce(hcat, [[v for v in SomaticEvolution.choose_homeostaticmodule_cells([mt1,mt2,mt3], 4, rng, moranincludeself=false)[2:3]] for i in 1:10000]), dims=2), [2.5, 2.5], atol=0.1)
+    @test isapprox(mean(reduce(hcat, [[v for v in SomaticEvolution.choose_homeostaticmodule_cells([mt1,mt2,mt3], 4, rng, moranincludeself=true)[2]] for i in 1:10000])), 2.5, atol=0.1)
+    # @test isapprox(mean(reduce(hcat, [[v for v in SomaticEvolution.choose_homeostaticmodule_cells([mt1,mt2,mt3], 4, rng)[2:3]] for i in 1:10000]), dims=2), [2.5, 2.5], atol=0.1)
+
     #check prob of choosing non-homeostatic modules is proportional to number of cells
     @test isapprox(mean(length(SomaticEvolution.choose_growingmodule_cell([mt1,mt2,mt3], 4, rng)[1].cells) for i in 1:100000), 2.5, atol=0.1)
 

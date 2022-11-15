@@ -74,6 +74,7 @@ function runsimulation(::Type{Cell}, input::MultilevelBranchingInput, rng::Abstr
                     input.branchinitsize, 
                     1, #assume a single mutation at each division and add distribution of
                     :fixed, #mutations later
+                    input.moranincludeself,
                     nextID,
                     nextmoduleID,
                     rng
@@ -124,7 +125,8 @@ function runsimulation(::Type{Cell}, input::MultilevelBranchingMoranInput, rng::
                 input.modulesize, 
                 input.branchinitsize, 
                 1, #assume a single mutation at each division and add distribution of
-                :fixed, #mutations later
+                :fixed, #mutations later,
+                input.moranincludeself,
                 nextID,
                 nextmoduleID,
                 rng,
@@ -160,6 +162,7 @@ function runsimulation_timeseries_returnfinalpop(::Type{Cell}, input::Multilevel
             input.branchinitsize, 
             input.μ,
             input.mutationdist,
+            input.moranincludeself,
             nextID,
             nextmoduleID,
             rng;
@@ -186,13 +189,13 @@ size reaches `maxmodules` or the age of the population reaches `tmax`.
 
 """
 function simulate!(population, tmax, maxmodules, b, d, bdrate, branchrate, 
-    modulesize, branchinitsize, μ, mutationdist, nextID, nextmoduleID, rng; moduleupdate=:branching, t0=nothing)
+    modulesize, branchinitsize, μ, mutationdist, moranincludeself, nextID, nextmoduleID, rng; moduleupdate=:branching, t0=nothing)
 
     t = isnothing(t0) ? age(population) : t0
     while t < tmax && (moduleupdate==:moran || length(population) < maxmodules)
         population, t, nextID, nextmoduleID = 
             update_population!(population, b, d, bdrate, branchrate, modulesize, 
-                branchinitsize, t, nextID, nextmoduleID, μ, mutationdist, tmax, maxmodules, rng; moduleupdate)
+                branchinitsize, t, nextID, nextmoduleID, μ, mutationdist, tmax, maxmodules, moranincludeself, rng; moduleupdate)
         #returns empty list of modules if population dies out
         if length(population) == 0
             return population, nextID, nextmoduleID
@@ -214,7 +217,7 @@ selects from these transitions with probability proportional to rate. Time is in
 """
 
 function update_population!(population, b, d, bdrate, branchrate, modulesize, 
-    branchinitsize, t, nextID, nextmoduleID, μ, mutationdist, tmax, maxmodules, rng; moduleupdate=:branching)
+    branchinitsize, t, nextID, nextmoduleID, μ, mutationdist, tmax, maxmodules, moranincludeself, rng; moduleupdate=:branching)
 
     transitionrates = get_transitionrates(population, b, d, 
         bdrate, branchrate, modulesize)
@@ -238,9 +241,9 @@ function update_population!(population, b, d, bdrate, branchrate, modulesize,
             μ, 
             mutationdist,
             maxmodules,
+            moranincludeself,
             rng;
-            moduleupdate
-        )
+            moduleupdate        )
     end
     return population, t, nextID, nextmoduleID
 end
@@ -252,10 +255,10 @@ end
 Perform a single transition step on `population`, determined by `transitionid`.
 """
 function transition!(population, transitionid, modulesize, branchinitsize, t, nextID, nextmoduleID,
-    μ, mutationdist, maxmodules, rng; moduleupdate=:branching)
+    μ, mutationdist, maxmodules, moranincludeself, rng; moduleupdate=:branching)
     
     if transitionid == 1
-        _, nextID = moranupdate!(population, modulesize, t, nextID, μ, mutationdist, rng)
+        _, nextID = moranupdate!(population, modulesize, t, nextID, μ, mutationdist, rng; moranincludeself)
     elseif transitionid == 2
         _, nextID = birthupdate!(population, modulesize, t, nextID, μ, mutationdist, rng)
     elseif transitionid == 3
@@ -276,9 +279,9 @@ end
 Selects a homeostatic module uniformly at random to undergo a single Moran update. From 
 that module one cell divides and one cell dies.
 """
-function moranupdate!(population, modulesize, t, nextID, μ, mutationdist, rng)
+function moranupdate!(population, modulesize, t, nextID, μ, mutationdist, rng; moranincludeself=true)
     cellmodule, parentcell, deadcell = 
-        choose_homeostaticmodule_cells(population, modulesize, rng)
+        choose_homeostaticmodule_cells(population, modulesize, rng; moranincludeself)
     _, nextID = celldivision!(cellmodule, parentcell, t, nextID, μ, mutationdist, rng)
     celldeath!(cellmodule, deadcell, t, μ, mutationdist, rng)
     updatemodulehistory!(cellmodule, 0, t)
@@ -366,9 +369,18 @@ end
     choose_homeostaticmodule_cells(population, maxmodulesize, rng::AbstractRNG)
 Select a homeostatic module and the ids of two cells from the module, uniformly at random.
 """
-function choose_homeostaticmodule_cells(population, maxmodulesize, rng::AbstractRNG)
+function choose_homeostaticmodule_cells(population, maxmodulesize, rng::AbstractRNG; moranincludeself=true)
     chosenmodule = choose_homeostaticmodule(population, maxmodulesize, rng)
-    return chosenmodule, rand(rng, 1:maxmodulesize), rand(rng, 1:maxmodulesize)
+    dividecellidx = rand(rng, 1:maxmodulesize) 
+    deadcellidx = if moranincludeself 
+            deadcellidx = rand(rng, 1:maxmodulesize)
+            #if dead cell and divide cell are the same kill one of the offspring
+            deadcellidx = deadcellidx == dividecellidx ? maxmodulesize : deadcellidx
+        else
+            #exclude dividecellidx
+            deadcellidx = rand(rng, deleteat!(collect(1:maxmodulesize), dividecellidx))
+        end
+    return chosenmodule, dividecellidx, deadcellidx
 end
 
 """
