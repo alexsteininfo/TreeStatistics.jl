@@ -1,7 +1,8 @@
 @testset "simulate to fixed size" begin
-    b = 0.1
-    d = 0.0
-    bdrate = 0.01
+    birthrate = 0.1
+    deathrate = 0.0
+    moranrate = 0.01
+    asymmetricrate = 0.01
     modulesize = 4
     branchinitsize = 1
     branchrate = 0.01
@@ -9,8 +10,21 @@
     maxmodules = 5
     mutationdist = :fixed
     μ = 1
+    modulesplitting_replacement=false
 
-    input = MultilevelBranchingInput(;b, d, bdrate, modulesize, branchinitsize, branchrate, tmax, maxmodules, μ, mutationdist)
+    input = MultilevelBranchingInput(;
+        birthrate, 
+        deathrate, 
+        moranrate, 
+        asymmetricrate,
+        modulesize, 
+        branchinitsize, 
+        branchrate, 
+        tmax,
+        maxmodules, 
+        μ, 
+        mutationdist
+    )
 
     rng = MersenneTwister(1)
     moranincludeself=true
@@ -24,23 +38,26 @@
     #check first update is correct
     transitionrates = SomaticEvolution.get_transitionrates(
         population, 
-        b, 
-        d, 
-        bdrate, 
+        birthrate, 
+        deathrate, 
+        moranrate, 
+        asymmetricrate,
         branchrate, 
         modulesize
     ) 
-    #only tranisition with non-zero rate is birth which has rate b=0.1
-    @test transitionrates == [0.0, 0.1, 0.0, 0.0] 
+    #only tranisition with non-zero rate is birth which has rate birthrate=0.1
+    @test transitionrates == [0.0, 0.0, 0.1, 0.0, 0.0] 
     population, t, nextID = 
         SomaticEvolution.update_population!(
             population, 
-            b, 
-            d, 
-            bdrate, 
+            birthrate, 
+            deathrate, 
+            moranrate, 
+            asymmetricrate,
             branchrate, 
             modulesize, 
             branchinitsize,
+            modulesplitting_replacement,
             t,
             nextID, 
             nextmoduleID,
@@ -62,9 +79,10 @@
     input = MultilevelBranchingInput(
             modulesize=4, 
             fixedmu=true, 
-            b=0.1, 
-            d=0.01,
-            bdrate=0.01, 
+            birthrate=0.1, 
+            deathrate=0.01,
+            moranrate=0.01, 
+            asymmetricrate=0.01, 
             clonalmutations=0, 
             tmax=20*365, 
             maxmodules=10,
@@ -80,9 +98,9 @@
     input = MultilevelBranchingInput(
             modulesize=4, 
             fixedmu=true, 
-            b=1, 
-            d=0,
-            bdrate=0.1, 
+            birthrate=1, 
+            deathrate=0,
+            moranrate=0.1, 
             clonalmutations=0, 
             tmax=365*100, 
             maxmodules=10,
@@ -94,6 +112,8 @@
     @test age(population) <= 365*50
     population = runsimulation(TreeCell, input, rng)
 end
+
+
 
 # 1 -- 2 -- 3 -- 5 -- 7 -- 8 -- 16 -- 19
 #      |                         | -- 20 -- 24
@@ -142,9 +162,9 @@ node29 = leftchild!(root.left.right.left.left.right.left.left.left, cells[29])
 node30 = rightchild!(root.left.right.left.left.right.left.left.left, cells[30])
 node23 = rightchild!(root.left.right.left.left.right.left.left, cells[23])
 
-module1 = SomaticEvolution.TreeModule(Int64[], Float64[], [node19, node24, node25], SomaticEvolution.CloneTracker[], 1, 0)
-module2 = SomaticEvolution.TreeModule(Int64[], Float64[], [node26, node27, node28], SomaticEvolution.CloneTracker[], 2, 1)
-module3 = SomaticEvolution.TreeModule(Int64[], Float64[], [node29, node30, node23], SomaticEvolution.CloneTracker[], 3, 2)
+module1 = SomaticEvolution.TreeModule(Int64[3], Float64[0.0], [node19, node24, node25], SomaticEvolution.CloneTracker[], 1, 0)
+module2 = SomaticEvolution.TreeModule(Int64[3], Float64[0.0], [node26, node27, node28], SomaticEvolution.CloneTracker[], 2, 1)
+module3 = SomaticEvolution.TreeModule(Int64[3], Float64[0.0], [node29, node30, node23], SomaticEvolution.CloneTracker[], 3, 2)
 
 population = [module1, module2, module3]
 @testset "pairwise differences" begin
@@ -154,6 +174,16 @@ population = [module1, module2, module3]
     @test pairwise_fixed_differences_clonal(population) == (Dict(68 => 1, 102 => 1, 54 => 1), Dict(42 => 1, 32 => 1, 66 => 1))
 end
 
+@testset "module splitting with replacement" begin
+    rng = MersenneTwister(12)
+    parentmodule = deepcopy(module1)
+    parentmodule, newmodule, nextID = SomaticEvolution.sample_new_module_with_replacement!(parentmodule, 2, 1, 
+        300, 26, 2, :fixed, rng)
+    @test length(parentmodule) == 3
+    @test length(newmodule) == 1
+    @test nextID == 26+2
+end
+
 @testset "simulate module moran" begin
 
     #check runsimulation function
@@ -161,9 +191,9 @@ end
     input = MultilevelBranchingMoranInput(
             modulesize=4, 
             fixedmu=true, 
-            b=0.1, 
-            d=0.01,
-            bdrate=0.01, 
+            birthrate=0.1, 
+            deathrate=0.01,
+            moranrate=0.01, 
             clonalmutations=0, 
             tmax=365*4, 
             maxmodules=5,

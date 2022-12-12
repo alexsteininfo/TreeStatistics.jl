@@ -58,13 +58,31 @@ function getallelefreq(cellmodule::CellModule, ploidy)
     return getallelefreq(mutations, cellmodule.Nvec[end], ploidy)
 end
 
+function getallelefreq(cellmodules::Vector{CellModule}, ploidy)
+    mutations, clonetype = cellsconvert([cell for cellmodule in cellmodules for cell in cellmodule.cells])
+    N = length(clonetype)
+    return getallelefreq(mutations, N, ploidy)
+end
+
+function getallelefreq(population::Union{MultiSimulation{S, T}, Vector{T}}, ploidy) where {S, T <: CellModule}
+    return getallelefreq(population.output, ploidy)
+end
+
 function getallelefreq(mutations, N, ploidy=2)
-    allelefreq = counts(mutations,minimum(mutations):maximum(mutations))
+    allelefreq = Float64.(counts(mutations, 1:N))
     # idx = f .> 0.01 #should this be f/(2*cellnum) .> 0.01, i.e. only include freq > 1% ??
-    allelefreq = map(Float64, allelefreq)
     allelefreq ./= (ploidy * N) #correct for ploidy
 end
 
+function getfixedallelefreq(mutations::Vector{Int64})
+    return counts(mutations)    
+end
+
+function getfixedallelefreq(population::Union{MultiSimulation{S, T}, Vector{T}}, 
+    idx=nothing) where {S, T <: CellModule}
+    mutations = reduce(vcat, clonal_mutation_ids(population, idx))
+    return getfixedallelefreq(mutations)
+end
 
 function cellsconvert(cells)
     #convert from array of cell types to one array with mutations and one array with cell fitness

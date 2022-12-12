@@ -172,7 +172,7 @@ end
         end
 
     elseif plottype == :cellpopsize
-        tstep = isnothing(tstep) ? 1 / multisim.input.bdrate : tstep
+        tstep = isnothing(tstep) ? 1 / multisim.input.bdeathrate : tstep
         yguide --> "Number of cells"
         xguide --> "Time"
         @series begin

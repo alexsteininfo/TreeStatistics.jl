@@ -217,22 +217,22 @@ function pairwise_fixed_differences(muts::Vector{Vector{Int64}})
     return countmap(pfd_vec)
 end
 
-function pairwise_fixed_differences(population::Union{MultiSimulation{T, S}, Vector{T}}, 
-    idx=nothing) where {T, S <: TreeModule}
+function pairwise_fixed_differences(population::Union{MultiSimulation{S, T}, Vector{T}}, 
+    idx=nothing) where {S, T <: TreeModule}
 
     pfdvec = _pairwise_fixed_differences(population, idx)
     return countmap(pfdvec)
 end
 
-function pairwise_fixed_differences_clonal(population::Union{MultiSimulation{T, S}, Vector{T}}, 
-    idx=nothing) where {T, S <: TreeModule}
+function pairwise_fixed_differences_clonal(population::Union{MultiSimulation{S, T}, Vector{T}}, 
+    idx=nothing) where {S, T <: TreeModule}
 
     pfdvec, clonalmutsvec = _pairwise_fixed_differences_clonal(population, idx)
     return countmap(pfdvec), countmap(clonalmutsvec)
 end
 
-function _pairwise_fixed_differences(population::Union{MultiSimulation{T, S}, Vector{T}}, 
-    idx=nothing) where {T, S <: TreeModule}
+function _pairwise_fixed_differences(population::Union{MultiSimulation{S, T}, Vector{T}}, 
+    idx=nothing) where {S, T <: TreeModule}
 
     pfd_vec = Int64[]
     MRCA_vec = isnothing(idx) ? map(findMRCA, population) : map(findMRCA, population[idx])
@@ -246,8 +246,8 @@ function _pairwise_fixed_differences(population::Union{MultiSimulation{T, S}, Ve
 end
 
 
-function _pairwise_fixed_differences_clonal(population::Union{MultiSimulation{T, S}, Vector{T}}, 
-    idx=nothing) where {T, S <: TreeModule}
+function _pairwise_fixed_differences_clonal(population::Union{MultiSimulation{S, T}, Vector{T}}, 
+    idx=nothing) where {S, T <: TreeModule}
 
     pfd_vec = Int64[]
     MRCA_vec = isnothing(idx) ? map(findMRCA, population) : map(findMRCA, population[idx])
@@ -445,17 +445,16 @@ end
     shared_fixed_mutations(population[, idx])
 """
 function shared_fixed_mutations(population, idx=nothing)
-    clonalmuts = clonal_mutation_ids(population, idx)
-    return shared_fixed_mutations(clonalmuts)
+    return countmap(filter!(x -> x > 0, getfixedallelefreq(population, idx)))
 end
 
-function shared_fixed_mutations(clonalmuts::Vector{Vector{Int64}})
-    clonalmuts_vec = reduce(union, clonalmuts)
-    nclonalmuts = map(
-        x -> number_modules_with_mutation(clonalmuts, x), clonalmuts_vec
-    )
-    return countmap(nclonalmuts)
-end
+# function shared_fixed_mutations(clonalmuts::Vector{Vector{Int64}})
+#     clonalmuts_vec = reduce(union, clonalmuts)
+#     nclonalmuts = map(
+#         x -> number_modules_with_mutation(clonalmuts, x), clonalmuts_vec
+#     )
+#     return countmap(nclonalmuts)
+# end
 
 
 function number_modules_with_mutation(clonalmuts_by_module, mutationid)

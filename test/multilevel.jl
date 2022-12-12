@@ -4,9 +4,9 @@
     input = MultilevelBranchingInput(
         modulesize=4, 
         fixedmu=true, 
-        b=0.1, 
-        d=0.1,
-        bdrate=0.1, 
+        birthrate=0.1, 
+        deathrate=0.1,
+        moranrate=0.1, 
         clonalmutations=0, 
         tmax=400, 
         maxmodules=1000,
@@ -17,7 +17,7 @@
     population = runsimulation(input, rng, :fixedtime)
     @test age(population) < 400
     
-    b, d = 0.1, 0.0
+    birthrate, deathrate = 0.1, 0.0
     modulesize = 6
     branchinitsize = 2
     branchrate = 1/5
@@ -35,9 +35,9 @@
         SomaticEvolution.module_simulate_to_branching!(
             cellmodule, 
             tmax, 
-            b, 
-            d, 
-            b, 
+            birthrate, 
+            deathrate, 
+            birthrate, 
             branchrate, 
             modulesize, 
             branchinitsize, 
@@ -54,9 +54,9 @@
         SomaticEvolution.module_simulate_to_branching!(
             cellmodule, 
             newtmax, 
-            b, 
-            d, 
-            b, 
+            birthrate, 
+            deathrate, 
+            birthrate, 
             branchrate, 
             modulesize, 
             branchinitsize, 
@@ -66,12 +66,12 @@
     @test newcellmodule === nothing
 end
 
-input = MultilevelBranchingInput(
+input = MultilevelBranchingInput(;
     modulesize=4, 
     fixedmu=true, 
-    b=0.1, 
-    d=0,
-    bdrate=0.01, 
+    birthrate=0.1, 
+    deathrate=0,
+    moranrate=0.01, 
     clonalmutations=0, 
     tmax=1*365, 
     branchrate=3/365, 
@@ -98,7 +98,7 @@ mt3 = SomaticEvolution.CellModule(
     rng = MersenneTwister(12)
     cellmodule = deepcopy(mt1)
     cellmodule, newcellmodule = 
-        SomaticEvolution.sample_new_module!(cellmodule, 2, 1, 1.0, rng)
+        SomaticEvolution.sample_new_module_without_replacement!(cellmodule, 2, 1, 1.0, rng)
     @test length(cellmodule) == 3
     @test length(newcellmodule) == 1
     @test newcellmodule.id == 2
@@ -172,9 +172,10 @@ end
 end
 
 @testset "simulate to fixed size" begin
-    b = 0.1
-    d = 0.0
-    bdrate = 0.01
+    birthrate = 0.1
+    deathrate = 0.0
+    moranrate = 0.01
+    asymmetricrate = 0.02
     modulesize = 4
     branchinitsize = 1
     branchrate = 3/365
@@ -184,27 +185,31 @@ end
     mutID = SomaticEvolution.getnextID(population[1].cells) #get id of next mutation
     t = 0
     rng = MersenneTwister(1)
+    modulesplitting_replacement=false
 
     #check first update is correct
     transitionrates = SomaticEvolution.get_transitionrates(
         population, 
-        b, 
-        d, 
-        bdrate, 
+        birthrate, 
+        deathrate, 
+        moranrate, 
+        asymmetricrate,
         branchrate, 
         modulesize
     ) 
-    #only tranisition with non-zero rate is birth which has rate b=0.1
-    @test transitionrates == [0.0, 0.1, 0.0, 0.0] 
+    #only tranisition with non-zero rate is birth which has rate birthrate=0.1
+    @test transitionrates == [0.0, 0.0, 0.1, 0.0, 0.0] 
     population, t, mutID, nextmoduleID = 
         SomaticEvolution.update_population!(
             population, 
-            b, 
-            d, 
-            bdrate, 
+            birthrate, 
+            deathrate, 
+            moranrate, 
+            asymmetricrate,
             branchrate, 
             modulesize, 
             branchinitsize,
+            modulesplitting_replacement,
             t,
             mutID, 
             2,
@@ -224,24 +229,26 @@ end
     #check transition rates for population of modules m1, m2, m3
     transitionrates = SomaticEvolution.get_transitionrates(
         [mt1, mt2, mt3], 
-        b, 
-        d, 
-        bdrate, 
+        birthrate, 
+        deathrate, 
+        moranrate, 
+        asymmetricrate,
         branchrate, 
         modulesize
     ) 
-    @test all(transitionrates .≈ [0.04, 0.4, 0.0, 3/365])
+    @test all(transitionrates .≈ [0.04, 0.08, 0.4, 0.0, 3/365])
 
     #check transitionrates for non-zero death rate
     transitionrates = SomaticEvolution.get_transitionrates(
         [mt1, mt2, mt3], 
-        b, 
+        birthrate, 
         0.01, 
-        bdrate, 
+        moranrate, 
+        asymmetricrate,
         branchrate, 
         modulesize
     ) 
-    @test all(transitionrates .≈ [0.04, 0.4, 0.04, 3/365])
+    @test transitionrates ≈ [0.04,0.08, 0.4, 0.04, 3/365]
 
     #check only homeostatic modules are chosen for Moran and module branching and that prob of choosing cells is equal
     @test all(SomaticEvolution.choose_homeostaticmodule([mt1,mt2,mt3], 4, rng)==mt1 for i in 1:10)
@@ -257,9 +264,9 @@ end
     input = MultilevelBranchingInput(
             modulesize=4, 
             fixedmu=true, 
-            b=0.1, 
-            d=0.01,
-            bdrate=0.01, 
+            birthrate=0.1, 
+            deathrate=0.01,
+            moranrate=0.01, 
             clonalmutations=0, 
             tmax=20*365, 
             maxmodules=10,
@@ -273,9 +280,9 @@ end
     input = MultilevelBranchingInput(
             modulesize=4, 
             fixedmu=true, 
-            b=0.1, 
-            d=0.1,
-            bdrate=0.1, 
+            birthrate=0.1, 
+            deathrate=0.1,
+            moranrate=0.1, 
             clonalmutations=0, 
             tmax=365, 
             maxmodules=1000,
@@ -303,6 +310,16 @@ mt3 = SomaticEvolution.CellModule(
     [257.22794191422554], 
     Cell[Cell([1], 1, 0)], SomaticEvolution.CloneTracker[], 3, 2)
 
+@testset "module splitting with replacement" begin
+    rng = MersenneTwister(12)
+    parentmodule = deepcopy(mt1)
+    parentmodule, newmodule, nextID = SomaticEvolution.sample_new_module_with_replacement!(parentmodule, 2, 1, 
+        300, 25, 2, :fixed, rng)
+    @test length(parentmodule) == 4
+    @test length(newmodule) == 1
+    @test nextID == 25+4
+end
+
 @testset "moran updates" begin
     rng = MersenneTwister(12)
     population = [deepcopy(mt1), deepcopy(mt2), deepcopy(mt3)]
@@ -311,12 +328,30 @@ mt3 = SomaticEvolution.CellModule(
         1.0, 
         0, 
         1.0, 
+        0,
         0.1, 
         4
     ) 
-    @test transitionrates == [4.0, 4.0, 0.0, 0.1]
-    SomaticEvolution.modulemoranupdate!(population, 4, 4, 2, 5, 1, :fixed, rng)
-    length(population) == 3
+    @test transitionrates == [4.0, 0.0, 4.0, 0.0, 0.1]
+
+    transitionrates = SomaticEvolution.get_transitionrates(
+        population, 
+        1.0, 
+        0.5, 
+        1.0, 
+        2.0,
+        0.1, 
+        4
+    ) 
+    @test transitionrates == [4.0, 8.0, 4.0, 2.0, 0.1]
+
+    population, = SomaticEvolution.moranupdate!(population, 4, 1, 30, 1, :poisson, rng; moranincludeself=false)
+    @test length(mt1) == 4
+    population, = SomaticEvolution.asymmetricupdate!(population, 4, 2, 32, 1, :poisson, rng)
+    @test length(mt1) == 4
+
+    SomaticEvolution.modulemoranupdate!(population, 4, 4, 2, 5, rng)
+    @test length(population) == 3
 
 
 end
@@ -329,9 +364,9 @@ end
     input = MultilevelBranchingMoranInput(
             modulesize=4, 
             fixedmu=true, 
-            b=0.1, 
-            d=0.01,
-            bdrate=0.01, 
+            birthrate=0.1, 
+            deathrate=0.01,
+            moranrate=0.01, 
             clonalmutations=0, 
             tmax=365*4, 
             maxmodules=5,

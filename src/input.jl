@@ -27,8 +27,8 @@ struct BranchingInput <: SinglelevelInput
     clonalmutations::Int64
     selection::Vector{Float64}
     μ::Float64
-    b::Float64
-    d::Float64
+    birthrate::Float64
+    deathrate::Float64
     tevent::Vector{Float64}
     mutationdist::Symbol
     maxclonesize::Union{Int64, Nothing}
@@ -45,7 +45,7 @@ struct MoranInput <: SinglelevelInput
     clonalmutations::Int64
     selection::Vector{Float64}
     μ::Float64
-    bdrate::Float64
+    moranrate::Float64
     tevent::Vector{Float64}
     mutationdist::Symbol
     ploidy::Int64
@@ -62,9 +62,9 @@ struct BranchingMoranInput <: SinglelevelInput
     clonalmutations::Int64
     selection::Vector{Float64}
     μ::Float64
-    bdrate::Float64
-    b::Float64
-    d::Float64
+    moranrate::Float64
+    birthrate::Float64
+    deathrate::Float64
     tevent::Vector{Float64}
     mutationdist::Symbol
     ploidy::Int64
@@ -82,12 +82,14 @@ struct MultilevelBranchingInput <: MultilevelInput
     maxmodules::Int64
     clonalmutations::Int64
     μ::Float64
-    bdrate::Float64
-    b::Float64
-    d::Float64
+    moranrate::Float64
+    asymmetricrate::Float64
+    birthrate::Float64
+    deathrate::Float64
     mutationdist::Symbol
     branchrate::Float64
     branchinitsize::Int64
+    modulesplitting_replacement::Bool
     ploidy::Int64
     moranincludeself::Bool
 end
@@ -101,15 +103,55 @@ struct MultilevelBranchingMoranInput <: MultilevelInput
     maxmodules::Int64
     clonalmutations::Int64
     μ::Float64
-    bdrate::Float64
-    b::Float64
-    d::Float64
+    moranrate::Float64
+    asymmetricrate::Float64
+    birthrate::Float64
+    deathrate::Float64
     mutationdist::Symbol
     branchrate::Float64
     branchinitsize::Int64
+    modulesplitting_replacement::Bool
     ploidy::Int64
     moranincludeself::Bool
 end
+
+# """
+#     MultilevelBranchingWithReplacementInput <: MultilevelInput <: SimulationInput
+# """
+# struct MultilevelBranchingWithReplacementInput
+#     modulesize::Int64
+#     tmax::Float64
+#     maxmodules::Int64
+#     clonalmutations::Int64
+#     μ::Float64
+#     moranrate::Float64
+#     asymmetricrate::Float64
+#     birthrate::Float64
+#     deathrate::Float64
+#     mutationdist::Symbol
+#     branchrate::Float64
+#     branchinitsize_prob::Dict{Int64, Float64}
+#     ploidy::Int64
+# end
+
+# """
+#     MultilevelBranchingMoranWithReplacementInput <: MultilevelInput <: SimulationInput
+# """
+# struct MultilevelBranchingMoranWithReplacementInput
+#     modulesize::Int64
+#     tmax::Float64
+#     maxmodules::Int64
+#     clonalmutations::Int64
+#     μ::Float64
+#     moranrate::Float64
+#     asymmetricrate::Float64
+#     birthrate::Float64
+#     deathrate::Float64
+#     mutationdist::Symbol
+#     branchrate::Float64
+#     branchinitsize_probirthrate::Dict{Int64, Float64}
+#     ploidy::Int64
+# end
 
 """
     BranchingInput(<keyword arguments>)
@@ -122,8 +164,8 @@ Input for a single level branching process simulation that starts with a single 
 - `ploidy::Int64 = 2`: cell ploidy (per cell mutation rate is `ploidy * μ`)
 - `μ::Float64 = 10.0`: mutation rate per division per cell
 - `clonalmutations::Int64 = 0`: number of mutations shared by all cells
-- `b::Float64 = log(2.0)`: birth rate for wild-type cells
-- `d::Float64 = 0.0`: death rate for wild-type cells
+- `birthrate::Float64 = log(2.0)`: birth rate for wild-type cells
+- `deathrate::Float64 = 0.0`: death rate for wild-type cells
 - `numclones::Int64 = 0`: number of mutant subclones
 - `selection::Vector{Float64} = [0.0, 0.0, ...]`: selection strength of each mutant subclone
 - `tevent::Vector{Float64} = [1.0, 1.5, ...]`: time each mutant arises
@@ -134,7 +176,7 @@ Input for a single level branching process simulation that starts with a single 
 - `maxclonesize::Int64 = nothing`: ...
 """
 function BranchingInput(;numclones=0, Nmax=10000, tmax=Inf, ploidy=2, μ=10.0, 
-    clonalmutations=0, selection=fill(0.0,numclones), b=log(2.0), d=0.0, 
+    clonalmutations=0, selection=fill(0.0,numclones), birthrate=log(2.0), deathrate=0.0, 
     tevent=collect(1.0:0.5:(1+numclones)/2), fixedmu=false, mutationdist=nothing,
     maxclonesize=nothing)
 
@@ -147,8 +189,8 @@ function BranchingInput(;numclones=0, Nmax=10000, tmax=Inf, ploidy=2, μ=10.0,
         clonalmutations,
         selection,
         μ,
-        b,
-        d,
+        birthrate,
+        deathrate,
         tevent,
         mutationdist,
         maxclonesize,
@@ -167,7 +209,7 @@ Input for a single level Moran process simulation that starts with a `N` identic
 - `ploidy::Int64 = 2`: cell ploidy (per cell mutation rate is `ploidy * μ`)
 - `μ::Float64 = 10.0`: mutation rate per division per cell
 - `clonalmutations::Int64 = 0`: number of mutations shared by all cells
-- `bdrate::Float64 = log(2.0)`: birth/death rate for wild-type cells
+- `moranrate::Float64 = log(2.0)`: birth/death rate for wild-type cells
 - `numclones::Int64 = 0`: number of mutant subclones
 - `selection::Vector{Float64} = [0.0, 0.0, ...]`: selection strength of each mutant subclone
 - `tevent::Vector{Float64} = [1.0, 1.5, ...]`: time each mutant arises
@@ -179,7 +221,7 @@ Input for a single level Moran process simulation that starts with a `N` identic
     divide and die in a moran step (in which case one offspring is killed)
 """
 function MoranInput(;numclones=0, N=10000, ploidy=2, μ=10.0, clonalmutations=0, 
-    selection=fill(0.0,numclones), bdrate=log(2.0), tmax=15.0,
+    selection=fill(0.0,numclones), moranrate=log(2.0), tmax=15.0,
     tevent=collect(1.0:0.5:(1+numclones)/2), fixedmu=false, mutationdist=nothing, 
     moranincludeself=true)
 
@@ -192,7 +234,7 @@ function MoranInput(;numclones=0, N=10000, ploidy=2, μ=10.0, clonalmutations=0,
         clonalmutations,
         selection,
         μ,
-        bdrate,
+        moranrate,
         tevent,
         mutationdist,
         ploidy,
@@ -212,9 +254,9 @@ Input for a single level simulation that starts with a single cell and simulated
 - `ploidy::Int64 = 2`: cell ploidy (per cell mutation rate is `ploidy * μ`)
 - `μ::Float64 = 10.0`: mutation rate per division per cell
 - `clonalmutations::Int64 = 0`: number of mutations shared by all cells
-- `b::Float64 = log(2.0)`: birth rate for wild-type cells in branching phase
-- `d::Float64 = 0.0`: death rate for wild-type cells in branching phase
-- `bdrate::Float64 = log(2.0)`: birth/death rate for wild-type cells in Moran phase
+- `birthrate::Float64 = log(2.0)`: birth rate for wild-type cells in branching phase
+- `deathrate::Float64 = 0.0`: death rate for wild-type cells in branching phase
+- `moranrate::Float64 = log(2.0)`: birth/death rate for wild-type cells in Moran phase
 - `numclones::Int64 = 0`: number of mutant subclones
 - `selection::Vector{Float64} = [0.0, 0.0, ...]`: selection strength of each mutant subclone
 - `tevent::Vector{Float64} = [1.0, 1.5, ...]`: time each mutant arises
@@ -226,12 +268,12 @@ Input for a single level simulation that starts with a single cell and simulated
     divide and die in a moran step (in which case one offspring is killed)
 """
 function BranchingMoranInput(;numclones=1, Nmax=10000, ploidy=2, μ=10.0, 
-    clonalmutations=0, selection=fill(0.0,numclones), bdrate=nothing, b=nothing, 
-    d=0, tmax=15.0, tevent=collect(1.0:0.5:(1+numclones)/2), fixedmu=false, 
+    clonalmutations=0, selection=fill(0.0,numclones), moranrate=nothing, birthrate=nothing, 
+    deathrate=0, tmax=15.0, tevent=collect(1.0:0.5:(1+numclones)/2), fixedmu=false, 
     mutationdist=nothing, moranincludeself=true)
 
     mutationdist = set_mutationdist(mutationdist, fixedmu)
-    b, bdrate = set_cell_birthrates(b, bdrate)
+    birthrate, moranrate = set_cell_birthrates(birthrate, moranrate)
 
     return BranchingMoranInput(
         numclones,
@@ -240,9 +282,9 @@ function BranchingMoranInput(;numclones=1, Nmax=10000, ploidy=2, μ=10.0,
         clonalmutations,
         selection,
         μ,
-        bdrate,
-        b,
-        d,
+        moranrate,
+        birthrate,
+        deathrate,
         tevent,
         mutationdist,
         ploidy,
@@ -267,9 +309,10 @@ modules branch at rate `branchrate`) with no death.
 - `ploidy::Int64 = 2`: cell ploidy (per cell mutation rate is `ploidy * μ`)
 - `μ::Float64 = 10.0`: mutation rate per division per cell
 - `clonalmutations::Int64 = 0`: number of mutations shared by all cells
-- `b::Float64 = 1.0`: birth rate for wild-type cells in branching phase
-- `d::Float64 = 0.0`: death rate for wild-type cells in branching phase
-- `bdrate::Float64 = 1.0`: birth/death rate for wild-type cells in Moran phase
+- `birthrate::Float64 = 1.0`: birth rate for wild-type cells in branching phase
+- `deathrate::Float64 = 0.0`: death rate for wild-type cells in branching phase
+- `moranrate::Float64 = 1.0`: rate of Moran updating for wild-type cells in homeostasis
+- `asymmetricrate::Float64 = 0.0`: rate of asymmetric updating for wild-type cells in homeostasis
 - `branchrate::Float64 = 5.0`: rate at which homeostatic modules split to form new modules
 - `branchfraction::Float64 = 0.1`: fraction of cells sampled to form a new module (only if
     `branchinitsize` is not given)
@@ -282,13 +325,27 @@ modules branch at rate `branchrate`) with no death.
 - `moranincludeself::Bool = true`: determines whether the same cell can be chosen to both
     divide and die in a moran step (in which case one offspring is killed)
 """
-function MultilevelBranchingInput(;modulesize=200, ploidy=2, μ=10.0, clonalmutations=0, 
-    bdrate=nothing, b=nothing, d=0, tmax=15, maxmodules=10000, fixedmu=false, 
-    mutationdist=nothing, branchrate=5, branchfraction=0.1, branchinitsize=nothing,
+function MultilevelBranchingInput(;
+    modulesize=200, 
+    ploidy=2, 
+    μ=10.0, 
+    clonalmutations=0, 
+    moranrate=nothing, 
+    asymmetricrate=0,
+    birthrate=nothing, 
+    deathrate=0, 
+    tmax=15, 
+    maxmodules=10000, 
+    fixedmu=false, 
+    mutationdist=nothing, 
+    branchrate=5, 
+    branchfraction=0.1, 
+    branchinitsize=nothing,
+    modulesplitting_replacement=false,
     moranincludeself=true)
 
     mutationdist = set_mutationdist(mutationdist, fixedmu)
-    b, bdrate = set_cell_birthrates(b, bdrate)
+    birthrate, moranrate = set_cell_birthrates(birthrate, moranrate)
 
     return MultilevelBranchingInput(
             modulesize,
@@ -296,12 +353,14 @@ function MultilevelBranchingInput(;modulesize=200, ploidy=2, μ=10.0, clonalmuta
             maxmodules,
             clonalmutations,
             μ,
-            bdrate,
-            b,
-            d,
+            moranrate,
+            asymmetricrate,
+            birthrate,
+            deathrate,
             mutationdist,
             branchrate,
             branchinitsize !== nothing ? branchinitsize : ceil(modulesize * branchfraction),
+            modulesplitting_replacement,
             ploidy,
             moranincludeself
     )
@@ -325,9 +384,10 @@ modules branch at rate `branchrate`) with no death. Once module population reach
 - `ploidy::Int64 = 2`: cell ploidy (per cell mutation rate is `ploidy * μ`)
 - `μ::Float64 = 10.0`: mutation rate per division per cell
 - `clonalmutations::Int64 = 0`: number of mutations shared by all cells
-- `b::Float64 = 1.0`: birth rate for wild-type cells in branching phase
-- `d::Float64 = 0.0`: death rate for wild-type cells in branching phase
-- `bdrate::Float64 = 1.0`: birth/death rate for wild-type cells in Moran phase
+- `birthrate::Float64 = 1.0`: birth rate for wild-type cells in branching phase
+- `deathrate::Float64 = 0.0`: death rate for wild-type cells in branching phase
+- `moranrate::Float64 = 1.0`: birth/death rate for wild-type cells in Moran phase
+- `asymmetricrate::Float64 = 0.0`: rate of asymmetric updating for wild-type cells in homeostasis
 - `branchrate::Float64 = 5.0`: rate at which homeostatic modules split to form new modules
 - `branchfraction::Float64 = 0.1`: fraction of cells sampled to form a new module (only if
     `branchinitsize` is not given)
@@ -340,13 +400,28 @@ modules branch at rate `branchrate`) with no death. Once module population reach
 - `moranincludeself::Bool = true`: determines whether the same cell can be chosen to both
     divide and die in a moran step (in which case one offspring is killed)
 """
-function MultilevelBranchingMoranInput(;modulesize=200, ploidy=2, μ=10.0, clonalmutations=0, 
-    bdrate=nothing, b=nothing, d=0, tmax=15, maxmodules=10000, fixedmu=false, 
-    mutationdist=nothing, branchrate=0.1, branchfraction=0.1, branchinitsize=nothing,
-    moranincludeself=true)
+function MultilevelBranchingMoranInput(;
+    modulesize=200, 
+    ploidy=2, 
+    μ=10.0, 
+    clonalmutations=0, 
+    moranrate=nothing, 
+    asymmetricrate=0,
+    birthrate=nothing, 
+    deathrate=0, 
+    tmax=15, 
+    maxmodules=10000, 
+    fixedmu=false, 
+    mutationdist=nothing, 
+    branchrate=0.1, 
+    branchfraction=0.1, 
+    branchinitsize=nothing,
+    modulesplitting_replacement=false,
+    moranincludeself=true
+)
 
     mutationdist = set_mutationdist(mutationdist, fixedmu)
-    b, bdrate = set_cell_birthrates(b, bdrate)
+    birthrate, moranrate = set_cell_birthrates(birthrate, moranrate)
 
     return MultilevelBranchingMoranInput(
             modulesize,
@@ -354,16 +429,103 @@ function MultilevelBranchingMoranInput(;modulesize=200, ploidy=2, μ=10.0, clona
             maxmodules,
             clonalmutations,
             μ,
-            bdrate,
-            b,
-            d,
+            moranrate,
+            asymmetricrate,
+            birthrate,
+            deathrate,
             mutationdist,
             branchrate,
             branchinitsize !== nothing ? branchinitsize : ceil(modulesize * branchfraction),
+            modulesplitting_replacement,
             ploidy,
             moranincludeself
     )
 end
+
+# """
+#     MultilevelBranchingWithReplacementInput <: MultilevelInput <: SimulationInput
+# """
+# function MultilevelBranchingWithReplacementInput(;
+#     modulesize=3, 
+#     tmax=20, 
+#     maxmodules=100,
+#     clonalmutations=0,
+#     μ=1,
+#     moranrate,
+#     birthrate,
+#     deathrate,
+#     mutationdist=:poisson,
+#     fixedmu=false,
+#     branchrate=0.1,
+#     branchinitsize_prob=Dict(1=>1, 2=>0),
+#     ploidy=2
+# )
+
+#     mutationdist = set_mutationdist(mutationdist, fixedmu)
+#     birthrate, moranrate = set_cell_birthrates(birthrate, moranrate)
+#     if !(sum(values(branchinitsize_prob)) ≈ 1.0)
+#         error("Total probability for init branch sizes does not sum to 1")
+#     end
+
+#     return MultilevelBranchingWithReplacementInput(
+#         modulesize,
+#         tmax,
+#         maxmodules,
+#         clonalmutations,
+#         μ, 
+#         moranrate,
+#         asymmetricrate,
+#         birthrate,
+#         deathrate,
+#         mutationdist,
+#         branchrate,
+#         branchinitsize_prob,
+#         ploidy
+#     )
+# end
+
+# """
+#     MultilevelBranchingMoranWithReplacementInput <: MultilevelInput <: SimulationInput
+# """
+# function MultilevelBranchingMoranWithReplacementInput(;
+#     modulesize=3, 
+#     tmax=20, 
+#     maxmodules=100,
+#     clonalmutations=0,
+#     μ=1,
+#     moranrate=1,
+#     asymmetricrate=0,
+#     birthrate=nothing,
+#     deathrate=0,
+#     mutationdist=:poisson,
+#     fixedmu=false,
+#     branchrate=0.1,
+#     branchinitsize_probirthrate=Dict(1=>1, 2=>0),
+#     ploidy=2
+# )
+
+#     mutationdist = set_mutationdist(mutationdist, fixedmu)
+#     birthrate, moranrate = set_cell_birthrates(birthrate, moranrate)
+#     if !(sum(values(branchinitsize_prob)) ≈ 1.0)
+#         error("Total probability for init branch sizes does not sum to 1")
+#     end
+
+#     return MultilevelBranchingMoranWithReplacementInput(
+#         modulesize,
+#         tmax,
+#         maxmodules,
+#         clonalmutations,
+#         μ, 
+#         moranrate,
+#         asymmetricrate,
+#         birthrate,
+#         deathrate,
+#         mutationdist,
+#         branchrate,
+#         branchinitsize_prob,
+#         ploidy
+#     )
+# end
 
 """
     newinput(::Type{InputType}; kwargs) where InputType <: SimulationInput
@@ -397,16 +559,16 @@ function set_mutationdist(mutationdist, fixedmu)
     end
 end
 
-function set_cell_birthrates(b, bdrate)
+function set_cell_birthrates(birthrate, moranrate)
     return begin
-        if isnothing(b) && isnothing(bdrate)
+        if isnothing(birthrate) && isnothing(moranrate)
             1.0, 1.0
-        elseif isnothing(b)
-            bdrate, bdrate
-        elseif isnothing(bdrate)
-            b, b
+        elseif isnothing(birthrate)
+            moranrate, moranrate
+        elseif isnothing(moranrate)
+            birthrate, birthrate
         else
-            b, bdrate
+            birthrate, moranrate
         end
     end
 end

@@ -3,8 +3,8 @@
     input = BranchingInput(
         Nmax=10, 
         mutationdist=:poisson, 
-        b=1, 
-        d=0.0,
+        birthrate=1, 
+        deathrate=0.0,
         clonalmutations=0, 
         numclones=0,
         μ=1
@@ -18,7 +18,7 @@
         N=10, 
         tmax=tmax,
         mutationdist=:poisson, 
-        bdrate=1.0,
+        moranrate=1.0,
         clonalmutations=0, 
         numclones=0,
         μ=1
@@ -31,8 +31,8 @@
         Nmax=10, 
         tmax=tmax,
         mutationdist=:poisson, 
-        b=1, 
-        d=0.0,
+        birthrate=1, 
+        deathrate=0.0,
         clonalmutations=0, 
         numclones=0,
         μ=1
@@ -58,7 +58,7 @@ N = 100
 @test SomaticEvolution.getclonesize(N, subclones) == [1, 9, 90]
 
 #check birth and death rates are calculated correctly
-b, d, selection = 1, 0, [1, 2]
-brates, drates = SomaticEvolution.set_branching_birthdeath_rates(b, d, selection) 
-@test brates == [1, 2, 3]
-@test drates == [0, 0, 0]
+birthrate, deathrate, selection = 1, 0, [1, 2]
+birthrates, deathrates = SomaticEvolution.set_branching_birthdeath_rates(birthrate, deathrate, selection) 
+@test birthrates == [1, 2, 3]
+@test deathrates == [0, 0, 0]

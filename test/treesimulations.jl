@@ -17,8 +17,8 @@ rng = MersenneTwister(12)
     @testset "run simulation" begin
         input = BranchingInput(
             Nmax=100, 
-            b=1, 
-            d=0.05,
+            birthrate=1, 
+            deathrate=0.05,
             clonalmutations=0, 
             numclones=0,
             μ=10,
@@ -50,7 +50,18 @@ rng = MersenneTwister(12)
             @test cellnode.data.clonetype == root.data.clonetype
             @test cellnode.data.id == i + 1
         end
+
+        #asymmetric division
+        _, nextID = SomaticEvolution.celldivision!(alivecells, 2, 1.1, 3, 10, :fixedtimedep, rng; nchildcells=1)
+        @test length(alivecells) == 2 #check number of alivecells equals pop size
+        @test !(root in alivecells) #check divided cell has been removed from alivecells
+        @test alivecells[end] == root.right.left
+        @test isnothing(root.right.right) 
+        @test alivecells[end].data.id == 3
+
+
     end
+
 
     @testset "death" begin
         alivecells = SomaticEvolution.initialize_cells(TreeCell, 0)

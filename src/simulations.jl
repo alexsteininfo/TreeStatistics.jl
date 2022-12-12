@@ -34,8 +34,8 @@ function simulate!(cellmodule::CellModule, input::BranchingMoranInput,
 
     branchingprocess!(
         cellmodule, 
-        input.b, 
-        input.d, 
+        input.birthrate, 
+        input.deathrate, 
         input.Nmax, 
         input.μ, 
         input.mutationdist,
@@ -51,7 +51,7 @@ function simulate!(cellmodule::CellModule, input::BranchingMoranInput,
     
     moranprocess!(
         cellmodule, 
-        input.bdrate, 
+        input.moranrate, 
         isnothing(tmax) ? input.tmax : minimum((tmax, input.tmax)),
         input.μ, 
         input.mutationdist, 
@@ -72,8 +72,8 @@ function simulate!(cellmodule::CellModule, input::BranchingInput,
 
     branchingprocess!(
         cellmodule, 
-        input.b, 
-        input.d, 
+        input.birthrate, 
+        input.deathrate, 
         input.Nmax, 
         input.μ, 
         input.mutationdist,
@@ -96,7 +96,7 @@ function simulate!(cellmodule::CellModule, input::MoranInput,
 
     moranprocess!(
         cellmodule, 
-        input.bdrate, 
+        input.moranrate, 
         isnothing(tmax) ? input.tmax : minimum((tmax, input.tmax)),
         input.μ, 
         input.mutationdist, 
@@ -127,7 +127,7 @@ function runsimulation_clonalmuts(::Type{Cell}, input::MoranInput, tstep, rng::A
     for t in 0:tstep:input.tmax
         cellmodule = moranprocess!(
             cellmodule, 
-            input.bdrate, 
+            input.moranrate, 
             input.tmax, 
             input.μ, 
             input.mutationdist, 
@@ -139,14 +139,12 @@ function runsimulation_clonalmuts(::Type{Cell}, input::MoranInput, tstep, rng::A
         )
         push!(clonalmuts, clonal_mutations(cellmodule))
     end
-    return cellmodule, clonalmuts
-
 
     return Simulation(input,cellmodule), clonalmuts
 end
 
 """
-    branchingprocess!(cellmodule::CellModule, b, d, Nmax, μ, mutationdist, tmax,
+    branchingprocess!(cellmodule::CellModule, birthrate, deathrate, Nmax, μ, mutationdist, tmax,
     rng::AbstractRNG; numclones=0, selection=Float64[], tevent=Float64[], maxclonesize=200)
 
 Run branching process simulation, starting in state defined by cellmodule.
@@ -162,7 +160,7 @@ Otherwise, `numclones` is the number of fit subclones. The `i`th subclone arises
 cell mutating at time `tevent[i]` and has selection coefficient `selection[i]`.
 
 """
-function branchingprocess!(cellmodule::CellModule, b, d, Nmax, μ, mutationdist, tmax,
+function branchingprocess!(cellmodule::CellModule, birthrate, deathrate, Nmax, μ, mutationdist, tmax,
     rng::AbstractRNG; numclones=0, selection=Float64[], tevent=Float64[], maxclonesize=200,
     timefunc=exptime, t0=nothing)
     
@@ -176,10 +174,10 @@ function branchingprocess!(cellmodule::CellModule, b, d, Nmax, μ, mutationdist,
     changemutrate = BitArray(undef, numclones + 1)
     changemutrate .= 1
 
-    birthrates, deathrates = set_branching_birthdeath_rates(b, d, selection)
+    birthrates, deathrates = set_branching_birthdeath_rates( birthrate, deathrate, selection)
 
-    #Rmax starts with b + d and changes once a fitter mutant is introduced, this ensures
-    #that b and d have correct units
+    #Rmax starts with birthrate + deathrate and changes once a fitter mutant is introduced, this ensures
+    #that birthrate and deathrate have correct units
     Rmax = (maximum(birthrates[1:nclonescurrent])
                                 + maximum(deathrates[1:nclonescurrent]))
 
@@ -271,24 +269,24 @@ function update_time_popsize!(cellmodule::CellModule, t, N)
 end
 
 """
-    set_branching_birthdeath_rates(b, d, selection)
+    set_branching_birthdeath_rates( birthrate, deathrate, selection)
 
 Return Vectors of birthrates and deathrates for each subclone (including wild-type).
 """
-function set_branching_birthdeath_rates(b, d, selection)
-    birthrates = [b]
-    deathrates = [d]
+function set_branching_birthdeath_rates(birthrate, deathrate, selection)
+    birthrates = [birthrate]
+    deathrates = [deathrate]
     #add birth and death rates for each subclone. 
     for i in 1:length(selection)
-        push!(deathrates, d)
-        push!(birthrates, (1 + selection[i]) .* b)
+        push!(deathrates, deathrate)
+        push!(birthrates, (1 + selection[i]) .* birthrate)
     end
     return birthrates,deathrates
 end
 
 
 """
-    moranprocess!(cellmodule::CellModule, bdrate, tmax, μ, mutationdist, 
+    moranprocess!(cellmodule::CellModule, moranrate, tmax, μ, mutationdist, 
     rng::AbstractRNG; numclones=0, selection=Float64[], tevent=Float64[])
 
 Run Moran process simulation, starting in state defined by cellmodule.
@@ -296,7 +294,7 @@ Run Moran process simulation, starting in state defined by cellmodule.
 See also [`moranprocess`](@ref)
 
 """
-function moranprocess!(cellmodule::CellModule, bdrate, tmax, μ, mutationdist, 
+function moranprocess!(cellmodule::CellModule, moranrate, tmax, μ, mutationdist, 
     rng::AbstractRNG; numclones=0, selection=Float64[], tevent=Float64[],
     timefunc=exptime, t0=nothing, moranincludeself=true)
 
@@ -309,7 +307,7 @@ function moranprocess!(cellmodule::CellModule, bdrate, tmax, μ, mutationdist,
     while true
 
         #calc next event time and break if it exceeds tmax 
-        Δt =  1/(bdrate*N) .* timefunc(rng)
+        Δt =  1/(moranrate*N) .* timefunc(rng)
         t = t + Δt
         if t > tmax
             break
@@ -475,7 +473,7 @@ function initialize_from_cells(cells::Vector{Cell}, subclones::Vector{CloneTrack
     )
 end
 
-function addmutations!(cell1, cell2, μ, mutID, rng, mutationdist=mutationdist, Δt=Δt)
+function addmutations!(cell1::Cell, cell2::Cell, μ, mutID, rng, mutationdist=mutationdist, Δt=Δt)
     if mutationdist == :poissontimedep || mutationdist == :fixedtimedep
         #if mutations are time dependent we add the mutations accumulated by the parent cell
         #to both children at division
@@ -486,6 +484,19 @@ function addmutations!(cell1, cell2, μ, mutID, rng, mutationdist=mutationdist, 
         mutID = addnewmutations!(cell1, numbermutations, mutID)
         numbermutations = numbernewmutations(rng, mutationdist, μ)
         mutID = addnewmutations!(cell2, numbermutations, mutID)
+    end
+    return mutID
+end
+
+function addmutations!(cell::Cell, μ, mutID, rng, mutationdist=mutationdist, Δt=Δt)
+    if mutationdist == :poissontimedep || mutationdist == :fixedtimedep
+        #if mutations are time dependent we add the mutations accumulated by the parent cell
+        #child at division
+        numbermutations = numbernewmutations(rng, mutationdist, μ, Δt=Δt)
+        mutID = addnewmutations!(cell1, numbermutations, mutID)
+    else
+        numbermutations = numbernewmutations(rng, mutationdist, μ)
+        mutID = addnewmutations!(cell, numbermutations, mutID)
     end
     return mutID
 end
@@ -528,20 +539,27 @@ function addnewmutations!(cell1::Cell, cell2::Cell, numbermutations, mutID)
     return mutID
 end
 
-function celldivision!(cellmodule::CellModule, parentcell, t, mutID, μ, mutationdist, rng)
+function celldivision!(cellmodule::CellModule, parentcell, t, mutID, μ, mutationdist, rng; nchildcells=2)
     
     Δt = t - cellmodule.cells[parentcell].birthtime
     cellmodule.cells[parentcell].birthtime = t
-    push!(cellmodule.cells, copycell(cellmodule.cells[parentcell])) #add new copy of parent cell to cells
-    cellmodule.cells[end].id = cellmodule.cells[end-1].id + 1
-    cellmodule.cells[end].parentid = cellmodule.cells[parentcell].id
+    if nchildcells == 2
+        push!(cellmodule.cells, copycell(cellmodule.cells[parentcell])) #add new copy of parent cell to cells
+        cellmodule.cells[end].id = cellmodule.cells[end-1].id + 1
+        cellmodule.cells[end].parentid = cellmodule.cells[parentcell].id
+    end
     #add new mutations to both new cells
     if μ > 0.0 
-        mutID = addmutations!(cellmodule.cells[parentcell], cellmodule.cells[end], μ, 
-            mutID, rng, mutationdist, Δt)
+        if nchildcells == 2
+            mutID = addmutations!(cellmodule.cells[parentcell], cellmodule.cells[end], μ, 
+                mutID, rng, mutationdist, Δt)
+        else
+            mutID = addmutations!(cellmodule.cells[parentcell], μ, 
+                mutID, rng, mutationdist, Δt)
+        end
     end
     clonetype = cellmodule.cells[parentcell].clonetype
-    if clonetype > 1
+    if clonetype > 1 && nchildcells == 2
         cellmodule.subclones[clonetype - 1].size += 1
     end
 
