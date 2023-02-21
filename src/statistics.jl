@@ -164,7 +164,7 @@ function clonal_mutation_ids(population, idx=nothing)
 end
 
 """
-    clonal_mutation_ids(cellmodule)
+    clonal_mutation_ids(cellmodule::CellModule)
 """
 function clonal_mutation_ids(cellmodule::CellModule)
     return intersect([cell.mutations for cell in cellmodule.cells]...)
@@ -558,7 +558,7 @@ end
 
 """
     time_to_MRCA(cellnode1, cellnode2, t)
-Computes the time thaat has passed between the division time of the MRCA of the two cells
+Computes the time that has passed between the division time of the MRCA of the two cells
 and time t.
 """
 function time_to_MRCA(cellnode1, cellnode2, t)
@@ -598,4 +598,32 @@ function coalescence_times(root, idx=nothing; t=nothing)
         end
     end
     return coaltimes
+end
+
+"""
+    conditionalfixation_times(treemodule::TreeModule, tmin=0.0)
+
+Compute the time to fixation for all fixed mutations in `treemodule`. Only include mutations 
+    that arise after `tmin`.
+"""
+
+function conditionalfixation_times(population::Vector{TreeModule{TreeCell}}, tmin=0.0)
+    treeroot = getroot(reduce(
+        vcat, 
+        [treemodule.alivecells for treemodule in population]
+    ))
+    conditionalfixtimes = Float64[]
+    for node in AbstractTrees.PreOrderDFS
+        if node.data.birthtime >= tmin && node.data.alive
+            for treemodule in population
+                push!(
+                    conditionalfixtimes,
+                    get_conditionalfixation_times(
+                        node,
+                        treemodule
+                    )
+                )
+            end
+        end
+    end
 end

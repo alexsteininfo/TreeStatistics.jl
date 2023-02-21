@@ -35,6 +35,7 @@ VAFResult,
 
 #functions for running multilevel or single-level simulations
 runsimulation,
+runsimulation_condfixtime,
 runsimulation_timeseries,
 runsimulation_timeseries_returnfinalpop,
 run1simulation, 
@@ -101,6 +102,7 @@ include("cells_modules.jl")
 include("results.jl")
 include("simulations.jl")
 include("multilevel.jl")
+include("multilevel_condfixtime.jl")
 include("multilevel_trees.jl")
 include("process.jl")
 include("samplingVAF.jl")
