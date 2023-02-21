@@ -586,7 +586,7 @@ function cellmutation!(cellmodule::CellModule, mutatingcell, N, t, nclonescurren
     end
 
 
-    return cellmodule, nclonescurrent
+    return (;cellmodule, nclonescurrent)
 end
 
 function celldeath!(cellmodule::CellModule, deadcell::Int64, args...)

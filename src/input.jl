@@ -89,7 +89,7 @@ struct MultilevelBranchingInput <: MultilevelInput
     mutationdist::Symbol
     branchrate::Float64
     branchinitsize::Int64
-    modulesplitting_replacement::Bool
+    modulebranching::Symbol
     ploidy::Int64
     moranincludeself::Bool
 end
@@ -110,7 +110,7 @@ struct MultilevelBranchingMoranInput <: MultilevelInput
     mutationdist::Symbol
     branchrate::Float64
     branchinitsize::Int64
-    modulesplitting_replacement::Bool
+    modulebranching::Symbol
     ploidy::Int64
     moranincludeself::Bool
 end
@@ -341,7 +341,7 @@ function MultilevelBranchingInput(;
     branchrate=5, 
     branchfraction=0.1, 
     branchinitsize=nothing,
-    modulesplitting_replacement=false,
+    modulebranching=:split,
     moranincludeself=true)
 
     mutationdist = set_mutationdist(mutationdist, fixedmu)
@@ -360,7 +360,7 @@ function MultilevelBranchingInput(;
             mutationdist,
             branchrate,
             branchinitsize !== nothing ? branchinitsize : ceil(modulesize * branchfraction),
-            modulesplitting_replacement,
+            Symbol(modulebranching),
             ploidy,
             moranincludeself
     )
@@ -416,7 +416,7 @@ function MultilevelBranchingMoranInput(;
     branchrate=0.1, 
     branchfraction=0.1, 
     branchinitsize=nothing,
-    modulesplitting_replacement=false,
+    modulebranching=:split,
     moranincludeself=true
 )
 
@@ -436,7 +436,7 @@ function MultilevelBranchingMoranInput(;
             mutationdist,
             branchrate,
             branchinitsize !== nothing ? branchinitsize : ceil(modulesize * branchfraction),
-            modulesplitting_replacement,
+            Symbol(modulebranching),
             ploidy,
             moranincludeself
     )

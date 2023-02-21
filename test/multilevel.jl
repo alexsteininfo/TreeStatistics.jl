@@ -98,7 +98,7 @@ mt3 = SomaticEvolution.CellModule(
     rng = MersenneTwister(12)
     cellmodule = deepcopy(mt1)
     cellmodule, newcellmodule = 
-        SomaticEvolution.sample_new_module_without_replacement!(cellmodule, 2, 1, 1.0, rng)
+        SomaticEvolution.sample_new_module_split!(cellmodule, 2, 1, 1.0, rng)
     @test length(cellmodule) == 3
     @test length(newcellmodule) == 1
     @test newcellmodule.id == 2
@@ -185,7 +185,7 @@ end
     mutID = SomaticEvolution.getnextID(population[1].cells) #get id of next mutation
     t = 0
     rng = MersenneTwister(1)
-    modulesplitting_replacement=false
+    modulebranching=:split
 
     #check first update is correct
     transitionrates = SomaticEvolution.get_transitionrates(
@@ -209,7 +209,7 @@ end
             branchrate, 
             modulesize, 
             branchinitsize,
-            modulesplitting_replacement,
+            modulebranching,
             t,
             mutID, 
             2,
@@ -251,7 +251,7 @@ end
     @test transitionrates ≈ [0.04,0.08, 0.4, 0.04, 3/365]
 
     #check only homeostatic modules are chosen for Moran and module branching and that prob of choosing cells is equal
-    @test all(SomaticEvolution.choose_homeostaticmodule([mt1,mt2,mt3], 4, rng)==mt1 for i in 1:10)
+    @test all(SomaticEvolution.choose_homeostaticmodule([mt1,mt2,mt3], 4, rng)[1]==mt1 for i in 1:10)
     @test isapprox(mean(reduce(hcat, [[v for v in SomaticEvolution.choose_homeostaticmodule_cells([mt1,mt2,mt3], 4, rng, moranincludeself=false)[2:3]] for i in 1:10000]), dims=2), [2.5, 2.5], atol=0.1)
     @test isapprox(mean(reduce(hcat, [[v for v in SomaticEvolution.choose_homeostaticmodule_cells([mt1,mt2,mt3], 4, rng, moranincludeself=true)[2]] for i in 1:10000])), 2.5, atol=0.1)
     # @test isapprox(mean(reduce(hcat, [[v for v in SomaticEvolution.choose_homeostaticmodule_cells([mt1,mt2,mt3], 4, rng)[2:3]] for i in 1:10000]), dims=2), [2.5, 2.5], atol=0.1)
@@ -318,6 +318,16 @@ mt3 = SomaticEvolution.CellModule(
     @test length(parentmodule) == 4
     @test length(newmodule) == 1
     @test nextID == 25+4
+end
+@testset "module splitting without replacement" begin
+    rng = MersenneTwister(12)
+    parentmodule = deepcopy(mt1)
+    parentmodule, newmodule, nextID = SomaticEvolution.sample_new_module_without_replacement!(parentmodule, 2, 2, 
+        300, 25, 2, :fixed, rng)
+    @test length(parentmodule) == 4
+    @test length(newmodule) == 2
+    @test newmodule.cells[1] != newmodule.cells[2]
+    @test nextID == 25+8
 end
 
 @testset "moran updates" begin

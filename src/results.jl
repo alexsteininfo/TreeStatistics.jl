@@ -59,8 +59,9 @@ function Base.show(io::IO, population::Vector{T}) where T<:AbstractModule
     if length(population) == 0
         @printf(io, "Empty population")
     else
-        @printf(io, "Final size = %d modules\n", length(population))
-        @printf(io, "Final time = %.2f", age(population))
+        @printf(io, "%d-module Population{%s} at time %.2f.\n", length(population), T, age(population))
+        @printf(io, "Module sizes:")
+        show(io, [length(m) for m in population])
     end
 end
 
