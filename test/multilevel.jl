@@ -317,6 +317,8 @@ mt3 = SomaticEvolution.CellModule(
         300, 25, 2, :fixed, rng)
     @test length(parentmodule) == 4
     @test length(newmodule) == 1
+    @test newmodule.Nvec[end] == 1
+    @test length(newmodule.cells) == 1
     @test nextID == 25+4
 end
 @testset "module splitting without replacement" begin
@@ -326,8 +328,12 @@ end
         300, 25, 2, :fixed, rng)
     @test length(parentmodule) == 4
     @test length(newmodule) == 2
+    @test length(newmodule.cells) == 2 
+    @test newmodule.Nvec[end] == 2 
     @test newmodule.cells[1] != newmodule.cells[2]
     @test nextID == 25+8
+    @show parentmodule.cells
+    @show newmodule.cells
 end
 
 @testset "moran updates" begin
