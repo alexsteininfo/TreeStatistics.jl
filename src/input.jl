@@ -115,44 +115,6 @@ struct MultilevelBranchingMoranInput <: MultilevelInput
     moranincludeself::Bool
 end
 
-# """
-#     MultilevelBranchingWithReplacementInput <: MultilevelInput <: SimulationInput
-# """
-# struct MultilevelBranchingWithReplacementInput
-#     modulesize::Int64
-#     tmax::Float64
-#     maxmodules::Int64
-#     clonalmutations::Int64
-#     μ::Float64
-#     moranrate::Float64
-#     asymmetricrate::Float64
-#     birthrate::Float64
-#     deathrate::Float64
-#     mutationdist::Symbol
-#     branchrate::Float64
-#     branchinitsize_prob::Dict{Int64, Float64}
-#     ploidy::Int64
-# end
-
-# """
-#     MultilevelBranchingMoranWithReplacementInput <: MultilevelInput <: SimulationInput
-# """
-# struct MultilevelBranchingMoranWithReplacementInput
-#     modulesize::Int64
-#     tmax::Float64
-#     maxmodules::Int64
-#     clonalmutations::Int64
-#     μ::Float64
-#     moranrate::Float64
-#     asymmetricrate::Float64
-#     birthrate::Float64
-#     deathrate::Float64
-#     mutationdist::Symbol
-#     branchrate::Float64
-#     branchinitsize_probirthrate::Dict{Int64, Float64}
-#     ploidy::Int64
-# end
-
 """
     BranchingInput(<keyword arguments>)
 
@@ -399,6 +361,12 @@ modules branch at rate `branchrate`) with no death. Once module population reach
     mutations (:poisson, :fixed, :poissontimedep, :fixedtimedep, :geometric)
 - `moranincludeself::Bool = true`: determines whether the same cell can be chosen to both
     divide and die in a moran step (in which case one offspring is killed)
+- `modulebranching::Symbol = :split`: determines the method by which a new module is formed
+    at branching. Options are `:split` (module cells are split between two modules), 
+    `:withreplacement` (cells are sampled from the parent module and undergo division with one
+    cell returning to the parent, before the next cell is sampled, and the other entering 
+    the new module), and `:withoutreplacement` (as previous except that cells are returned to
+    parent module after all smapling is completed).
 """
 function MultilevelBranchingMoranInput(;
     modulesize=200, 

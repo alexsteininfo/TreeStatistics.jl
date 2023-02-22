@@ -285,12 +285,12 @@ function transition!(population, transitionid, modulesize, branchinitsize,
         deathupdate!(population, modulesize, t, μ, mutationdist, rng)
     elseif transitionid == 5
         if moduleupdate == :branching || length(population) < maxmodules
-            _, nextmoduleID = modulebranchingupdate!(
+            _, nextmoduleID, nextID = modulebranchingupdate!(
                 population, nextmoduleID, modulesize, branchinitsize, t, rng; 
                 modulebranching, nextID, μ, mutationdist
             )
         elseif moduleupdate == :moran
-            _, nextmoduleID = modulemoranupdate!(
+            _, nextmoduleID, nextID = modulemoranupdate!(
                 population, nextmoduleID, modulesize, branchinitsize, t, rng; 
                 modulebranching, nextID, μ, mutationdist
             )
@@ -375,7 +375,7 @@ function modulebranchingupdate!(population, nextmoduleID, modulesize, branchinit
         modulesplitting!(parentmodule, nextmoduleID, branchinitsize, t, rng; 
             modulebranching, nextID, μ, mutationdist)
     push!(population, newmodule)
-    return population, nextmoduleID + 1
+    return population, nextmoduleID + 1, nextID
 end
 
 function modulemoranupdate!(population, nextmoduleID, modulesize, branchinitsize, t, rng; 
@@ -388,23 +388,24 @@ function modulemoranupdate!(population, nextmoduleID, modulesize, branchinitsize
     push!(population, newmodule)
     deadmodule = rand(rng, population)
     moduledeath!(population, deadmodule, t, μ, mutationdist, rng)
-    return population, nextmoduleID + 1
+    return population, nextmoduleID + 1, nextID
 end
 
 function modulesplitting!(parentmodule, nextmoduleID, branchinitsize::Int, t, rng; 
         modulebranching=:split, nextID=nothing, μ=nothing, mutationdist=nothing)
 
-    if modulebranching == :samplewithreplacement
+    if modulebranching == :withreplacement
         return sample_new_module_with_replacement!(parentmodule, nextmoduleID, 
             branchinitsize, t, nextID, μ, mutationdist, rng)
-    elseif modulebranching == :samplewithoutreplacement
-        return sample_new_module_split!(parentmodule, nextmoduleID, 
+    elseif modulebranching == :withoutreplacement
+        return sample_new_module_without_replacement!(parentmodule, nextmoduleID, 
             branchinitsize, t, nextID, μ, mutationdist, rng)
-    else
+    elseif modulebranching == :split
         cellmodule, newcellmodule =
-            (sample_new_module_split!(parentmodule, nextmoduleID, 
-                branchinitsize, t, rng))
+            sample_new_module_split!(parentmodule, nextmoduleID, 
+                branchinitsize, t, rng)
         return cellmodule, newcellmodule, nextID
+    else error("$modulebranching is not a valid module branching option")
     end
 end
 
@@ -443,10 +444,8 @@ function sample_new_module_with_replacement!(cellmodule::T, nextmoduleID, branch
 end
 
 """
-    sample_new_module_split!(cellmodule::T, nextmoduleID, branchinitsize, 
+    sample_new_module_without_replacement!(cellmodule::T, nextmoduleID, branchinitsize, 
     branchtime, nextID, μ, mutationdist, rng::AbstractRNG) where T<: AbstractModule
-    branchtime, nextID, μ, mutationdist, rng::AbstractRNG) where T<: AbstractModule
-        rng::AbstractRNG)
 
 Sample cells without replacement, uniformly at random, from `cellmodule`. Each of these 
 cells divides, with one offspring remaining in `cellmodule`, the other becoming part of the 
@@ -480,8 +479,6 @@ end
 """
     sample_new_module_split!(cellmodule::T, nextmoduleID, branchinitsize, branchtime, 
     rng::AbstractRNG) where T<: AbstractModule
-    rng::AbstractRNG) where T<: AbstractModule
-        rng::AbstractRNG)
 
 Sample cells without replacement, uniformly at random, from `cellmodule` to form the new 
 module. Remaining cells form the parent module.
@@ -500,7 +497,6 @@ function sample_new_module_split!(cellmodule::T, nextmoduleID, branchinitsize, b
     cellremoval!(cellmodule, sampleids)
     push!(cellmodule.Nvec, cellmodule.Nvec[end] - branchinitsize)
     push!(cellmodule.tvec, branchtime)
-
     return cellmodule, newcellmodule
 end
 
