@@ -393,13 +393,18 @@ end
 
 function modulesplitting!(parentmodule, nextmoduleID, branchinitsize::Int, t, rng; 
         modulebranching=:split, nextID=nothing, μ=nothing, mutationdist=nothing)
-
     if modulebranching == :withreplacement
         return sample_new_module_with_replacement!(parentmodule, nextmoduleID, 
             branchinitsize, t, nextID, μ, mutationdist, rng)
     elseif modulebranching == :withoutreplacement
         return sample_new_module_without_replacement!(parentmodule, nextmoduleID, 
             branchinitsize, t, nextID, μ, mutationdist, rng)
+    elseif modulebranching == :withreplacement_nomutations
+                return sample_new_module_with_replacement!(parentmodule, nextmoduleID, 
+                    branchinitsize, t, nextID, 0, :fixed, rng)
+    elseif modulebranching == :withoutreplacement_nomutations
+        return sample_new_module_without_replacement!(parentmodule, nextmoduleID, 
+            branchinitsize, t, nextID, 0, :fixed, rng)
     elseif modulebranching == :split
         cellmodule, newcellmodule =
             sample_new_module_split!(parentmodule, nextmoduleID, 

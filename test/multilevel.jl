@@ -332,8 +332,21 @@ end
     @test newmodule.Nvec[end] == 2 
     @test newmodule.cells[1] != newmodule.cells[2]
     @test nextID == 25+8
-    @show parentmodule.cells
-    @show newmodule.cells
+end
+
+@testset "module splitting without replacement no mutations" begin
+    rng = MersenneTwister(12)
+    parentmodule = deepcopy(mt1)
+    parentmodule, newmodule, nextID = 
+        SomaticEvolution.modulesplitting!(parentmodule, 5, 2, 2, rng; 
+            modulebranching=:withoutreplacement_nomutations, nextID=25, μ=1, mutationdist=:poisson)
+    @test length(parentmodule) == 4
+    @test length(newmodule) == 2
+    @test length(newmodule.cells) == 2 
+    @test newmodule.Nvec[end] == 2 
+    @test newmodule.cells[1] != newmodule.cells[2]
+    @test nextID == 25
+    in.(map(x->x.mutations, newmodule.cells), (map(x->x.mutations, parentmodule.cells), ))
 end
 
 @testset "moran updates" begin

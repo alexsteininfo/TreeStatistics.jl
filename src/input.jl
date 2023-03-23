@@ -286,6 +286,13 @@ modules branch at rate `branchrate`) with no death.
     mutations (:poisson, :fixed, :poissontimedep, :fixedtimedep, :geometric)
 - `moranincludeself::Bool = true`: determines whether the same cell can be chosen to both
     divide and die in a moran step (in which case one offspring is killed)
+- `modulebranching::Symbol = :split`: determines the method by which a new module is formed
+    at branching. Options are `:split` (module cells are split between two modules), 
+    `:withreplacement` (cells are sampled from the parent module and undergo division with one
+    cell returning to the parent, before the next cell is sampled, and the other entering 
+    the new module), `:withoutreplacement` (as previous except that cells are returned to
+    parent module after all smapling is completed), `:withreplacement_nomutations` and
+    `withoutreplacement_nomutations` (as previous but dividing cells get no new mutations).
 """
 function MultilevelBranchingInput(;
     modulesize=200, 
@@ -365,8 +372,9 @@ modules branch at rate `branchrate`) with no death. Once module population reach
     at branching. Options are `:split` (module cells are split between two modules), 
     `:withreplacement` (cells are sampled from the parent module and undergo division with one
     cell returning to the parent, before the next cell is sampled, and the other entering 
-    the new module), and `:withoutreplacement` (as previous except that cells are returned to
-    parent module after all smapling is completed).
+    the new module), `:withoutreplacement` (as previous except that cells are returned to
+    parent module after all smapling is completed), `:withreplacement_nomutations` and
+    `withoutreplacement_nomutations` (as previous but dividing cells get no new mutations).
 """
 function MultilevelBranchingMoranInput(;
     modulesize=200, 
