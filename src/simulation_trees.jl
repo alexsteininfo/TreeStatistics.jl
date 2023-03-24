@@ -264,7 +264,7 @@ function celldivision!(alivecells::Vector{BinaryNode{T}}, parentcellidx, t, next
     mutationdist, rng; nchildcells=2) where T <: AbstractTreeCell
 
     parentcellnode = alivecells[parentcellidx] #get parent cell node
-    deleteat!(alivecells, parentcellidx) #delete parent cell node from alivecells list
+    # deleteat!(alivecells, parentcellidx) #delete parent cell node from alivecells list
 
     #if mutations are time dependent assign mutations to parent cell and give new cells
     #no initial mutations
@@ -283,7 +283,8 @@ function celldivision!(alivecells::Vector{BinaryNode{T}}, parentcellidx, t, next
             mutations=childcellmuts[1], 
             clonetype=parentcellnode.data.clonetype
     )
-    push!(alivecells, leftchild!(parentcellnode, childcell1))
+    #one cell replaces the parent in alivecells
+    alivecells[parentcellidx] = leftchild!(parentcellnode, childcell1)
 
     if nchildcells == 2
         childcell2 = T(
@@ -292,6 +293,7 @@ function celldivision!(alivecells::Vector{BinaryNode{T}}, parentcellidx, t, next
             mutations=childcellmuts[2], 
             clonetype=parentcellnode.data.clonetype
         )
+        #the other cell is added to the end of alivecells
         push!(alivecells, rightchild!(parentcellnode, childcell2)) 
     end
     return alivecells, nextID + nchildcells

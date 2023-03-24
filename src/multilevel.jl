@@ -541,7 +541,7 @@ function choose_homeostaticmodule_cells(population, maxmodulesize, rng::Abstract
         elseif moranincludeself 
             deadcellidx = rand(rng, 1:maxmodulesize)
             #if dead cell and divide cell are the same kill one of the offspring
-            deadcellidx = deadcellidx == dividecellidx ? maxmodulesize : deadcellidx
+            deadcellidx = deadcellidx == dividecellidx ? maxmodulesize + 1 : deadcellidx
         else
             #exclude dividecellidx
             deadcellidx = rand(rng, deleteat!(collect(1:maxmodulesize), dividecellidx))

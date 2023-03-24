@@ -374,13 +374,55 @@ end
     ) 
     @test transitionrates == [4.0, 8.0, 4.0, 2.0, 0.1]
 
+    
     population, = SomaticEvolution.moranupdate!(population, 4, 1, 30, 1, :poisson, rng; moranincludeself=false)
     @test length(mt1) == 4
+
     population, = SomaticEvolution.asymmetricupdate!(population, 4, 2, 32, 1, :poisson, rng)
     @test length(mt1) == 4
 
     SomaticEvolution.modulemoranupdate!(population, 4, 4, 2, 5, rng)
     @test length(population) == 3
+
+    #test moran update not including self
+    population = [
+        SomaticEvolution.CellModule(
+            [2], 
+            [0], 
+            Cell[Cell([1], 1, 0), Cell([2], 1, 0)], 
+            SomaticEvolution.CloneTracker[], 1, 0)
+    ]
+    nextID = 3
+    for i in 1:10
+        chosenmodule, dividecellidx, deadcellidx, chosenmodule_id = SomaticEvolution.choose_homeostaticmodule_cells(population, 2, rng; twocells=true, moranincludeself=false)
+        @test dividecellidx != deadcellidx
+        population, nextID = SomaticEvolution.moranupdate!(population, 2, 1, nextID, 1, :fixed, rng; moranincludeself=false)
+        @test population[1].cells[1].mutations[1:end-1] == population[1].cells[2].mutations[1:end-1]
+    end
+
+    #test moran update not including self with SimpleTreeModule
+    input = MultilevelBranchingMoranInput(
+        modulesize=2, 
+        fixedmu=true, 
+        birthrate=100, 
+        deathrate=0,
+        moranrate=100, 
+        clonalmutations=0, 
+        tmax=1, 
+        maxmodules=1,
+        branchrate=5, 
+        branchfraction=0.2, 
+        μ=1,
+        moranincludeself=false
+    )
+    population = runsimulation(SimpleTreeCell, input, rng)
+    nextID = maximum(cell.data.id for cell in population[1].cells) + 1
+    for i in 1:10
+        chosenmodule, dividecellidx, deadcellidx, chosenmodule_id = SomaticEvolution.choose_homeostaticmodule_cells(population, 2, rng; twocells=true, moranincludeself=false)
+        @test dividecellidx != deadcellidx
+        population, nextID = SomaticEvolution.moranupdate!(population, 2, 1, nextID, 1, :fixed, rng; moranincludeself=false)
+        @test population[1].cells[1].data.birthtime == population[1].cells[2].data.birthtime
+    end
 
 
 end
