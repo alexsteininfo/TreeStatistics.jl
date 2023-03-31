@@ -73,6 +73,44 @@ function runsimulation_condfixtime(::Type{Cell}, input::MultilevelBranchingMoran
     end
 end
 
+function runsimulation_condfixtime_to_nfixed(::Type{Cell}, input::MultilevelBranchingMoranInput, nfixed, rng::AbstractRNG=Random.GLOBAL_RNG) 
+    #if the population dies out we start a new simulation
+    while true 
+        population = initialize_population(
+            input.modulesize, 
+            clonalmutations=input.clonalmutations
+        )
+
+        nextID, nextmoduleID = 2, 2
+        population, condfixtimes = 
+            simulate_condfixtime_to_nfixed!(
+                population, 
+                nfixed,
+                input.tmax, 
+                input.maxmodules, 
+                input.birthrate, 
+                input.deathrate, 
+                input.moranrate, 
+                input.asymmetricrate,
+                input.branchrate, 
+                input.modulesize, 
+                input.branchinitsize, 
+                input.modulebranching,
+                input.μ, 
+                input.mutationdist,
+                input.moranincludeself,
+                nextID,
+                nextmoduleID,
+                rng,
+                moduleupdate=:moran
+            )
+        if length(population) != 0
+            return condfixtimes, MultiSimulation(input, population)
+        end
+    end
+end
+
+
 """
     simulate_condfixtime!(population, tmax, maxmodules, birthrate, deathrate, moranrate, branchrate, 
         modulesize, branchinitsize, rng; moduleupdate=:branching[, t0])
@@ -95,6 +133,26 @@ function simulate_condfixtime!(population, tmax, maxmodules, birthrate, deathrat
         #returns empty list of modules if population dies out
         if length(population) == 0
             return population, nextID, nextmoduleID
+        end
+    end
+    return population, condfixtimes
+end
+
+function simulate_condfixtime_to_nfixed!(population, nfixed, tmax, maxmodules, birthrate, deathrate, moranrate, asymmetricrate, branchrate, 
+    modulesize, branchinitsize, modulebranching, μ, mutationdist, moranincludeself, nextID, nextmoduleID, rng; moduleupdate=:branching, t0=nothing)
+    t = isnothing(t0) ? age(population) : t0
+    mosaic_mutations = Vector{Tuple{Int64, Float64}}[[]]
+    condfixtimes = Vector{Float64}[[]]
+    while t < tmax && (moduleupdate==:moran || length(population) < maxmodules)
+        population, t, nextID, nextmoduleID = 
+            update_population_condfixtimes!(population, mosaic_mutations, condfixtimes, birthrate, deathrate, moranrate, asymmetricrate, branchrate,  modulesize, 
+                branchinitsize, modulebranching, t, nextID, nextmoduleID, μ, mutationdist, tmax, maxmodules, moranincludeself, rng; moduleupdate)
+        #returns empty list of modules if population dies out
+        if length(population) == 0
+            return population, nextID, nextmoduleID
+        end
+        if length(condfixtimes[1]) >= nfixed
+            return population, condfixtimes
         end
     end
     return population, condfixtimes
@@ -226,7 +284,7 @@ function moranupdate_condfixtimes!(population, mosaic_mutations, condfixtimes, m
     new_mosaic_mutations!(mosaic_mutations[cellmodule_id], nextID_before, nextID-1, t)
     celldeath!(cellmodule, deadcell, t, μ, mutationdist, rng)
     updatemodulehistory!(cellmodule, 0, t)
-    checkfixation_addcondfixtimes!(mosaic_mutations[cellmodule_id], condfixtimes[cellmodule_id], cellmodule, t)
+    checkfixationextinction_addcondfixtimes!(mosaic_mutations[cellmodule_id], condfixtimes[cellmodule_id], cellmodule, t)
     return population, nextID
 end
 
