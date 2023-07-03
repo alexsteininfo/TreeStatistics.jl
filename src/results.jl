@@ -34,6 +34,17 @@ struct VAFResult{T<:SimulationInput}
     sampledVAF::Vector{Float64}
     subclonefreq::Vector{Float64}
     subclonefreqp::Vector{Float64}
+end
+
+struct VAFResultMulti{T<:MultilevelInput}
+    read_depth::Float64
+    cellularity::Float64
+    detectionlimit::Float64
+    input::T
+    trueVAFs::Vector{Vector{Float64}}
+    sampledVAFs::Vector{Vector{Float64}}
+    subclonefreqs::Vector{Vector{Float64}}
+    subclonefreqps::Vector{Vector{Float64}}
 
 end
 

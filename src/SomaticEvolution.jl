@@ -55,6 +55,8 @@ plotvaf!,
 plotinversevaf,
 plotinversevaf!,
 getVAFresult,
+getVAFmultiresult
+
 
 #other statistics currently implemented only for Cell based simulations
 shared_fixed_mutations,

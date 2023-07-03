@@ -6,7 +6,11 @@
 
 @recipe function f(pv::PlotVAF; cumulative = false, fstep = 0.01, sampled=true)
     VAFresult = pv.args[1]
-    VAF = sampled ? VAFresult.sampledVAF : VAFresult.trueVAF
+    VAF = if typeof(VAFresult) <: VAFResultMulti
+            sampled ? reduce(vcat, VAFresult.sampledVAFs) : reduce(vcat, VAFresult.trueVAFs)
+        else
+            sampled ? VAFresult.sampledVAF : VAFresult.trueVAF
+        end
     df = gethist(VAF, fstep = fstep)
     VAF = (df[!,:VAF] .*2 .- fstep) ./ 2 #set x values to middle of bins
     freq = cumulative ? df[:,:cumfreq] : df[:,:freq]
@@ -24,9 +28,13 @@
         markerstrokecolor --> :white
         VAF, freq
     end
-
-    if length(VAFresult.subclonefreq) > 0
-        subclonefreq = VAFresult.subclonefreq ./VAFresult.input.ploidy * VAFresult.cellularity
+    subclonefreq = if typeof(VAFresult) <: VAFResultMulti
+            []
+        else 
+            VAFresult.subclonefreq
+        end
+    if length(subclonefreq) > 0
+        subclonefreq = subclonefreq ./VAFresult.input.ploidy * VAFresult.cellularity
     
         @series begin
             seriestype --> :vline

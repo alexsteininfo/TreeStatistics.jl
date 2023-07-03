@@ -1,4 +1,4 @@
-function getVAFresult(simulation::SimulationResult, rng::AbstractRNG=Random.GLOBAL_RNG; read_depth=100.0, 
+function getVAFresult(simulation, rng::AbstractRNG=Random.GLOBAL_RNG; read_depth=100.0, 
     detectionlimit=5/read_depth, cellularity=1.0)
 
     trueVAF = getallelefreq(simulation)
@@ -18,36 +18,56 @@ function getVAFresult(simulation::SimulationResult, rng::AbstractRNG=Random.GLOB
     )
 end
 
-# function getVAFresult(multisim::MultiSimulation, rng::AbstractRNG=Random.GLOBAL_RNG; read_depth=100.0, 
-#     detectionlimit=5/read_depth, cellularity=1.0, ploidy=2)
+function getVAFresult(multisimulation, moduleid, rng::AbstractRNG=Random.GLOBAL_RNG; read_depth=100.0, 
+    detectionlimit=5/read_depth, cellularity=1.0)
 
-#     trueVAFs = Vector{Float64}[]
-#     sampledVAFs = Vector{Float64}[]
-#     freqs = Vector{Float64}[]
-#     freqps = Vector{Float64}[]
+    trueVAF = getallelefreq(multisimulation[moduleid], multisimulation.input.ploidy)
+    sampledVAF = sampledallelefreq(trueVAF, rng, read_depth=read_depth, 
+        detectionlimit=detectionlimit, cellularity=cellularity)
+    freq, freqp = subclonefreq(multisimulation[moduleid])
+
+    return VAFResult(
+        read_depth,
+        cellularity,
+        detectionlimit,
+        multisimulation.input,
+        trueVAF,
+        sampledVAF,
+        freq,
+        freqp
+    )
+end
+
+function getVAFmultiresult(multisim::MultiSimulation, rng::AbstractRNG=Random.GLOBAL_RNG; read_depth=100.0, 
+    detectionlimit=5/read_depth, cellularity=1.0, ploidy=2)
+
+    trueVAFs = Vector{Float64}[]
+    sampledVAFs = Vector{Float64}[]
+    freqs = Vector{Float64}[]
+    freqps = Vector{Float64}[]
     
-#     for cellmodule in multisim
-#         trueVAF = getallelefreq(cellmodule, multisim.input.ploidy)
-#         sampledVAF = sampledallelefreq(trueVAF, rng, read_depth=read_depth, 
-#             detectionlimit=detectionlimit, cellularity=cellularity)
-#         freq, freqp = subclonefreq(cellmodule)
-#         push!(trueVAFs, trueVAF)
-#         push!(sampledVAFs, sampledVAF)
-#         push!(freqs, freq)
-#         push!(freqps, freqp)
-#     end
+    for cellmodule in multisim
+        trueVAF = getallelefreq(cellmodule, multisim.input.ploidy)
+        sampledVAF = sampledallelefreq(trueVAF, rng, read_depth=read_depth, 
+            detectionlimit=detectionlimit, cellularity=cellularity)
+        freq, freqp = subclonefreq(cellmodule)
+        push!(trueVAFs, trueVAF)
+        push!(sampledVAFs, sampledVAF)
+        push!(freqs, freq)
+        push!(freqps, freqp)
+    end
 
-#     return VAFResultMulti(
-#         read_depth,
-#         cellularity,
-#         detectionlimit,
-#         multisim.input,
-#         trueVAFs,
-#         sampledVAFs,
-#         freqs,
-#         freqps
-#     )
-# end
+    return VAFResultMulti(
+        read_depth,
+        cellularity,
+        detectionlimit,
+        multisim.input,
+        trueVAFs,
+        sampledVAFs,
+        freqs,
+        freqps
+    )
+end
 
 function getallelefreq(simulation::Simulation)
     return getallelefreq(simulation.output, simulation.input.ploidy)
@@ -57,6 +77,11 @@ function getallelefreq(cellmodule::CellModule, ploidy)
     mutations = cellsconvert(cellmodule.cells).mutations
     return getallelefreq(mutations, cellmodule.Nvec[end], ploidy)
 end
+
+# function getallelefreq(treemodule::SimpleTreeModule, ploidy)
+#     mutations = cellsconvert(cellmodule.cells).mutations
+#     return getallelefreq(mutations, cellmodule.Nvec[end], ploidy)
+# end
 
 function getallelefreq(cellmodules::Vector{CellModule}, ploidy)
     mutations, clonetype = cellsconvert([cell for cellmodule in cellmodules for cell in cellmodule.cells])
@@ -69,7 +94,8 @@ function getallelefreq(population::MultiSimulation{S, T}) where {S, T <: CellMod
 end
 
 function getallelefreq(mutations, N, ploidy=2)
-    allelefreq = Float64.(counts(mutations))
+    allelefreq = length(mutations) == 0 ? Float64[] : Float64.(counts(mutations))
+    filter!(x -> x != 0, allelefreq)
     # idx = f .> 0.01 #should this be f/(2*cellnum) .> 0.01, i.e. only include freq > 1% ??
     allelefreq ./= (ploidy * N) #correct for ploidy
 end
