@@ -1,3 +1,18 @@
+function getVAF(result::VAFResult, sampled)
+    sampled ? result.sampledVAF : result.trueVAF
+end
+
+function getVAF(result::VAFResultMulti, sampled)
+    sampled ? reduce(vcat, result.sampledVAFs) : reduce(vcat, result.trueVAFs)
+end
+
+function getVAF(result::Vector{Float64}, sampled=nothing)
+    return result
+end
+
+get_subclonefreq(result::VAFResult) = result.subclonefreq
+get_subclonefreq(result) = Float64[]
+
 """ plotvaf(VAF, [subclonefreqs=[]]; <keyword arguments>)
 """
 # plotvaf
@@ -5,12 +20,8 @@
 @userplot PlotVAF
 
 @recipe function f(pv::PlotVAF; cumulative = false, fstep = 0.01, sampled=true)
-    VAFresult = pv.args[1]
-    VAF = if typeof(VAFresult) <: VAFResultMulti
-            sampled ? reduce(vcat, VAFresult.sampledVAFs) : reduce(vcat, VAFresult.trueVAFs)
-        else
-            sampled ? VAFresult.sampledVAF : VAFresult.trueVAF
-        end
+    result = pv.args[1]
+    VAF = getVAF(result, sampled)
     df = gethist(VAF, fstep = fstep)
     VAF = (df[!,:VAF] .*2 .- fstep) ./ 2 #set x values to middle of bins
     freq = cumulative ? df[:,:cumfreq] : df[:,:freq]
@@ -28,11 +39,7 @@
         markerstrokecolor --> :white
         VAF, freq
     end
-    subclonefreq = if typeof(VAFresult) <: VAFResultMulti
-            []
-        else 
-            VAFresult.subclonefreq
-        end
+    subclonefreq = get_subclonefreq(result)
     if length(subclonefreq) > 0
         subclonefreq = subclonefreq ./VAFresult.input.ploidy * VAFresult.cellularity
     
@@ -62,8 +69,8 @@ plotvaf
 @recipe function f(pv::PlotInverseVAF; fmin = 0.12, fmax = 0.24, fit_fmax=fmax, sampled=true,
                     fstep = 0.001, fitcoef = nothing, cumulative = true, dataseries = :line)
 
-    VAFresult = pv.args[1]
-    VAF = sampled ? VAFresult.sampledVAF : VAFresult.trueVAF
+    result = pv.args[1]
+    VAF = getVAF(result, sampled)
     df = gethist(VAF, fmin = fmin, fmax = fmax, fstep = fstep) 
     VAF = df[!,:VAF]
     freq = cumulative ? df[!,:cumfreq] : df[!,:freq]
@@ -104,6 +111,33 @@ plotvaf
     ()
 end
 
+
+@userplot PlotVAFCumLog
+
+@recipe function f(pv::PlotVAFCumLog; fstep = 0.01, sampled=true, fmin=0)
+    result = pv.args[1]
+    VAF = getVAF(result, sampled)
+    df = gethist(VAF, fstep = fstep)
+    df = df[df.freq .> fmin, :] #remove data points with low freq
+    VAF = (df[!,:VAF] .*2 .- fstep) ./ 2 #set x values to middle of bins
+    VAF = df[:, :VAF]
+    cumfreq = df[:, :cumfreq]
+    #ensure all values > 0 before taking log
+    VAF, cumfreq = VAF[(cumfreq .> 0) .& (VAF .> 0)], cumfreq[(cumfreq .> 0) .& (VAF .> 0)]
+
+    @series begin
+        seriestype --> :scatter
+        linecolor --> :darkslategrey
+        markerfillcolor --> :darkslategrey
+        log.(VAF), log.(cumfreq)
+    end
+
+    yguide --> "Cumulative number of mutations (log)"
+    xguide --> "VAF (log)"
+    legend --> false
+    grid --> false
+    ()
+end
 
 
 @recipe function f(output::CellModule)

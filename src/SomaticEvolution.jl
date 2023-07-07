@@ -7,7 +7,6 @@ using StatsBase
 using DataFrames
 using RecipesBase
 using GLM
-using LaTeXStrings
 using Printf
 using CSV
 using Plots
@@ -32,6 +31,7 @@ MultilevelBranchingMoranInput,
 Simulation,
 SampledData,
 VAFResult,
+VAFMultiResult,
 
 #functions for running multilevel or single-level simulations
 runsimulation,
@@ -55,7 +55,7 @@ plotvaf!,
 plotinversevaf,
 plotinversevaf!,
 getVAFresult,
-getVAFmultiresult
+getVAFresultmulti,
 
 
 #other statistics currently implemented only for Cell based simulations

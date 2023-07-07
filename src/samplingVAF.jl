@@ -38,7 +38,7 @@ function getVAFresult(multisimulation, moduleid, rng::AbstractRNG=Random.GLOBAL_
     )
 end
 
-function getVAFmultiresult(multisim::MultiSimulation, rng::AbstractRNG=Random.GLOBAL_RNG; read_depth=100.0, 
+function getVAFresultmulti(multisim::MultiSimulation, rng::AbstractRNG=Random.GLOBAL_RNG; read_depth=100.0, 
     detectionlimit=5/read_depth, cellularity=1.0, ploidy=2)
 
     trueVAFs = Vector{Float64}[]

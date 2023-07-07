@@ -25,7 +25,8 @@ Base.lastindex(multisim::MultiSimulation) = lastindex(multisim.output)
 
 get_simulation(multsim, i) = return Simulation(multsim.input, multsim.output[i])
 
-struct VAFResult{T<:SimulationInput}
+abstract type AbstractVAFResult end
+struct VAFResult{T<:SimulationInput} <: AbstractVAFResult
     read_depth::Float64
     cellularity::Float64
     detectionlimit::Float64
@@ -36,7 +37,7 @@ struct VAFResult{T<:SimulationInput}
     subclonefreqp::Vector{Float64}
 end
 
-struct VAFResultMulti{T<:MultilevelInput}
+struct VAFResultMulti{T<:MultilevelInput} <: AbstractVAFResult
     read_depth::Float64
     cellularity::Float64
     detectionlimit::Float64
