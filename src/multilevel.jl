@@ -49,73 +49,22 @@ end
 
 """
 function runsimulation(input::MultilevelInput, args...)
-    return runsimulation(Cell, input, args...) 
+    return runsimulation(Cell, WellMixed, input, args...) 
 end
 
-function runsimulation(::Type{Cell}, input::MultilevelBranchingInput, rng::AbstractRNG=Random.GLOBAL_RNG, simtype=:normal) 
+getmoduleupdate(input::MultilevelBranchingInput) = :branching
+getmoduleupdate(input::MultilevelBranchingMoranInput) = :moran
+
+
+function runsimulation(::Type{Cell}, ::Type{S}, input::MultilevelInput, rng::AbstractRNG=Random.GLOBAL_RNG) where S
     #if the population dies out we start a new simulation
     while true 
         population = initialize_population(
-            input.modulesize, 
-            clonalmutations=0
-        )
-        if simtype == :normal || simtype == "normal"
-            nextID, nextmoduleID = 2, 2
-            population,  = 
-                simulate!(
-                    population, 
-                    input.tmax, 
-                    input.maxmodules, 
-                    input.birthrate, 
-                    input.deathrate, 
-                    input.moranrate, 
-                    input.asymmetricrate,
-                    input.branchrate, 
-                    input.modulesize, 
-                    input.branchinitsize, 
-                    input.modulebranching,
-                    1, #assume a single mutation at each division and add distribution of
-                    :fixed, #mutations later
-                    input.moranincludeself,
-                    nextID,
-                    nextmoduleID,
-                    rng
-                )
-        elseif simtype == :fixedtime || simtype == "fixedtime"
-            if input.modulebranching != :split
-                error("can only run fixedtime simtype if modulebranching === :split")
-            end
-            population = 
-                simulatefixedtime!(
-                    population, 
-                    input.tmax, 
-                    input.maxmodules, 
-                    input.birthrate, 
-                    input.deathrate, 
-                    input.moranrate, 
-                    input.branchrate, 
-                    input.modulesize, 
-                    input.branchinitsize, 
-                    rng
-                )
-        else
-            error("incorrect value for simtype")
-        end
-        if length(population) != 0
-            break
-        end
-    end
-    population = 
-        processresults!(population, input.μ, input.clonalmutations, rng)
-    return MultiSimulation(input, population)
-end
-
-function runsimulation(::Type{Cell}, input::MultilevelBranchingMoranInput, rng::AbstractRNG=Random.GLOBAL_RNG) 
-    #if the population dies out we start a new simulation
-    while true 
-        population = initialize_population(
-            input.modulesize, 
-            clonalmutations=0
+            Cell,
+            S,
+            0,
+            getNinit(input);
+            rng
         )
         nextID, nextmoduleID = 2, 2
         population, = 
@@ -137,7 +86,7 @@ function runsimulation(::Type{Cell}, input::MultilevelBranchingMoranInput, rng::
                 nextID,
                 nextmoduleID,
                 rng,
-                moduleupdate=:moran
+                moduleupdate=getmoduleupdate(input)
             )
         if length(population) != 0
             break
@@ -148,10 +97,13 @@ function runsimulation(::Type{Cell}, input::MultilevelBranchingMoranInput, rng::
     return MultiSimulation(input, population)
 end
 
-function runsimulation_timeseries_returnfinalpop(::Type{Cell}, input::MultilevelBranchingMoranInput, timesteps, func, rng::AbstractRNG=Random.GLOBAL_RNG) 
+function runsimulation_timeseries_returnfinalpop(::Type{Cell}, ::Type{S}, input, timesteps, func, rng::AbstractRNG=Random.GLOBAL_RNG) where S
     population = initialize_population(
-        input.modulesize, 
-        clonalmutations=0
+        Cell,
+        S,
+        0,
+        getNinit(input);
+        rng
     )
     data = []
     t0 = 0.0
@@ -175,7 +127,7 @@ function runsimulation_timeseries_returnfinalpop(::Type{Cell}, input::Multilevel
             nextID,
             nextmoduleID,
             rng;
-            moduleupdate=:moran,
+            moduleupdate=getmoduleupdate(input),
             t0
         )
         length(population) < input.maxmodules || break
@@ -190,7 +142,7 @@ end
 
 TBW
 """
-function runsimulation_timeseries(::Type{T}, input::MultilevelInput, timesteps, func, rng::AbstractRNG=Random.GLOBAL_RNG) where T
+function runsimulation_timeseries(::Type{T}, ::Type{S}, input::MultilevelInput, timesteps, func, rng::AbstractRNG=Random.GLOBAL_RNG) where {T, S}
     return runsimulation_timeseries_returnfinalpop(T, input, timesteps, func, rng)[1] 
 end
 
@@ -310,7 +262,7 @@ function moranupdate!(population, modulesize, t, nextID, μ, mutationdist, rng; 
         choose_homeostaticmodule_cells(population, modulesize, rng; moranincludeself)
     _, nextID = celldivision!(cellmodule, parentcell, t, nextID, μ, mutationdist, rng)
     celldeath!(cellmodule, deadcell, t, μ, mutationdist, rng)
-    updatemodulehistory!(cellmodule, 0, t)
+    updatetime!(cellmodule, t)
     return population, nextID
 end
 
@@ -324,7 +276,7 @@ function asymmetricupdate!(population, modulesize, t, nextID, μ, mutationdist, 
     cellmodule, parentcell =
         choose_homeostaticmodule_cells(population, modulesize, rng; twocells=false)
     _, nextID = celldivision!(cellmodule, parentcell, t, nextID, μ, mutationdist, rng; nchildcells=1)
-    updatemodulehistory!(cellmodule, 0, t)
+    updatetime!(cellmodule, t)
     return population, nextID
 end
 
@@ -338,7 +290,7 @@ function birthupdate!(population, modulesize, t, nextID, μ, mutationdist, rng)
     cellmodule, parentcell = 
         choose_growingmodule_cell(population, modulesize, rng)
     _, nextID = celldivision!(cellmodule, parentcell, t, nextID, μ, mutationdist, rng)
-    updatemodulehistory!(cellmodule, 1, t)
+    updatetime!(cellmodule, t)
     return population, nextID
 end
 
@@ -354,7 +306,7 @@ function deathupdate!(population, modulesize, t, μ, mutationdist, rng)
     cellmodule, deadcell = 
         choose_growingmodule_cell(population, modulesize, rng)
     celldeath!(cellmodule, deadcell, t, μ, mutationdist, rng)
-    updatemodulehistory!(cellmodule, -1, t)
+    updatetime!(cellmodule, t)
     if length(cellmodule) == 0
         moduledeath!(population, cellmodule, t, μ, mutationdist, rng)
     end
@@ -426,11 +378,11 @@ The number of cells is given by `branchinitsize` and the newmodule is given init
 `branchtime`.
 
 """
-function sample_new_module_with_replacement!(cellmodule::T, nextmoduleID, branchinitsize, 
-    branchtime, nextID, μ, mutationdist, rng::AbstractRNG) where T<: AbstractModule
+function sample_new_module_with_replacement!(cellmodule, nextmoduleID, branchinitsize, 
+    branchtime, nextID, μ, mutationdist, rng::AbstractRNG)
 
     ncells = length(cellmodule.cells)
-    newcells = []
+    newcells = eltype(cellmodule.cells)[]
     for i in 1:branchinitsize
         randcellid = rand(rng, 1:ncells)
         cellmodule, nextID = 
@@ -440,11 +392,10 @@ function sample_new_module_with_replacement!(cellmodule::T, nextmoduleID, branch
     end        
 
     newcellmodule = 
-        initialize_from_cells(T, newcells, cellmodule.subclones, nextmoduleID, 
-            cellmodule.id, inittime=branchtime)
-    push!(cellmodule.Nvec, cellmodule.Nvec[end])
-    push!(cellmodule.tvec, branchtime)
-
+        new_module_from_cells(newcells, branchtime, [branchtime], cellmodule.subclones, nextmoduleID, 
+            cellmodule.id, cellmodule.structure)
+    updatetime!(cellmodule, branchtime)
+    push!(cellmodule.branchtimes, branchtime)
     return cellmodule, newcellmodule, nextID
 end
 
@@ -460,11 +411,11 @@ The number of cells is given by `branchinitsize` and the newmodule is given init
 `branchtime`.
 
 """
-function sample_new_module_without_replacement!(cellmodule::T, nextmoduleID, branchinitsize, 
-    branchtime, nextID, μ, mutationdist, rng::AbstractRNG) where T<: AbstractModule
+function sample_new_module_without_replacement!(cellmodule, nextmoduleID, branchinitsize, 
+    branchtime, nextID, μ, mutationdist, rng::AbstractRNG)
 
     sampleids = sample(rng, 1:length(cellmodule.cells), branchinitsize, replace=false)
-    newcells = []
+    newcells = eltype(cellmodule.cells)[]
     for cellid in sampleids
         cellmodule, nextID = 
             celldivision!(cellmodule, cellid, branchtime, nextID, μ, mutationdist, rng)
@@ -473,10 +424,10 @@ function sample_new_module_without_replacement!(cellmodule::T, nextmoduleID, bra
     end        
 
     newcellmodule = 
-        initialize_from_cells(T, newcells, cellmodule.subclones, nextmoduleID, 
-            cellmodule.id, inittime=branchtime)
-    push!(cellmodule.Nvec, cellmodule.Nvec[end])
-    push!(cellmodule.tvec, branchtime)
+        new_module_from_cells(newcells, branchtime, [branchtime], cellmodule.subclones, nextmoduleID, 
+            cellmodule.id, cellmodule.structure)
+    updatetime!(cellmodule, branchtime)
+    push!(cellmodule.branchtimes, branchtime)
 
     return cellmodule, newcellmodule, nextID
 end
@@ -492,30 +443,20 @@ The number of cells is given by `branchinitsize` and the newmodule is given init
 `branchtime`.
 
 """
-function sample_new_module_split!(cellmodule::T, nextmoduleID, branchinitsize, branchtime, 
-    rng::AbstractRNG) where T<: AbstractModule
+function sample_new_module_split!(cellmodule, nextmoduleID, branchinitsize, branchtime, 
+    rng::AbstractRNG)
 
     sampleids = sample(rng, 1:length(cellmodule.cells), branchinitsize, replace=false)
     newcellmodule = 
-        initialize_from_cells(T, cellmodule.cells[sampleids], cellmodule.subclones, 
-            nextmoduleID, cellmodule.id, inittime=branchtime)
+        new_module_from_cells(cellmodule.cells[sampleids], branchtime, [branchtime], cellmodule.subclones, nextmoduleID, 
+            cellmodule.id, cellmodule.structure)
+    updatetime!(cellmodule, branchtime)
+    push!(cellmodule.branchtimes, branchtime)
     cellremoval!(cellmodule, sampleids)
-    push!(cellmodule.Nvec, cellmodule.Nvec[end] - branchinitsize)
-    push!(cellmodule.tvec, branchtime)
+
     return cellmodule, newcellmodule
 end
 
-"""
-    updatemodulehistory!(cellmodule, ΔN, newtime)
-Adds new population size (old size + `ΔN`) and `newtime` to the end of `cellmodule.Nvec`
-and `cellmodule.tvec`.
-
-"""
-function updatemodulehistory!(cellmodule, ΔN, newtime)
-    push!(cellmodule.Nvec, cellmodule.Nvec[end] + ΔN)
-    push!(cellmodule.tvec, newtime)
-    return cellmodule
-end
 
 """
     choose_homeostaticmodule(population, maxmodulesize, rng::AbstractRNG)
@@ -604,7 +545,7 @@ function moduledeath!(population, cellmodule)
     return deleteat!(population, findall(x->x==cellmodule, population))
 end
 
-killallcells!(population::Vector{Cell}, args...) = nothing
+killallcells!(population::CellVector, args...) = nothing
 
 """
     simulatefixedtime!(population, tmax, maxmodules, birthrate, deathrate, moranrate, branchrate, 
@@ -694,7 +635,7 @@ function module_simulate_to_branching!(cellmodule, tmax, birthrate, deathrate, m
     end
 
     #get time of next branching event
-    branchtime = 1 / branchrate .* exptime(rng) + cellmodule.tvec[end]
+    branchtime = 1 / branchrate .* exptime(rng) + cellmodule.t
 
     #if module branching will occur before maxime is reached, simulate moran process until
     #branchtime and sample new module
@@ -715,25 +656,22 @@ end
 
 
 """
-    initialize_population([modulesize=nothing]; clonalmutations=0)
+    initialize_population(::Type{T}, ::Type{S}, input; rng=Random.GLOBAL_RNG) where {T<: AbstractTreeCell, S<: ModuleStructure}
 
-Create a Vector{CellModule} of length 1 that contains a single module comprising a single 
+Create a Vector{CellModule} or Vector{TreeModule} of length 1 that contains a single module comprising a single 
 cell at time t=0. 
 """
-function initialize_population(modulesize=nothing; clonalmutations=0)
-
-    #population is defined by CellModule vector with each entry coprresponding to
-    #an individual module
-    population = CellModule[]
-
-    #initialise population with a single module conisting of a single cell
-    initialmodule = initializesim_branching(
-        modulesize,
-        clonalmutations=clonalmutations
-    )
-    push!(population, initialmodule)
-
-    return population
+function initialize_population(
+    ::Type{T}, 
+    ::Type{S}, 
+    clonalmutations, 
+    N;
+    rng=Random.GLOBAL_RNG
+) where {T<: AbstractCell, S<: ModuleStructure}
+    return moduletype(T,S)[initialize(T, S, clonalmutations, N; rng)]
 end
 
-getnextID(population::Vector{CellModule}) = maximum(map(x->getnextID(x.cells), population))
+
+getNinit(input::MultilevelInput) = 1
+
+getnextID(population::Vector{CellModule{S}}) where S = maximum(map(x->getnextID(x.cells), population))

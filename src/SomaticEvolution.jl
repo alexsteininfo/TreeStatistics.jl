@@ -21,7 +21,7 @@ SimpleTreeCell,
 BinaryNode,
 MultiSimulation,
 CellModule,
-TreeCellModule,
+TreeModule,
 SimulationInput,
 BranchingMoranInput,
 BranchingInput,
@@ -32,6 +32,11 @@ Simulation,
 SampledData,
 VAFResult,
 VAFMultiResult,
+WellMixed,
+TreeCellVector,
+SimpleTreeCellVector,
+AbstractTreeCellVector,
+CellVector,
 
 #functions for running multilevel or single-level simulations
 runsimulation,
@@ -44,6 +49,7 @@ multilevel_simulation,
 multilevel_simulation_timeseries,
 run_multilevel_from_file,
 initialize,
+allcells,
 
 #functions for looking at VAF distributions (only implemented for Cell based simulations)
 getallelefreq,
@@ -70,8 +76,6 @@ pairwise_fixed_differences_statistics,
 pairwise_fixed_differences_clonal,
 newmoduletimes,
 numbermodules,
-cellpopulationsize,
-meanmodulesize,
 average_mutations,
 average_mutations_per_module,
 mutations_per_cell,
@@ -100,7 +104,6 @@ saveinput,
 loadinput
 
 include("input.jl")
-include("trees.jl")
 include("cells_modules.jl")
 include("results.jl")
 include("simulations.jl")

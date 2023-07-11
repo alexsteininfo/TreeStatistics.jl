@@ -11,7 +11,6 @@
     )
     simulation = runsimulation(input, rng)
     @test length(simulation.output) == 10
-    @test simulation.output.Nvec[end] == length(simulation.output.cells)
 
     tmax=10
     input = MoranInput(
@@ -24,8 +23,8 @@
         μ=1
     )
     simulation = runsimulation(input, rng)
-    @test all(simulation.output.Nvec .== 10)
-    @test simulation.output.tvec[end] <=tmax
+    @test all(length(simulation.output) .== 10)
+    @test simulation.output.t <=tmax
     tmax=10
     input = BranchingMoranInput(
         Nmax=10, 
@@ -38,8 +37,8 @@
         μ=1
     )
     simulation = runsimulation(input, rng)
-    @test simulation.output.Nvec[end]== 10
-    @test simulation.output.tvec[end] <= tmax
+    @test length(simulation.output) == 10
+    @test simulation.output.t <= tmax
 end
 
 @testset "cell transitions" begin

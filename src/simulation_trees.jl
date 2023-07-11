@@ -1,3 +1,12 @@
+function runsimulation(
+    ::Type{T}, 
+    input::SimulationInput, 
+    rng::AbstractRNG=Random.GLOBAL_RNG;
+    kwargs...
+) where {T <: AbstractTreeCell}
+
+    return runsimulation(T, WellMixed, input, rng; kwargs...)
+end
 
 """
     runsimulation(::Type{T}, input::SinglelevelInput, rng::AbstractRNG=Random.GLOBAL_RNG; 
@@ -5,10 +14,10 @@
 
 Simulate a population of cells.
 """
-function runsimulation(::Type{T}, input::SinglelevelInput, rng::AbstractRNG=Random.GLOBAL_RNG; 
-    timefunc=exptime, returnextinct=false) where T <: AbstractTreeCell
+function runsimulation(::Type{T}, ::Type{S}, input::SinglelevelInput, rng::AbstractRNG=Random.GLOBAL_RNG; 
+    timefunc=exptime, returnextinct=false) where {T <: AbstractTreeCell, S <: ModuleStructure}
     while true
-        treemodule = initialize(T, input, rng)
+        treemodule = initialize(T, S, input.clonalmutations, getNinit(input); rng)
         simulate!(treemodule, input, rng; timefunc)
         if length(treemodule) > 0 || returnextinct
             return Simulation(input, treemodule)
@@ -17,10 +26,10 @@ function runsimulation(::Type{T}, input::SinglelevelInput, rng::AbstractRNG=Rand
 
 end
 
-function runsimulation_timeseries_returnfinalpop(::Type{T}, input::SinglelevelInput, 
-    timesteps, func, rng::AbstractRNG=Random.GLOBAL_RNG; timefunc=exptime)  where T <: AbstractCell
+function runsimulation_timeseries_returnfinalpop(::Type{T}, ::Type{S}, input::SinglelevelInput, 
+    timesteps, func, rng::AbstractRNG=Random.GLOBAL_RNG; timefunc=exptime) where {T <: AbstractCell, S <: ModuleStructure}
 
-    treemodule = initialize(T, input, rng)
+    treemodule = initialize(T, S, input.clonalmutations, getNinit(input); rng)
     data = []
     t0 = 0.0
     for t in timesteps
@@ -33,8 +42,8 @@ function runsimulation_timeseries_returnfinalpop(::Type{T}, input::SinglelevelIn
     return data, treemodule
 end
 
-function runsimulation_timeseries(::Type{T}, input::SinglelevelInput, timesteps, func, rng::AbstractRNG=Random.GLOBAL_RNG) where T
-    return runsimulation_timeseries_returnfinalpop(T, input, timesteps, func, rng)[1] 
+function runsimulation_timeseries(::Type{T}, ::Type{S}, input::SinglelevelInput, timesteps, func, rng::AbstractRNG=Random.GLOBAL_RNG) where {T <: AbstractCell, S <: ModuleStructure}
+    return runsimulation_timeseries_returnfinalpop(T, S, input, timesteps, func, rng)[1] 
 end
 
 popsize_exceeded(popsize, input::BranchingInput) = popsize > input.Nmax
@@ -157,12 +166,12 @@ function branchingupdate!(treemodule::TreeModule, birthrate, deathrate, N, t, ne
         _, nextID = 
             celldivision!(treemodule, randcellidx, t, nextID, μ, mutationdist, rng)
         N += 1
-        updatemodulehistory!(treemodule, 1, t)
+        updatetime!(treemodule, t)
 
     else
         celldeath!(treemodule, randcellidx, t, μ, mutationdist, rng)
         N -= 1
-        updatemodulehistory!(treemodule, -1, t)
+        updatetime!(treemodule, t)
 
     end
     return treemodule, N, nextID
@@ -219,7 +228,7 @@ function moranupdate!(treemodule::TreeModule, t, nextID, μ, mutationdist, rng;
 
     _, nextID = celldivision!(treemodule, dividecellidx, t, nextID, μ, mutationdist, rng)
     celldeath!(treemodule, deadcellidx, t, μ, mutationdist, rng)
-    updatemodulehistory!(treemodule, 0, t)
+    updatetime!(treemodule, t)
     return treemodule, nextID
 end
 
@@ -230,7 +239,7 @@ function asymmetricupdate!(treemodule::TreeModule, t, nextID, μ, mutationdist, 
     dividecellidx = rand(rng, 1:N) 
     _, nextID = celldivision!(treemodule, dividecellidx, t, nextID, μ, mutationdist, rng; 
         nchildcells=1)
-    updatemodulehistory!(treemodule, 0, t)
+        updatetime!(cellmodule, t)
     return treemodule, nextID
 end
 
@@ -260,9 +269,10 @@ If mutations are time-dependent, e.g. `mutationdist == poissontimedep`, add muta
 parent cell depending on the length of its lifetime. Otherwise assign mutations to each 
 child cell.
 """
-function celldivision!(alivecells::Vector{BinaryNode{T}}, parentcellidx, t, nextID, μ, 
+function celldivision!(treemodule::TreeModule{T}, parentcellidx, t, nextID, μ, 
     mutationdist, rng; nchildcells=2) where T <: AbstractTreeCell
 
+    alivecells = treemodule.cells
     parentcellnode = alivecells[parentcellidx] #get parent cell node
     # deleteat!(alivecells, parentcellidx) #delete parent cell node from alivecells list
 
@@ -296,16 +306,7 @@ function celldivision!(alivecells::Vector{BinaryNode{T}}, parentcellidx, t, next
         #the other cell is added to the end of alivecells
         push!(alivecells, rightchild!(parentcellnode, childcell2)) 
     end
-    return alivecells, nextID + nchildcells
-end
-
-function celldivision!(treemodule::TreeModule{T}, parentcellidx, t, nextID, μ, 
-    mutationdist, rng; nchildcells=2) where T <: AbstractTreeCell
-
-    alivecells, nextID = celldivision!(treemodule.cells, parentcellidx, t, nextID, μ, 
-        mutationdist, rng; nchildcells)
-    
-    return treemodule, nextID
+    return treemodule, nextID + nchildcells
 end
 
 """
@@ -314,35 +315,28 @@ end
 
 Remove dead cell from `alivecells` and remove references to it from tree. Add time dependent mutations (if applicable) to dying cell.
 """
-function celldeath!(alivecells::Vector{BinaryNode{T}}, deadcellidx, t=nothing, 
+function celldeath!(treemodule::TreeModule, deadcellidx, t=nothing, 
     μ=nothing, mutationdist=nothing, rng=nothing) where T<: AbstractTreeCell
 
+    alivecells = treemodule.cells
     #remove references to dead cell
     killcell!(alivecells, deadcellidx, t, μ, mutationdist, rng)
     #remove from alivecell vector
     deleteat!(alivecells, deadcellidx)
-    return alivecells
-end
-
-"""
-    celldeath!(alivecells::Vector{BinaryNode{T}}, deadcellidx::Vector[, t, μ, mutationdist, rng]) 
-        where T<: AbstractTreeCell
-"""
-function celldeath!(alivecells::Vector{BinaryNode{T}}, deadcellidx::Vector{Int64}, t=nothing, μ=nothing, 
-    mutationdist=nothing, rng=nothing) where T<:AbstractTreeCell
-    for id in deadcellidx
-        celldeath!(alivecells, id, t, μ, mutationdist, rng)
-    end
-    return alivecells
-end
-
-"""
-    celldeath!(treemodule::TreeModule, deadcellidx[, t, μ, mutationdist, rng])
-"""
-function celldeath!(treemodule::TreeModule, deadcellidx, t=nothing, μ=nothing, mutationdist=nothing, rng=nothing)
-    celldeath!(treemodule.cells, deadcellidx, t, μ, mutationdist, rng)
     return treemodule
 end
+
+# """
+#     celldeath!(alivecells::Vector{BinaryNode{T}}, deadcellidx::Vector[, t, μ, mutationdist, rng]) 
+#         where T<: AbstractTreeCell
+# """
+# function celldeath!(alivecells::Vector{BinaryNode{T}}, deadcellidx::Vector{Int64}, t=nothing, μ=nothing, 
+#     mutationdist=nothing, rng=nothing) where T<:AbstractTreeCell
+#     for id in deadcellidx
+#         celldeath!(alivecells, id, t, μ, mutationdist, rng)
+#     end
+#     return alivecells
+# end
 
 """
     killcell!(alivecells::Vector{BinaryNode{TreeCell}}, deadcellidx::Int64, t, μ, mutationdist, rng)
@@ -351,7 +345,7 @@ Kill `TreeCell` at index `deadcellidx` in `alivecells` by adding a left child no
 `mutationdist ∈ [:poissontimedep, :fixedtimedep]` then add mutations to the dying cell.
 
 """
-function killcell!(alivecells::Vector{BinaryNode{TreeCell}}, deadcellidx::Int64, t, μ, mutationdist, rng)
+function killcell!(alivecells::TreeCellVector, deadcellidx::Int64, t, μ, mutationdist, rng)
     deadcellnode = alivecells[deadcellidx]
     #if mutations are time dependent, add the number accumulated by the cell
     if mutationdist == :fixedtimedep || mutationdist == :poissontimedep
@@ -367,7 +361,7 @@ end
 
 Kill `SimpleTreeCell` at index `deadcellidx` in `alivecells` by removing all references to it from the tree.
 """
-function killcell!(alivecells::Vector{BinaryNode{SimpleTreeCell}}, deadcellidx::Int64, args...)
+function killcell!(alivecells::SimpleTreeCellVector, deadcellidx::Int64, args...)
     prune_tree!(alivecells[deadcellidx])
     return alivecells
 end
@@ -432,69 +426,57 @@ function prune_tree!(cellnode)
     end
 end
 
-function initialize(::Type{T}, input::SimulationInput, rng) where T <: AbstractTreeCell
-    cells = initialize_cells(T, input, rng)
-    initialmodule = initialize_from_cells(
-        TreeModule{T}, 
+function initialize(::Type{T}, ::Type{S}, clonalmutations, N; rng=Random.GLOBAL_RNG) where {T <: AbstractTreeCell, S <: ModuleStructure}
+    structure = create_modulestructure(S, N)
+    cells = create_cells(T, structure, clonalmutations, N; rng)
+    initialmodule = new_module_from_cells(
         cells, 
+        0.0,
+        [0.0],
         CloneTracker[],
         1,
-        0; 
-        inittime=0.0
+        0,
+        structure
     )
     return initialmodule
 end
-"""
-    initialize(::Type{T}, initialmutations=0, N=1) where T <:AbstractTreeCell
-Initialize tree with `N` cells (defaults to 1) and return vector of alive cells.
-"""
-function initialize_cells(::Type{T}, initialmutations::Int=0, N=1) where T <:AbstractTreeCell
-    alivecells = map(
-        id -> BinaryNode{T}(T(id=id, mutations=initialmutations)), 
-        1:N
-    )
-    return alivecells
+
+function newcell(::Type{T}, id, mutations) where T <: AbstractTreeCell
+    return BinaryNode{T}(T(;id, mutations))
 end
 
-function initialize_cells(::Type{T}, initialmutations::Vector{Int}, N=1) where T <:AbstractTreeCell
-    alivecells = map(
-        (id, muts) -> BinaryNode{T}(T(id=id, mutations=muts)), 
-        1:N,
-        initialmutations
-    )
-    return alivecells
-end
+# function initialize_cells(::Type{T}, input::MoranInput, structure::ModuleStructure, rng) where T <: AbstractTreeCell
+#     initialmutations =
+#         if input.mutationdist == :fixedtimedep || input.mutationdist == :poissontimedep 
+#             0
+#         else
+#             Int64[numbernewmutations(rng, input.mutationdist, input.μ) for i in 1:input.N]
+#         end
+#     return initialize_cells(T, structure, initialmutations, input.N)
+# end
 
-function initialize_cells(::Type{T}, input::MoranInput, rng) where T <: AbstractTreeCell
-    initialmutations =
-        if input.mutationdist == :fixedtimedep || input.mutationdist == :poissontimedep 
-            0
-        else
-            Int64[numbernewmutations(rng, input.mutationdist, input.μ) for i in 1:input.N]
-        end
-    return initialize_cells(T, initialmutations, input.N)
-end
+# function initialize_cells(::Type{T}, input, structure::ModuleStructure, rng) where T <: AbstractTreeCell
+#     initialmutations =
+#         if input.mutationdist == :fixedtimedep || input.mutationdist == :poissontimedep 
+#             0
+#         else
+#             numbernewmutations(rng, input.mutationdist, input.μ)
+#         end
+#     return create_cells(T, structure, initialmutations, 1)
+# end
 
-function initialize_cells(::Type{T}, input, rng) where T <: AbstractTreeCell
-    initialmutations =
-        if input.mutationdist == :fixedtimedep || input.mutationdist == :poissontimedep 
-            0
-        else
-            numbernewmutations(rng, input.mutationdist, input.μ)
-        end
-    return initialize_cells(T, initialmutations, 1)
-end
+# initialmutations(::Type{Cell}, input, rng) = input.clonalmutations
 
-function initialize_from_cells(cells::Vector{BinaryNode{T}}, subclones::Vector{CloneTracker}, id, parentid; inittime=0.0) where T<: AbstractTreeCell
-    return initialize_from_cells(
-        TreeModule{T}, 
-        cells, 
-        subclones,
-        id, 
-        parentid; 
-        inittime
-    )
-end
+# function initialmutations(::Type{T}, input, rng) where T <: AbstractTreeCell
+#     if input.mutationdist == :fixedtimedep || input.mutationdist == :poissontimedep 
+#         return 0
+#     else
+#         numbernewmutations(rng, input.mutationdist, input.μ)
+#     end
+# end
+
+
+
 """
     changemutations!(root::BinaryNode, μ, mutationdist, tmax, rng, clonalmutations=0)
 

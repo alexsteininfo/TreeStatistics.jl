@@ -75,15 +75,15 @@ end
 
 function getallelefreq(cellmodule::CellModule, ploidy)
     mutations = cellsconvert(cellmodule.cells).mutations
-    return getallelefreq(mutations, cellmodule.Nvec[end], ploidy)
+    return getallelefreq(mutations, length(cellmodule), ploidy)
 end
 
 # function getallelefreq(treemodule::SimpleTreeModule, ploidy)
 #     mutations = cellsconvert(cellmodule.cells).mutations
-#     return getallelefreq(mutations, cellmodule.Nvec[end], ploidy)
+#     return getallelefreq(mutations, length(cellmodule), ploidy)
 # end
 
-function getallelefreq(cellmodules::Vector{CellModule}, ploidy)
+function getallelefreq(cellmodules::Vector{CellModule{S}}, ploidy) where S
     mutations, clonetype = cellsconvert([cell for cellmodule in cellmodules for cell in cellmodule.cells])
     N = length(clonetype)
     return getallelefreq(mutations, N, ploidy)

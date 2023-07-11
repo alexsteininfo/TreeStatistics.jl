@@ -1,11 +1,14 @@
 function runsimulation_condfixtime(input::MultilevelInput, args...)
-    return runsimulation_condfixtime(Cell, input, args...) 
+    return runsimulation_condfixtime(Cell, WellMixed, input, args...) 
 end
 
-function runsimulation_condfixtime(::Type{Cell}, input::MultilevelBranchingInput, rng::AbstractRNG=Random.GLOBAL_RNG, simtype=:normal) 
+function runsimulation_condfixtime(::Type{Cell}, ::Type{S}, input::MultilevelBranchingInput, 
+    rng::AbstractRNG=Random.GLOBAL_RNG, simtype=:normal) where S <: ModuleStructure
     #if the population dies out we start a new simulation
     while true 
         population = initialize_population(
+            Cell,
+            S,
             input.modulesize, 
             clonalmutations=input.clonalmutations
         )
@@ -37,11 +40,13 @@ function runsimulation_condfixtime(::Type{Cell}, input::MultilevelBranchingInput
     end
 end
 
-function runsimulation_condfixtime(::Type{Cell}, input::MultilevelBranchingMoranInput, rng::AbstractRNG=Random.GLOBAL_RNG) 
+function runsimulation_condfixtime(::Type{Cell}, ::Type{S}, 
+    input::MultilevelBranchingMoranInput, rng::AbstractRNG=Random.GLOBAL_RNG)  where S <: ModuleStructure
     #if the population dies out we start a new simulation
     while true 
         population = initialize_population(
-            input.modulesize, 
+            Cell,
+            S,
             clonalmutations=input.clonalmutations
         )
 
@@ -73,10 +78,13 @@ function runsimulation_condfixtime(::Type{Cell}, input::MultilevelBranchingMoran
     end
 end
 
-function runsimulation_condfixtime_to_nfixed(::Type{Cell}, input::MultilevelBranchingMoranInput, nfixed, rng::AbstractRNG=Random.GLOBAL_RNG) 
+function runsimulation_condfixtime_to_nfixed(::Type{Cell}, ::Type{S}, 
+    input::MultilevelBranchingMoranInput, nfixed, rng::AbstractRNG=Random.GLOBAL_RNG) where S <: ModuleStructure
     #if the population dies out we start a new simulation
     while true 
         population = initialize_population(
+            Cell,
+            S,
             input.modulesize, 
             clonalmutations=input.clonalmutations
         )
@@ -283,7 +291,7 @@ function moranupdate_condfixtimes!(population, mosaic_mutations, condfixtimes, m
     _, nextID = celldivision!(cellmodule, parentcell, t, nextID, μ, mutationdist, rng)
     new_mosaic_mutations!(mosaic_mutations[cellmodule_id], nextID_before, nextID-1, t)
     celldeath!(cellmodule, deadcell, t, μ, mutationdist, rng)
-    updatemodulehistory!(cellmodule, 0, t)
+    updatetime!(cellmodule, t)
     checkfixationextinction_addcondfixtimes!(mosaic_mutations[cellmodule_id], condfixtimes[cellmodule_id], cellmodule, t)
     return population, nextID
 end
@@ -300,7 +308,7 @@ function asymmetricupdate_condfixtimes!(population, mosaic_mutations, modulesize
     nextID_before = nextID
     _, nextID = celldivision!(cellmodule, parentcell, t, nextID, μ, mutationdist, rng; nchildcells=1)
     new_mosaic_mutations!(mosaic_mutations[cellmodule_id], nextID_before, nextID-1, t)
-    updatemodulehistory!(cellmodule, 0, t)
+    updatetime!(cellmodule, t)
     return population, nextID
 end
 
@@ -316,7 +324,7 @@ function birthupdate_condfixtimes!(population, mosaic_mutations, modulesize, t, 
     nextID_before = nextID
     _, nextID = celldivision!(cellmodule, parentcell, t, nextID, μ, mutationdist, rng)
     new_mosaic_mutations!(mosaic_mutations[cellmodule_id], nextID_before, nextID-1, t)
-    updatemodulehistory!(cellmodule, 1, t)
+    updatetime!(cellmodule, t)
     return population, nextID
 end
 
@@ -332,7 +340,7 @@ function deathupdate_condfixtimes!(population, mosaic_mutations, condfixtimes, m
     cellmodule, deadcell, cellmodule_id = 
         choose_growingmodule_cell(population, modulesize, rng)
     celldeath!(cellmodule, deadcell, t, μ, mutationdist, rng)
-    updatemodulehistory!(cellmodule, -1, t)
+    updatetime!(cellmodule, t)
     if length(cellmodule) == 0
         moduledeath!(population, cellmodule, t, μ, mutationdist, rng)
         deleteat!(mosaic_mutations, cellmodule)

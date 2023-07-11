@@ -50,15 +50,7 @@ function saveoutput(population, output, outputdir, seed, id, rng::AbstractRNG=Ra
 
 end
 
-haskeytrue(output, key) = haskey(output, key) && output[key]    
-
-function save_moduleancestory(population, outputdir, id)
-    open(outputdir*"moduleancestory.txt", "w") do io
-        for cellmodule in population
-            write(io, "$(cellmodule.parentid)    $(cellmodule.id)    $(cellmodule.tvec[1])\n")
-        end
-    end
-end
+haskeytrue(output, key) = haskey(output, key) && output[key] 
 
 function save_sampled_module_compare(population, nsample, outputdir, id, rng)
     pairwisefixeddiff, sharedfixedmuts = sampledmoduledata(population, nsample, rng)

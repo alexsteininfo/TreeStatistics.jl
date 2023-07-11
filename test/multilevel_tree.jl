@@ -28,7 +28,7 @@
 
     rng = MersenneTwister(1)
     moranincludeself=true
-    population = SomaticEvolution.initialize_population(TreeCell, input, rng)
+    population = SomaticEvolution.initialize_population(TreeCell, WellMixed, input.clonalmutations, SomaticEvolution.getNinit(input); rng)
     nextID = SomaticEvolution.getnextID(population) #get id of next cell
     nextmoduleID = 2
     @test nextID == 2
@@ -69,8 +69,7 @@
             rng
     )
     #popsize is now 2
-    @test population[1].Nvec[end] == length(population[1].cells)
-    @test length(population[1].Nvec) === length(population[1].tvec) == 2
+    @test length(population[1]) == length(population[1].cells) == 2
     #each cell has one mutation
     @test population[1].cells[1].data.mutations == population[1].cells[2].data.mutations == 1
 
@@ -162,9 +161,10 @@ node29 = leftchild!(root.left.right.left.left.right.left.left.left, cells[29])
 node30 = rightchild!(root.left.right.left.left.right.left.left.left, cells[30])
 node23 = rightchild!(root.left.right.left.left.right.left.left, cells[23])
 
-module1 = SomaticEvolution.TreeModule(Int64[3], Float64[0.0], [node19, node24, node25], SomaticEvolution.CloneTracker[], 1, 0)
-module2 = SomaticEvolution.TreeModule(Int64[3], Float64[0.0], [node26, node27, node28], SomaticEvolution.CloneTracker[], 2, 1)
-module3 = SomaticEvolution.TreeModule(Int64[3], Float64[0.0], [node29, node30, node23], SomaticEvolution.CloneTracker[], 3, 2)
+structure = WellMixed()
+module1 = SomaticEvolution.TreeModule(Union{BinaryNode{SimpleTreeCell}, Nothing}[node19, node24, node25], 5.0, [0.0, 2.0], SomaticEvolution.CloneTracker[], 1, 0, structure)
+module2 = SomaticEvolution.TreeModule(Union{BinaryNode{SimpleTreeCell}, Nothing}[node26, node27, node28], 5.0, [2.0, 4.0], SomaticEvolution.CloneTracker[], 2, 1, structure)
+module3 = SomaticEvolution.TreeModule(Union{BinaryNode{SimpleTreeCell}, Nothing}[node29, node30, node23], 5.0, [4.0], SomaticEvolution.CloneTracker[], 3, 2, structure)
 
 population = [module1, module2, module3]
 @testset "pairwise differences" begin

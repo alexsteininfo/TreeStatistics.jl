@@ -1,3 +1,84 @@
+## Define necessary types and functions for binary trees
+
+mutable struct BinaryNode{T}
+    data::T
+    parent::Union{Nothing, BinaryNode{T}}
+    left::Union{Nothing, BinaryNode{T}}
+    right::Union{Nothing, BinaryNode{T}}
+
+    function BinaryNode{T}(data, parent=nothing, l=nothing, r=nothing) where T
+        new{T}(data, parent, l, r)
+    end
+end
+BinaryNode(data) = BinaryNode{typeof(data)}(data)
+
+function leftchild!(parent::BinaryNode, data)
+    isnothing(parent.left) || error("left child is already assigned")
+    node = typeof(parent)(data, parent)
+    parent.left = node
+end
+function rightchild!(parent::BinaryNode, data)
+    isnothing(parent.right) || error("right child is already assigned")
+    node = typeof(parent)(data, parent)
+    parent.right = node
+end
+
+
+## Things we need to define 
+function AbstractTrees.children(node::BinaryNode)
+    if isnothing(node.left) && isnothing(node.right)
+        ()
+    elseif isnothing(node.left) && !isnothing(node.right)
+        (node.right,)
+    elseif !isnothing(node.left) && isnothing(node.right)
+        (node.left,)
+    else
+        (node.left, node.right)
+    end
+end
+
+function AbstractTrees.nextsibling(child::BinaryNode)
+    isnothing(child.parent) && return nothing
+    p = child.parent
+    if !isnothing(p.right)
+        child === p.right && return nothing
+        return p.right
+    end
+    return nothing
+end
+
+function AbstractTrees.prevsibling(child::BinaryNode)
+    isnothing(child.parent) && return nothing
+    p = child.parent
+    if !isnothing(p.left)
+        child === p.left && return nothing
+        return p.left
+    end
+    return nothing
+end
+
+
+
+AbstractTrees.nodevalue(n::BinaryNode) = n.data
+AbstractTrees.ParentLinks(::Type{<:BinaryNode}) = StoredParents()
+AbstractTrees.SiblingLinks(::Type{<:BinaryNode}) = AbstractTrees.StoredSiblings()
+AbstractTrees.parent(n::BinaryNode) = n.parent
+AbstractTrees.NodeType(::Type{<:BinaryNode{T}}) where {T} = HasNodeType()
+AbstractTrees.nodetype(::Type{<:BinaryNode{T}}) where {T} = BinaryNode{T}
+
+#ensure all nodes in tree are of the same type
+Base.eltype(::Type{<:TreeIterator{BinaryNode{T}}}) where T = BinaryNode{T}
+Base.IteratorEltype(::Type{<:TreeIterator{BinaryNode{T}}}) where T = Base.HasEltype()
+
+AbstractTrees.printnode(io::IO, node::BinaryNode) = print(io, node.data)
+
+# function AbstractTrees.printnode(io::IO, node::BinaryNode)
+#     print(io, "$(node.data.id), $(node.data.mutations) ($(popsize(node)))")
+#     node.data.alive || print(io, " X")
+# end
+
+
+
 abstract type AbstractCell end
 
 """
@@ -54,26 +135,140 @@ mutable struct CloneTracker
     size::Int64
 end
 
+abstract type ModuleStructure end
+
+struct WellMixed <: ModuleStructure end
+struct Linear <: ModuleStructure end
+
 abstract type AbstractModule end
-struct CellModule <: AbstractModule
-    Nvec::Vector{Int64}
-    tvec::Vector{Float64}
-    cells::Vector{Cell}
+mutable struct CellModule{S<:ModuleStructure} <: AbstractModule
+    cells::Vector{Union{Cell, Nothing}}
+    t::Float64
+    branchtimes::Vector{Float64}
     subclones::Vector{CloneTracker}
     id::Int64
     parentid::Int64
+    structure::S
 end
 
-struct TreeModule{T<:AbstractTreeCell} <: AbstractModule 
-    Nvec::Vector{Int64}
-    tvec::Vector{Float64}
-    cells::Vector{BinaryNode{T}}
+mutable struct TreeModule{T<:AbstractTreeCell, S<:ModuleStructure} <: AbstractModule 
+    cells::Vector{Union{BinaryNode{T}, Nothing}}
+    t::Float64
+    branchtimes::Vector{Float64}
     subclones::Vector{CloneTracker}
     id::Int64
     parentid::Int64
+    structure::S
 end
 
+const TreeCellVector = Union{Vector{Union{BinaryNode{TreeCell}, Nothing}}, Vector{BinaryNode{TreeCell}}}
+const SimpleTreeCellVector = Union{Vector{Union{BinaryNode{SimpleTreeCell}, Nothing}}, Vector{BinaryNode{SimpleTreeCell}}}
+const AbstractTreeCellVector = Union{TreeCellVector, SimpleTreeCellVector}
+const CellVector = Union{Vector{Union{Cell, Nothing}}, Vector{Cell}}
 
-Base.length(abstractmodule::AbstractModule) = abstractmodule.Nvec[end]
+#determine correct type for a new module based on cell type or vector type
+moduletype(::Type{T}, ::Type{S}) where {T <: AbstractTreeCell, S} = TreeModule{T,S}
+moduletype(::Type{BinaryNode{T}}, ::Type{S}) where {T <: AbstractTreeCell, S} = moduletype(T, S)
+moduletype(::Type{Cell}, ::Type{S}) where S = CellModule{S}
+moduletype(::Type{Vector{T}}, ::Type{S}) where {T, S} = moduletype(T, S)
+moduletype(::Type{Vector{Union{T, Nothing}}}, ::Type{S}) where {T, S} = moduletype(T, S)
+
+Base.length(abstractmodule::AbstractModule) = length(abstractmodule.cells)
 
 moduleid(abstractmodule::AbstractModule) = abstractmodule.id
+
+function firstcellnode(treemodule::TreeModule)
+    for cellnode in treemodule.cells
+        if !isnothing(cellnode)
+            return cellnode
+        end
+    end
+end
+
+allcells(abstractmodule) = filter(x -> !isnothing(x), abstractmodule.cells)
+
+function popsize(root::BinaryNode)
+    N = 0
+    for l in Leaves(root)
+        if alive(nodevalue(l))
+            N += 1
+        end
+    end
+    return N
+end
+
+haschildren(node::BinaryNode) = length(children(node)) != 0
+
+function Base.show(io::IO, node::BinaryNode)
+    show(io, node.data)
+end
+
+function Base.show(io::IO, nodevec::Vector{BinaryNode{T}}) where T
+    println(io, "$(length(nodevec))-element Vector{BinaryNode{$T}}:")
+    for node in nodevec
+        show(io, node)
+        print(io, "\n")
+    end
+end
+
+AbstractTrees.getroot(nodevec::AbstractTreeCellVector) = collect(Set(getroot.(nodevec)))
+
+function getsingleroot(nodevec::AbstractTreeCellVector)
+    roots = AbstractTrees.getroot(nodevec)
+    if length(roots) == 1
+        return roots[1]
+    else
+        return nothing
+    end
+end
+
+function findMRCA_recursive(cellnode1, cellnode2)
+    if cellnode1.data.id > cellnode2.data.id
+        cellnode1, cellnode2 = cellnode2, cellnode1
+    end
+    if cellnode1 == cellnode2
+        return cellnode1
+    elseif cellnode1.parent == cellnode2.parent
+        return cellnode1.parent
+    elseif isdefined(cellnode2, :parent)
+         return findMRCA(cellnode1, cellnode2.parent)
+    end
+end
+
+function findMRCA(cellnode1, cellnode2)
+    cellnode1 == cellnode2 && return cellnode1
+    while true
+        #ensure that cellnode1 is higher (or equal) level in tree than cellnode2
+        if  cellnode1.data.id > cellnode2.data.id
+            cellnode1, cellnode2 = cellnode2, cellnode1
+        end
+        #if cell nodes are siblings return parent
+        if cellnode1.parent == cellnode2.parent
+            return cellnode1.parent
+        #if both cells are roots there is no MRCA
+        elseif isnothing(cellnode1.parent) && isnothing(cellnode2.parent)
+            return nothing
+        #if cellnode1 is parent of cellnode2 return cellnode1
+        elseif cellnode1 == cellnode2.parent
+            return cellnode1
+        #if none of these are satisfied keep looking 
+        else
+            cellnode2 = cellnode2.parent
+        end
+    end
+end
+
+function findMRCA(cellnodes::Vector)
+    cellnodes = copy(cellnodes)
+    cellnode1 = pop!(cellnodes)
+    while length(cellnodes) > 0
+        cellnode2 = pop!(cellnodes)
+        cellnode1 = findMRCA(cellnode1, cellnode2)
+    end
+    return cellnode1
+end
+
+
+function findMRCA(treemodule)
+    return findMRCA(treemodule.cells)
+end
