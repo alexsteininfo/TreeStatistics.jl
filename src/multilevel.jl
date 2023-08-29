@@ -37,15 +37,9 @@ end
     New modules are created with rate `input.branchrate`, by sampling cells from the parent 
     module. Return output as a MultiSimulation.
 
-    - if `simtype == :normal`, simulation is
-    implemented by a Gillespie algorithm and runs until the number of modules exceeds 
-    input.maxmodules or time exceeds input.tmax.
+    Simulation is implemented by a Gillespie algorithm and runs until the number of modules 
+    exceeds input.maxmodules or time exceeds input.tmax.
 
-    - if `simtype == :fixedtime`, a list of modules is created (initially of length 1)
-    and each module is simulated independently until input.tmax is reached. New modules 
-    are added to the end of the list. This implementation is faster, but only works if we 
-    end the simulation at a fixed time (not fixed size). If the list of modules is bigger 
-    than input.maxmodules and error is thrown.
 
 """
 function runsimulation(input::MultilevelInput, args...)
@@ -54,6 +48,7 @@ end
 
 getmoduleupdate(input::MultilevelBranchingInput) = :branching
 getmoduleupdate(input::MultilevelBranchingMoranInput) = :moran
+getmoduleupdate(input::MultilevelMoranInput) = :moran
 
 
 function runsimulation(::Type{Cell}, ::Type{S}, input::MultilevelInput, rng::AbstractRNG=Random.GLOBAL_RNG) where S
@@ -656,19 +651,20 @@ end
 
 
 """
-    initialize_population(::Type{T}, ::Type{S}, input; rng=Random.GLOBAL_RNG) where {T<: AbstractTreeCell, S<: ModuleStructure}
+    initialize_population(::Type{T}, ::Type{S}, clonalmutations, N, Nmodules=1; rng=Random.GLOBAL_RNG) where {T<: AbstractTreeCell, S<: ModuleStructure}
 
-Create a Vector{CellModule} or Vector{TreeModule} of length 1 that contains a single module comprising a single 
-cell at time t=0. 
+Create a Vector{CellModule} or Vector{TreeModule} of `Nmodules` modules each containing a 
+single cell at time t=0. 
 """
 function initialize_population(
     ::Type{T}, 
     ::Type{S}, 
     clonalmutations, 
-    N;
+    N,
+    Nmodules=1;
     rng=Random.GLOBAL_RNG
 ) where {T<: AbstractCell, S<: ModuleStructure}
-    return moduletype(T,S)[initialize(T, S, clonalmutations, N; rng)]
+    return moduletype(T,S)[initialize(T, S, clonalmutations, N; rng) for _ in 1:Nmodules]
 end
 
 

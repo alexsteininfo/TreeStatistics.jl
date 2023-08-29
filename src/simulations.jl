@@ -379,27 +379,20 @@ function newcell(::Type{Cell}, id, mutations)
     )
 end
 
-function create_cells(::Type{T}, ::WellMixed, initialmutations, N=1; rng=Random.GLOBAL_RNG) where T <:AbstractCell
+function create_cells(::Type{T}, structure::ModuleStructure, initialmutations, N=1; rng=Random.GLOBAL_RNG) where T <:AbstractCell
     alivecells = [
         newcell(T, id, initialmutations)
             for id in 1:N
     ]
-    return alivecells
-end
-
-function create_cells(::Type{T}, structure::Linear, initialmutations, N=1; rng=Random.GLOBAL_RNG) where T <:AbstractTreeCell
-    alivecells = [
-        newcell(T, id, initialmutations)
-            for id in 1:N
-    ]
-
     return position_cells(alivecells, structure, rng)
 end
 
+position_cells(alivecells, structure::ModuleStructure, rng) = alivecells
+
 function position_cells(cells, structure::Linear, rng)
     N = length(cells)
-    pad1 = round(Int64, (structure.N - N)/2)
-    pad2 = structure.N - pad1
+    pad1 = round(Int64, (structure.size - N - 1)/2)
+    pad2 = structure.size - pad1 - 1
     if rand(rng, 1:2) == 2 
         pad1, pad2 = pad2, pad1 
     end

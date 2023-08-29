@@ -138,7 +138,9 @@ end
 abstract type ModuleStructure end
 
 struct WellMixed <: ModuleStructure end
-struct Linear <: ModuleStructure end
+struct Linear <: ModuleStructure 
+    size::Int64
+end
 
 abstract type AbstractModule end
 mutable struct CellModule{S<:ModuleStructure} <: AbstractModule
@@ -165,6 +167,7 @@ const TreeCellVector = Union{Vector{Union{BinaryNode{TreeCell}, Nothing}}, Vecto
 const SimpleTreeCellVector = Union{Vector{Union{BinaryNode{SimpleTreeCell}, Nothing}}, Vector{BinaryNode{SimpleTreeCell}}}
 const AbstractTreeCellVector = Union{TreeCellVector, SimpleTreeCellVector}
 const CellVector = Union{Vector{Union{Cell, Nothing}}, Vector{Cell}}
+const AbstractCellVector = Union{CellVector, AbstractTreeCellVector}
 
 #determine correct type for a new module based on cell type or vector type
 moduletype(::Type{T}, ::Type{S}) where {T <: AbstractTreeCell, S} = TreeModule{T,S}
@@ -190,7 +193,7 @@ allcells(abstractmodule) = filter(x -> !isnothing(x), abstractmodule.cells)
 function popsize(root::BinaryNode)
     N = 0
     for l in Leaves(root)
-        if alive(nodevalue(l))
+        if isalive(nodevalue(l))
             N += 1
         end
     end

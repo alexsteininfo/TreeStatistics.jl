@@ -22,7 +22,7 @@ mutations_per_cell(cells::CellVector) = map(cell -> length(cell.mutations), cell
 function mutations_per_cell(root::BinaryNode{T}; includeclonal=false) where T <: AbstractTreeCell
     mutspercell = Int64[]
     for cellnode in Leaves(root)
-        if alive(cellnode.data)
+        if isalive(cellnode.data)
             mutations = cellnode.data.mutations
             while true
                 if !AbstractTrees.isroot(cellnode) && (cellnode != root|| includeclonal)
