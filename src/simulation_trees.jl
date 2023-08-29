@@ -568,15 +568,48 @@ function age(root::BinaryNode)
 end
 
 getalivecells(root::BinaryNode) = 
-    [cellnode for cellnode in Leaves(root) if alive(cellnode.data)]
+    [cellnode for cellnode in Leaves(root) if isalive(cellnode.data)]
 
 getalivecells(roots::Vector{BinaryNode{T}}) where T = 
-    [cellnode for root in roots for cellnode in Leaves(root) if alive(cellnode.data)]
+    [cellnode for root in roots for cellnode in Leaves(root) if isalive(cellnode.data)]
 
 popsize(root::BinaryNode{SimpleTreeCell}) = treebreadth(root)
 popsize(roots::Vector) = sum(popsize(root) for root in roots)
 
-alive(cell::TreeCell) = cell.alive
-alive(cell::SimpleTreeCell) = true
+isalive(cellnode::BinaryNode{T}) where T = isalive(cellnode.data)
+isalive(cell::TreeCell) = cell.alive
+isalive(cell::SimpleTreeCell) = true
+isalive(::Nothing) = false
 
 id(cellnode::BinaryNode{<:AbstractTreeCell}) = cellnode.data.id
+
+
+"""
+    asroot!(node)
+
+Transform `node` into a root by setting `parent` field to nothing. Return `node` and the 
+original `parent` node.
+"""
+function asroot!(node)
+    parent = node.parent
+    node.parent = nothing
+    return node, parent
+end
+
+"""
+    cell_subset_size(node, cells)
+
+Calculate the number of cell nodes (leaves of the tree of which `node` is the root) that are
+both alicve and present in the list `cells`.
+"""
+function cell_subset_size(node, cells)
+    if node in cells
+        if isalive(node) return 1 else 0 end
+    end
+    #To properly iterate over leaves we need to make node a true "root" (i.e. set its parent
+    #field to nothing)
+    root, parent = asroot!(node)
+    count = mapreduce(x -> (x in cells) && isalive(x), +, Leaves(root))
+    root.parent = parent #reset node so that it is unchanged
+    return count
+end

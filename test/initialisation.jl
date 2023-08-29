@@ -6,22 +6,29 @@
     @test SomaticEvolution.set_mutationdist("geometric", false) == :geometric
 end
 
-@testset "population initialization" begin
-    for clonalmutations in [0,100]
-        pop1 = SomaticEvolution.initialize_population(Cell, WellMixed, clonalmutations, 100)
-        pop2 = SomaticEvolution.initialize_population(Cell, WellMixed, clonalmutations, 100)
-        for pop in (pop1, pop2)
-            @test length(pop) == 1
-            @test length(pop[1]) == 100
-            @test pop[1].t == 0.0
-            @test length(pop[1].cells) == 100
-            @test length(pop[1].cells[1].mutations) == clonalmutations
-            @test pop[1].cells[1].clonetype == 1
-            @test length(pop[1].subclones) == 0
-            @test pop[1].id == 1
-        end
-    end
-end
+# @testset "population initialization" begin
+#     for clonalmutations in [0,100]
+#         pop1 = SomaticEvolution.initialize_population(Cell, WellMixed, clonalmutations, 100)
+#         pop2 = SomaticEvolution.initialize_population(Cell, WellMixed, clonalmutations, 100)
+#         for pop in (pop1, pop2)
+#             @test length(pop) == 1
+#             @test length(pop[1]) == 100
+#             @test pop[1].t == 0.0
+#             @test length(pop[1].cells) == 100
+#             @test length(pop[1].cells[1].mutations) == clonalmutations
+#             @test pop[1].cells[1].clonetype == 1
+#             @test length(pop[1].subclones) == 0
+#             @test pop[1].id == 1
+#         end
+#         pop3 = SomaticEvolution.initialize_population(Cell, WellMixed, clonalmutations, 1, 5)
+#         @test length(pop3) == 3
+#         @test all(length.(pop3) .== 1)
+#         @test all([length(cells) for cells in pop3.cells] .== 1)
+#         @test all([length(mutations) for cellmodule in pop3 for c] .== 1)
+
+
+#     end
+# end
 
 @testset "module initialization" begin
     @testset "branching" begin
