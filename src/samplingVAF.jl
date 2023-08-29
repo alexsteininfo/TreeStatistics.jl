@@ -122,6 +122,7 @@ function getallelefreq(abstractmodule::AbstractModule, ploidy)
 end
 
 function getallelefreq(cells::CellVector, ploidy)
+    N = length(cells)
     mutations = cellsconvert(cells).mutations
     allelefreq = length(mutations) == 0 ? Float64[] : Float64.(counts(mutations))
     filter!(x -> x != 0, allelefreq)

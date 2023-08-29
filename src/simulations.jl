@@ -5,6 +5,10 @@ function runsimulation(input::SinglelevelInput, rng::AbstractRNG=Random.GLOBAL_R
     return runsimulation(Cell, WellMixed, input, rng)
 end
 
+function runsimulation(::Type{T}, input::SimulationInput, rng::AbstractRNG=Random.GLOBAL_RNG) where T <: AbstractCell
+    return runsimulation(T, WellMixed, input, rng)
+end
+
 function runsimulation(::Type{Cell}, ::Type{S}, input::SinglelevelInput, rng::AbstractRNG=Random.GLOBAL_RNG) where S <: ModuleStructure
     #Initially set clonalmutations = 0 and μ = 1. These are expanded later. 
     #UNLESS input.mutationdist=:poissontimedep or :fixedtimedep
