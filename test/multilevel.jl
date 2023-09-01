@@ -116,22 +116,26 @@ mt3 = SomaticEvolution.CellModule(
 end
     
 
-population = SomaticEvolution.MultiSimulation(input, [mt1, mt2, mt3])
+simulation = SomaticEvolution.MultiSimulation(input, [mt1, mt2, mt3])
 
 #check that statistics are calculated correctly
 @testset "mutation statistics" begin
     @test mutations_per_cell(mt1) == [3, 8, 5, 2]
-    @test average_mutations_per_module(population) ≈ [4.5, 4, 1]
-    @test all(average_mutations(population, true) .≈ (3.875, 5.267857142857143))
-    @test clonal_mutations(population) == [0, 2, 1]
-    @test SomaticEvolution.clonal_mutation_ids(population) == [[], [1, 13], [1]]
-    @test pairwise_fixed_differences_matrix(population, diagonals=true) == [0 0 0; 2 2 0; 1 1 1]
-    @test pairwise_fixed_differences_matrix(population, [2,3]) == [0 0; 1 0]
-    @test pairwise_fixed_differences_clonal(population) == (Dict{Int64, Int64}(1=>2, 2=>1), Dict{Int64, Int64}(0=>1, 2=>1, 1=>1))
-    @test pairwise_fixed_differences_clonal(population, [2,3]) == (Dict{Int64, Int64}(1=>1), Dict{Int64, Int64}(2=>1, 1=>1))
-    @test shared_fixed_mutations(population) == Dict{Int64, Int64}(1=>1, 2=>1)
-    @test shared_fixed_mutations(population, [2,3]) == Dict{Int64, Int64}(1=>1, 2=>1)
-    @test all(pairwise_fixed_differences_statistics(population) .≈ (1.3333333333333333,0.33333333333333333,1,1))
+    @test average_mutations_per_module(simulation) ≈ [4.5, 4, 1]
+    @test all(average_mutations(simulation, true) .≈ (3.875, 5.267857142857143))
+    @test clonal_mutations(simulation) == [0, 2, 1]
+    @test SomaticEvolution.clonal_mutation_ids(simulation) == [[], [1, 13], [1]]
+    @test pairwise_fixed_differences_matrix(simulation, diagonals=true) == [0 0 0; 2 2 0; 1 1 1]
+    @test pairwise_fixed_differences_matrix(simulation, [2,3]) == [0 0; 1 0]
+    @test pairwise_fixed_differences_clonal(simulation) == (Dict{Int64, Int64}(1=>2, 2=>1), Dict{Int64, Int64}(0=>1, 2=>1, 1=>1))
+    @test pairwise_fixed_differences_clonal(simulation, [2,3]) == (Dict{Int64, Int64}(1=>1), Dict{Int64, Int64}(2=>1, 1=>1))
+    @test shared_fixed_mutations(simulation) == Dict{Int64, Int64}(1=>1, 2=>1)
+    @test shared_fixed_mutations(simulation, [2,3]) == Dict{Int64, Int64}(1=>1, 2=>1)
+    @test all(pairwise_fixed_differences_statistics(simulation) .≈ (1.3333333333333333,0.33333333333333333,1,1))
+    @test countmap(Vector{Int64}(getallelefreq(mt1, 2).*8)) == Dict(1 => 13, 2 => 1, 3 => 1)
+    @test countmap(Vector{Int64}(getallelefreq(simulation).*16)) == Dict(1 => 16, 2 => 2, 3 => 2, 5 => 1)
+    @test countmap(Vector{Int64}(getallelefreq(simulation, 2).*6)) == Dict(1 => 4, 2 => 1, 3 => 2)
+
 end
 
 @testset "updates" begin
