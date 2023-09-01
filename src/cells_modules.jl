@@ -1,5 +1,4 @@
-## Define necessary types and functions for binary trees
-
+#region Define BinaryNode and methods for binary trees
 mutable struct BinaryNode{T}
     data::T
     parent::Union{Nothing, BinaryNode{T}}
@@ -23,8 +22,6 @@ function rightchild!(parent::BinaryNode, data)
     parent.right = node
 end
 
-
-## Things we need to define 
 function AbstractTrees.children(node::BinaryNode)
     if isnothing(node.left) && isnothing(node.right)
         ()
@@ -57,11 +54,8 @@ function AbstractTrees.prevsibling(child::BinaryNode)
     return nothing
 end
 
-
-
 AbstractTrees.nodevalue(n::BinaryNode) = n.data
 AbstractTrees.ParentLinks(::Type{<:BinaryNode}) = StoredParents()
-AbstractTrees.SiblingLinks(::Type{<:BinaryNode}) = AbstractTrees.StoredSiblings()
 AbstractTrees.parent(n::BinaryNode) = n.parent
 AbstractTrees.NodeType(::Type{<:BinaryNode{T}}) where {T} = HasNodeType()
 AbstractTrees.nodetype(::Type{<:BinaryNode{T}}) where {T} = BinaryNode{T}
@@ -72,13 +66,32 @@ Base.IteratorEltype(::Type{<:TreeIterator{BinaryNode{T}}}) where T = Base.HasElt
 
 AbstractTrees.printnode(io::IO, node::BinaryNode) = print(io, node.data)
 
-# function AbstractTrees.printnode(io::IO, node::BinaryNode)
-#     print(io, "$(node.data.id), $(node.data.mutations) ($(popsize(node)))")
-#     node.data.alive || print(io, " X")
-# end
+function popsize(root::BinaryNode)
+    N = 0
+    for l in Leaves(root)
+        if isalive(nodevalue(l))
+            N += 1
+        end
+    end
+    return N
+end
 
+haschildren(node::BinaryNode) = length(children(node)) != 0
 
+function Base.show(io::IO, node::BinaryNode)
+    show(io, node.data)
+end
 
+function Base.show(io::IO, nodevec::Vector{BinaryNode{T}}) where T
+    println(io, "$(length(nodevec))-element Vector{BinaryNode{$T}}:")
+    for node in nodevec
+        show(io, node)
+        print(io, "\n")
+    end
+end
+#endregion
+
+#region Define cell types
 abstract type AbstractCell end
 
 """
@@ -123,7 +136,7 @@ function Base.show(io::IO, cell::TreeCell)
     print(io, "($(cell.id)) mutations = $(cell.mutations), t = $(cell.birthtime)")
     cell.alive || print(io, " X")
 end
-
+#endregion
 mutable struct CloneTracker
     parenttype::Int64
     parentmodule::Int64
@@ -135,13 +148,16 @@ mutable struct CloneTracker
     size::Int64
 end
 
+#region Define module structure types
 abstract type ModuleStructure end
 
 struct WellMixed <: ModuleStructure end
 struct Linear <: ModuleStructure 
     size::Int64
 end
+#endregion
 
+#region Define module types and methods
 abstract type AbstractModule end
 mutable struct CellModule{S<:ModuleStructure} <: AbstractModule
     cells::Vector{Union{Cell, Nothing}}
@@ -190,30 +206,9 @@ end
 
 allcells(abstractmodule) = filter(x -> !isnothing(x), abstractmodule.cells)
 
-function popsize(root::BinaryNode)
-    N = 0
-    for l in Leaves(root)
-        if isalive(nodevalue(l))
-            N += 1
-        end
-    end
-    return N
-end
+#endregion
 
-haschildren(node::BinaryNode) = length(children(node)) != 0
-
-function Base.show(io::IO, node::BinaryNode)
-    show(io, node.data)
-end
-
-function Base.show(io::IO, nodevec::Vector{BinaryNode{T}}) where T
-    println(io, "$(length(nodevec))-element Vector{BinaryNode{$T}}:")
-    for node in nodevec
-        show(io, node)
-        print(io, "\n")
-    end
-end
-
+#region Methods for finding most recent common ancestor and tree roots
 AbstractTrees.getroot(nodevec::AbstractTreeCellVector) = collect(Set(getroot.(nodevec)))
 
 function getsingleroot(nodevec::AbstractTreeCellVector)
@@ -222,19 +217,6 @@ function getsingleroot(nodevec::AbstractTreeCellVector)
         return roots[1]
     else
         return nothing
-    end
-end
-
-function findMRCA_recursive(cellnode1, cellnode2)
-    if cellnode1.data.id > cellnode2.data.id
-        cellnode1, cellnode2 = cellnode2, cellnode1
-    end
-    if cellnode1 == cellnode2
-        return cellnode1
-    elseif cellnode1.parent == cellnode2.parent
-        return cellnode1.parent
-    elseif isdefined(cellnode2, :parent)
-         return findMRCA(cellnode1, cellnode2.parent)
     end
 end
 
@@ -275,3 +257,4 @@ end
 function findMRCA(treemodule)
     return findMRCA(treemodule.cells)
 end
+#endregion

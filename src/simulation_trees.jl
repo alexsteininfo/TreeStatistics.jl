@@ -67,7 +67,7 @@ function simulate!(treemodule::TreeModule, input::BranchingInput, rng::AbstractR
 end
 
 function simulate!(treemodule::TreeModule, input::MoranInput, rng::AbstractRNG=Random.GLOBAL_RNG; 
-    timefunc=exptime, t0=nothing, tmax=nothing) where T <: AbstractTreeCell
+    timefunc=exptime, t0=nothing, tmax=nothing)
     
     moranprocess!(
         treemodule,
@@ -84,7 +84,7 @@ function simulate!(treemodule::TreeModule, input::MoranInput, rng::AbstractRNG=R
 end
 
 function simulate!(treemodule::TreeModule, input::BranchingMoranInput, rng::AbstractRNG=Random.GLOBAL_RNG; 
-    timefunc=exptime, t0=nothing, tmax=nothing) where T <: AbstractTreeCell
+    timefunc=exptime, t0=nothing, tmax=nothing)
     
     if length(treemodule) < input.Nmax
         branchingprocess!(
@@ -124,7 +124,7 @@ Simulate a population of cells, defined by `treemodule` that grows by a branchin
 
 """
 function branchingprocess!(treemodule::TreeModule, birthrate, deathrate, Nmax, μ, mutationdist, 
-    tmax, rng::AbstractRNG; timefunc=exptime, t0=nothing) where T <: AbstractTreeCell
+    tmax, rng::AbstractRNG; timefunc=exptime, t0=nothing)
 
     # set initial time, population size and next cell ID
     t = !isnothing(t0) ? t0 : maximum(cellnode.data.birthtime for cellnode in treemodule.cells)
@@ -137,8 +137,7 @@ function branchingprocess!(treemodule::TreeModule, birthrate, deathrate, Nmax, �
         t + Δt <= tmax || break # end simulation if time exceeds maximum
         t += Δt
         _, N, nextID = 
-            branchingupdate!(treemodule, birthrate, deathrate, N, t, nextID, μ, mutationdist, rng, 
-                timefunc=timefunc)
+            branchingupdate!(treemodule, birthrate, deathrate, N, t, nextID, μ, mutationdist, rng)
     end
     #add final mutations to all alive cells if mutations are time dependent
     if mutationdist == :fixedtimedep || mutationdist == :poissontimedep    
@@ -155,8 +154,8 @@ end
     
 Single update step of branching process.
 """
-function branchingupdate!(treemodule::TreeModule, birthrate, deathrate, N, t, nextID, μ, mutationdist, rng; 
-    timefunc=exptime) where T <: AbstractTreeCell
+function branchingupdate!(treemodule::TreeModule, birthrate, deathrate, N, t, nextID, μ, 
+    mutationdist, rng)
 
     #pick a random cell and randomly select its fate (birth or death) with probability 
     #proportional to birth and death rates
@@ -184,7 +183,7 @@ end
 Simulate a population of cells in `treemodule` with Moran process dynamics.
 """
 function moranprocess!(treemodule::TreeModule, moranrate, tmax, μ, mutationdist, rng; 
-    N=length(treemodule), timefunc=exptime, t0=nothing, moranincludeself=true) where T <: AbstractTreeCell
+    N=length(treemodule), timefunc=exptime, t0=nothing, moranincludeself=true) 
 
     # set initial time and next cell ID
     t = !isnothing(t0) ? t0 : maximum(cellnode.data.birthtime for cellnode in treemodule.cells)
@@ -212,7 +211,7 @@ end
 Single update step of Moran process.
 """
 function moranupdate!(treemodule::TreeModule, t, nextID, μ, mutationdist, rng; 
-    N=length(treemodule), timefunc=timefunc, moranincludeself=true) where T <: AbstractTreeCell
+    N=length(treemodule), timefunc=timefunc, moranincludeself=true)
 
     #pick a cell to divide and a cell to die
     dividecellidx = rand(rng, 1:N) 
@@ -233,7 +232,7 @@ function moranupdate!(treemodule::TreeModule, t, nextID, μ, mutationdist, rng;
 end
 
 function asymmetricupdate!(treemodule::TreeModule, t, nextID, μ, mutationdist, rng; 
-    N=length(treemodule), timefunc=timefunc) where T <: AbstractTreeCell
+    N=length(treemodule), timefunc=timefunc)
 
     #pick a cell to divide
     dividecellidx = rand(rng, 1:N) 
@@ -316,7 +315,7 @@ end
 Remove dead cell from `alivecells` and remove references to it from tree. Add time dependent mutations (if applicable) to dying cell.
 """
 function celldeath!(treemodule::TreeModule, deadcellidx, t=nothing, 
-    μ=nothing, mutationdist=nothing, rng=nothing) where T<: AbstractTreeCell
+    μ=nothing, mutationdist=nothing, rng=nothing)
 
     alivecells = treemodule.cells
     #remove references to dead cell
