@@ -154,9 +154,12 @@ function simulate!(population, tmax, maxmodules, birthrate, deathrate, moranrate
     modulesize, branchinitsize, modulebranching, μ, mutationdist, moranincludeself, nextID, nextmoduleID, rng; moduleupdate=:branching, t0=nothing)
 
     t = isnothing(t0) ? age(population) : t0
+    transitionrates = get_transitionrates(population, birthrate, deathrate, 
+        moranrate, asymmetricrate, branchrate, modulesize)
+
     while t < tmax && (moduleupdate==:moran || length(population) < maxmodules)
-        population, t, nextID, nextmoduleID = 
-            update_population!(population, birthrate, deathrate, moranrate, asymmetricrate, branchrate,  modulesize, 
+        population, transitionrates, t, nextID, nextmoduleID = 
+            update_population!(population, transitionrates, birthrate, deathrate, moranrate, asymmetricrate, branchrate,  modulesize, 
                 branchinitsize, modulebranching, t, nextID, nextmoduleID, μ, mutationdist, tmax, maxmodules, moranincludeself, rng; moduleupdate)
         #returns empty list of modules if population dies out
         if length(population) == 0
@@ -178,11 +181,9 @@ selects from these transitions with probability proportional to rate. Time is in
 `Δt ~ Exp(sum(transitionrates))`. If new time exceeds `tmax` do not perform any transition.
 """
 
-function update_population!(population, birthrate, deathrate, moranrate, asymmetricrate, branchrate, modulesize, 
+function update_population!(population, transitionrates, birthrate, deathrate, moranrate, asymmetricrate, branchrate, modulesize, 
     branchinitsize, modulebranching, t, nextID, nextmoduleID, μ, mutationdist, tmax, maxmodules, moranincludeself, rng; moduleupdate=:branching)
 
-    transitionrates = get_transitionrates(population, birthrate, deathrate, 
-        moranrate, asymmetricrate, branchrate, modulesize)
     t += exptime(rng, sum(transitionrates))
     #only update the population if t < tmax
     if t < tmax
@@ -208,8 +209,11 @@ function update_population!(population, birthrate, deathrate, moranrate, asymmet
             rng;
             moduleupdate
         )
+        if transitionid in 3:5
+            update_transitionrates!(transitionrates, population, birthrate, deathrate, moranrate, asymmetricrate, branchrate, modulesize)
+        end
     end
-    return population, t, nextID, nextmoduleID
+    return population, transitionrates, t, nextID, nextmoduleID
 end
 
 """
@@ -459,7 +463,7 @@ Select a homeostatic module, i.e. module of size `maxmodulesize`, uniformly at r
 """
 function choose_homeostaticmodule(population, maxmodulesize, rng::AbstractRNG)
     modulesizes = map(length, population)
-    homeostatic_module_ids = collect(1:length(population))[modulesizes .== maxmodulesize]
+    homeostatic_module_ids = findall(x -> x .== maxmodulesize, modulesizes)
     homeostatic_module_id = rand(rng, homeostatic_module_ids)
     return population[homeostatic_module_id], homeostatic_module_id
 end
@@ -508,6 +512,26 @@ a Vector.
 """
 function get_transitionrates(population, birthrate, deathrate, moranrate, asymmetricrate, branchrate, modulesize)
     rates = zeros(Float64, 5)
+    number_homeostatic_modules = 0
+    for (i, cellmodule) in enumerate(population)
+        N = length(cellmodule)
+        if N < modulesize
+            rates[3] += N * birthrate
+            rates[4] += N * deathrate
+        elseif N == modulesize
+            number_homeostatic_modules += 1
+        else 
+            error("module size exceeds homeostatic size")
+        end
+    end
+    rates[1] = number_homeostatic_modules * moranrate * modulesize
+    rates[2] = number_homeostatic_modules * asymmetricrate * modulesize
+    rates[5] = number_homeostatic_modules * branchrate
+    return rates
+end
+
+function update_transitionrates!(rates, population, birthrate, deathrate, moranrate, asymmetricrate, branchrate, modulesize)
+    rates[3] = rates[4] = 0
     number_homeostatic_modules = 0
     for (i, cellmodule) in enumerate(population)
         N = length(cellmodule)

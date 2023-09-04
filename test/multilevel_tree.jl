@@ -50,6 +50,7 @@
     population, t, nextID = 
         SomaticEvolution.update_population!(
             population, 
+            transitionrates,
             birthrate, 
             deathrate, 
             moranrate, 
