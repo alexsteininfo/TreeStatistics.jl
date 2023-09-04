@@ -22,10 +22,18 @@ end
 
 function loadinput(inputdict::Dict)
     T = eval(Symbol(pop!(inputdict, :type)))
-    return T(;inputdict...)
+    return loadinput(T, inputdict)
 end
 
 function loadinput(::Type{T}, inputdict::Dict) where T
+    if isnothing(inputdict[:tmax]) 
+        inputdict[:tmax] = Inf
+    end
+    for (key, value) in pairs(inputdict)
+        if typeof(value) == String
+            inputdict[key] = Symbol(value)
+        end
+    end
     return T(;inputdict...)
 end
 

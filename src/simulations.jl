@@ -50,7 +50,6 @@ function simulate!(cellmodule::CellModule, input::BranchingMoranInput,
         numclones=input.numclones,
         selection=input.selection, 
         tevent=input.tevent, 
-        maxclonesize=Inf
     )
     
     moranprocess!(
@@ -88,7 +87,6 @@ function simulate!(cellmodule::CellModule, input::BranchingInput,
         numclones=input.numclones,
         selection=input.selection, 
         tevent=input.tevent, 
-        maxclonesize=input.maxclonesize
     )
     
     return cellmodule
@@ -149,15 +147,14 @@ end
 
 """
     branchingprocess!(cellmodule::CellModule, birthrate, deathrate, Nmax, μ, mutationdist, tmax,
-    rng::AbstractRNG; numclones=0, selection=Float64[], tevent=Float64[], maxclonesize=200)
+    rng::AbstractRNG; numclones=0, selection=Float64[], tevent=Float64[])
 
 Run branching process simulation, starting in state defined by cellmodule.
 
 Simulate a stochastic branching process, starting with a single cell, with with birth rate 
 `b`, death rate `d` until population reaches size `Nmax`.
 
-Cells accumulate neutral mutations at division with rate `μ`, until all subclones exceed
-`maxclonesize`.
+Cells accumulate neutral mutations at division with rate `μ`.
 
 If `numclones` = 0, all cells have the same fitness and there is only one (sub)clone. 
 Otherwise, `numclones` is the number of fit subclones. The `i`th subclone arises by a single 
@@ -165,8 +162,7 @@ cell mutating at time `tevent[i]` and has selection coefficient `selection[i]`.
 
 """
 function branchingprocess!(cellmodule::CellModule, birthrate, deathrate, Nmax, μ, mutationdist, tmax,
-    rng::AbstractRNG; numclones=0, selection=Float64[], tevent=Float64[], maxclonesize=200,
-    timefunc=exptime, t0=nothing)
+    rng::AbstractRNG; numclones=0, selection=Float64[], tevent=Float64[],timefunc=exptime, t0=nothing)
     
     t = !isnothing(t0) ? t0 : cellmodule.t
     N = length(cellmodule)
@@ -174,7 +170,6 @@ function branchingprocess!(cellmodule::CellModule, birthrate, deathrate, Nmax, �
     mutID = N == 1 ? 1 : getnextID(cellmodule.cells)
 
     nclonescurrent = length(cellmodule.subclones) + 1  
-    executed = false
     changemutrate = BitArray(undef, numclones + 1)
     changemutrate .= 1
 
@@ -227,18 +222,6 @@ function branchingprocess!(cellmodule::CellModule, birthrate, deathrate, Nmax, �
             if N == 0
                 return cellmodule
             end
-        end
-
-        #if population of all clones is sufficiently large no new mutations
-        #are acquired, can use this approximation as only mutations above 1%
-        #frequency can be reliably detected
-        if ((maxclonesize !== nothing && 
-            executed == false && 
-            (getclonesize(cellmodule) .> maxclonesize) == changemutrate))
-
-            μ = 0
-            mutationdist=:fixed
-            executed = true
         end
     end
     return cellmodule

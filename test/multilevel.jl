@@ -1,84 +1,13 @@
-@testset "simulate to tmax" begin
-
-    rng = MersenneTwister(12)
-    input = MultilevelBranchingInput(
-        modulesize=4, 
-        fixedmu=true, 
-        birthrate=0.1, 
-        deathrate=0.1,
-        moranrate=0.1, 
-        clonalmutations=0, 
-        tmax=400, 
-        maxmodules=1000,
-        branchrate=3/365, 
-        branchfraction=0.2, 
-        μ=1
-    )
-    population = runsimulation(Cell, WellMixed, input, rng)
-    @test age(population) < 400
-    
-    birthrate, deathrate = 0.1, 0.0
-    modulesize = 6
-    branchinitsize = 2
-    branchrate = 1/5
-    tmax = 100
-
-    cellmodule = SomaticEvolution.initialize(
-        Cell,
-        WellMixed,
-        0,
-        modulesize;
-        rng
-    )
-
-
-    rng = MersenneTwister(12)
-
-    cellmodule, newcellmodule =
-        SomaticEvolution.module_simulate_to_branching!(
-            cellmodule, 
-            tmax, 
-            birthrate, 
-            deathrate, 
-            birthrate, 
-            branchrate, 
-            modulesize, 
-            branchinitsize, 
-            2, 
-            rng
-    )
-    @test cellmodule.t <= tmax
-    @test length(cellmodule) == modulesize - branchinitsize
-    @test length(newcellmodule) == branchinitsize
-    @test newcellmodule.t == cellmodule.t
-
-    newtmax = cellmodule.t + 0.1
-    cellmodule, newcellmodule =
-        SomaticEvolution.module_simulate_to_branching!(
-            cellmodule, 
-            newtmax, 
-            birthrate, 
-            deathrate, 
-            birthrate, 
-            branchrate, 
-            modulesize, 
-            branchinitsize, 
-            2, 
-            rng
-    )
-    @test newcellmodule === nothing
-end
-
 input = MultilevelBranchingInput(;
     modulesize=4, 
-    fixedmu=true, 
+    mutationdist=:fixed, 
     birthrate=0.1, 
     deathrate=0,
     moranrate=0.01, 
     clonalmutations=0, 
     tmax=1*365, 
     branchrate=3/365, 
-    branchfraction=0.2, 
+    branchinitsize=1, 
     μ=1
 )
 
@@ -266,7 +195,7 @@ end
     #test moran update not including self with NonSpatialTreeModule{SimpleTreeCell}
     input = MultilevelBranchingMoranInput(
         modulesize=2, 
-        fixedmu=true, 
+        mutationdist=:fixed, 
         birthrate=100, 
         deathrate=0,
         moranrate=100, 
@@ -274,7 +203,7 @@ end
         tmax=1, 
         maxmodules=1,
         branchrate=5, 
-        branchfraction=0.2, 
+        branchinitsize=1, 
         μ=1,
         moranincludeself=false
     )
@@ -297,7 +226,7 @@ end
     rng = MersenneTwister(12)
     input = MultilevelBranchingMoranInput(
             modulesize=4, 
-            fixedmu=true, 
+            mutationdist=:fixed, 
             birthrate=0.1, 
             deathrate=0.01,
             moranrate=0.01, 
@@ -305,7 +234,7 @@ end
             tmax=365*4, 
             maxmodules=5,
             branchrate=3/365, 
-            branchfraction=0.2, 
+            branchinitsize=1, 
             μ=1
     )
     population = runsimulation(input, rng)

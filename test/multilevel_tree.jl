@@ -78,7 +78,7 @@
     rng = MersenneTwister(12)
     input = MultilevelBranchingInput(
             modulesize=4, 
-            fixedmu=true, 
+            mutationdist=:fixed, 
             birthrate=0.1, 
             deathrate=0.01,
             moranrate=0.01, 
@@ -87,7 +87,7 @@
             tmax=20*365, 
             maxmodules=10,
             branchrate=3/365, 
-            branchfraction=0.2, 
+            branchinitsize=1, 
             μ=1
     )
     population = runsimulation(SimpleTreeCell, input, rng)
@@ -97,7 +97,7 @@
     @test length(population) == 10
     input = MultilevelBranchingInput(
             modulesize=4, 
-            fixedmu=true, 
+            mutationdist=:fixed, 
             birthrate=1, 
             deathrate=0,
             moranrate=0.1, 
@@ -105,7 +105,7 @@
             tmax=365*100, 
             maxmodules=10,
             branchrate=3/365, 
-            branchfraction=0.2, 
+            branchinitsize=1, 
             μ=1
     )
     population = runsimulation(SimpleTreeCell, input, rng)
@@ -207,7 +207,7 @@ end
     rng = MersenneTwister(12)
     input = MultilevelBranchingMoranInput(
             modulesize=4, 
-            fixedmu=true, 
+            mutationdist=:fixed, 
             birthrate=0.1, 
             deathrate=0.01,
             moranrate=0.01, 
@@ -215,7 +215,7 @@ end
             tmax=365*4, 
             maxmodules=5,
             branchrate=3/365, 
-            branchfraction=0.2, 
+            branchinitsize=1, 
             μ=1
     )
     population = runsimulation(SimpleTreeCell, input, rng)
