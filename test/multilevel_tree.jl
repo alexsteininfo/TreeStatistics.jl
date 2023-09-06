@@ -191,6 +191,11 @@ end
     @test countmap(Vector{Int64}(getallelefreq(population, 2).*18)) == Dict(1 => 244, 2 => 106, 3 => 93, 6 => 19, 9 => 3)
 end
 
+@testset "mutation statistics" begin
+    @test clonal_mutations.(population) == [42, 32, 66]
+    @test all(average_mutations.(population) .≈ [78.0, 106.0, 108.0])
+end
+
 @testset "module splitting with replacement" begin
     rng = MersenneTwister(12)
     parentmodule = deepcopy(module1)
