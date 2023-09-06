@@ -84,7 +84,6 @@ end
 
 function simulate!(treemodule::TreeModule, input::BranchingMoranInput, rng::AbstractRNG=Random.GLOBAL_RNG; 
     timefunc=exptime, t0=nothing, tmax=nothing)
-    timefunc=exptime, t0=nothing, tmax=nothing)
     
     if length(treemodule) < input.Nmax
         branchingprocess!(
@@ -124,7 +123,6 @@ Simulate a population of cells, defined by `treemodule` that grows by a branchin
 
 """
 function branchingprocess!(treemodule::TreeModule, birthrate, deathrate, Nmax, μ, mutationdist, 
-    tmax, rng::AbstractRNG; timefunc=exptime, t0=nothing)
     tmax, rng::AbstractRNG; timefunc=exptime, t0=nothing)
 
     # set initial time, population size and next cell ID
@@ -213,7 +211,6 @@ Single update step of Moran process.
 """
 function moranupdate!(treemodule::TreeModule, t, nextID, μ, mutationdist, rng; 
     N=length(treemodule), timefunc=timefunc, moranincludeself=true)
-    N=length(treemodule), timefunc=timefunc, moranincludeself=true)
 
     #pick a cell to divide and a cell to die
     dividecellidx = rand(rng, 1:N) 
@@ -234,7 +231,6 @@ function moranupdate!(treemodule::TreeModule, t, nextID, μ, mutationdist, rng;
 end
 
 function asymmetricupdate!(treemodule::TreeModule, t, nextID, μ, mutationdist, rng; 
-    N=length(treemodule), timefunc=timefunc)
     N=length(treemodule), timefunc=timefunc)
 
     #pick a cell to divide
