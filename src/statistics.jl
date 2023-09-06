@@ -17,12 +17,12 @@ mutations_per_cell(simulation::Simulation) = mutations_per_cell(simulation.outpu
 """
 mutations_per_cell(cellmodule::CellModule) = mutations_per_cell(cellmodule.cells)
 
-mutations_per_cell(cells::Vector{Cell}) = map(cell -> length(cell.mutations), cells)
+mutations_per_cell(cells::CellVector) = map(cell -> length(cell.mutations), cells)
 
 function mutations_per_cell(root::BinaryNode{T}; includeclonal=false) where T <: AbstractTreeCell
     mutspercell = Int64[]
     for cellnode in Leaves(root)
-        if alive(cellnode.data)
+        if isalive(cellnode.data)
             mutations = cellnode.data.mutations
             while true
                 if !AbstractTrees.isroot(cellnode) && (cellnode != root|| includeclonal)
@@ -468,93 +468,6 @@ function number_modules_with_mutation(clonalmuts_by_module, mutationid)
 end
 
 
-
-"""
-    newmoduletimes(population)
-
-Return a vector of times at which new modules arose in the population
-"""
-newmoduletimes(population) = sort([cellmodule.tvec[1] for cellmodule in population])
-
-"""
-    numbermodules(population, tstep)
-
-Return number of modules in the population at times in 1:tstep:tend
-"""
-function numbermodules(population, tstep, tend=nothing)
-    if isnothing(tend)
-        tend = maximum(cellmodule.tvec[end] for cellmodule in population)
-    end
-    newmodtimes = newmoduletimes(population)
-    times = collect(0:tstep:tend)
-    nmodules = Int64[]
-    for t in times
-        push!(nmodules, sum(newmodtimes .<= t))
-    end
-    return times, nmodules
-
-end
-"""
-    cellpopulationsize(population, tstep)
-
-Return number of cells in the population at times in 1:tstep:tend
-"""
-function cellpopulationsize(population, tstep)
-    tend = maximum(cellmodule.tvec[end] for cellmodule in population)
-    popvec = Int64[]
-    for time in 0:tstep:tend
-        pop = 0
-        for cellmodule in population
-            N0 = 0
-            for (N, t) in zip(cellmodule.Nvec, cellmodule.tvec)
-                if t > time 
-                    pop += N0
-                    break
-                elseif t == cellmodule.tvec[end]
-                    pop += N
-                    break
-                else
-                    N0 = N
-                end
-            end
-        end
-        push!(popvec, pop)
-    end
-    return collect(0:tstep:tend), popvec
-end
-
-"""
-    meanmodulesize(multisimulation, tstep)
-
-Return mean modulesize in the multisimulation at times in 1:tstep:tend
-"""
-function meanmodulesize(multisimulation, tstep)
-    tend = maximum(cellmodule.tvec[end] for cellmodule in multisimulation)
-    popvec = Float64[]
-    for time in 0:tstep:tend
-        pop = 0
-        modules = 0
-        for cellmodule in multisimulation
-            if cellmodule.tvec[1] <= time 
-                modules += 1
-                N0 = 0 
-                for (N, t) in zip(cellmodule.Nvec, cellmodule.tvec)
-                    if t > time 
-                        pop += N0
-                        break
-                    elseif t == cellmodule.tvec[end]
-                        pop += N
-                        break
-                    else
-                        N0 = N
-                    end
-                end
-            end
-        end
-        push!(popvec, pop/modules)
-    end
-    return collect(0:tstep:tend), popvec
-end
 
 """
     time_to_MRCA(cellnode1, cellnode2, t)

@@ -1,11 +1,12 @@
 rng = MersenneTwister(12)
 
 @testset "tree branching" begin
+    rng = MersenneTwister(12)
     @testset "initialisation" begin
-        alivecells = SomaticEvolution.initialize_cells(TreeCell, 10)
+        alivecells = SomaticEvolution.create_cells(TreeCell, WellMixed(), 10; rng)
         root = alivecells[1]
         @test root.data.mutations == 10
-        alivecells = SomaticEvolution.initialize_cells(SimpleTreeCell, 0)
+        alivecells = SomaticEvolution.create_cells(SimpleTreeCell, WellMixed(), 0; rng)
         root = alivecells[1]
         @test root.data.mutations == 0
         @test length(alivecells) == 1
@@ -26,23 +27,23 @@ rng = MersenneTwister(12)
         )
         treemodule = runsimulation(TreeCell, input, rng).output
         treemodule_simple = runsimulation(SimpleTreeCell, input, rng).output
-        root = getroot(treemodule.cells[1])
-        root_simple = getroot(treemodule_simple.cells[1])
+        root = getroot(SomaticEvolution.firstcellnode(treemodule))
+        root_simple = getroot(SomaticEvolution.firstcellnode(treemodule_simple))
         @test length(SomaticEvolution.getalivecells(root)) == 100
         @test length(SomaticEvolution.getalivecells(root_simple)) == 100
         @test all(cellnode.data.alive for cellnode in treemodule.cells)
     end
 
     @testset "division" begin
-        alivecells = SomaticEvolution.initialize_cells(TreeCell, 0)
-        root = getsingleroot(alivecells)
-        _, nextID = SomaticEvolution.celldivision!(alivecells, 1, 1.1, 2, 10, :fixedtimedep, rng)
+        treemodule = SomaticEvolution.initialize(TreeCell, WellMixed, 0, 1)
+        root = getsingleroot(treemodule.cells)
+        _, nextID = SomaticEvolution.celldivision!(treemodule, 1, 1.1, 2, 10, :fixedtimedep, rng)
         @test nextID == 4
-        @test length(alivecells) == 2 #check number of alivecells equals pop size
-        @test !(root in alivecells) #check divided cell has been removed from alivecells
+        @test length(treemodule.cells) == 2 #check number of alivecells equals pop size
+        @test !(root in treemodule.cells) #check divided cell has been removed from alivecells
         @test root.data.mutations == 11 #check divided cell has correct number of mutations
         #check new cells have correct properties and are children of root
-        for (i, cellnode) in enumerate(alivecells)
+        for (i, cellnode) in enumerate(treemodule.cells)
             @test ischild(cellnode, root)
             @test cellnode.data.alive
             @test cellnode.data.birthtime ≈ 1.1 atol=0.001
@@ -52,22 +53,23 @@ rng = MersenneTwister(12)
         end
 
         #asymmetric division
-        _, nextID = SomaticEvolution.celldivision!(alivecells, 2, 1.1, 3, 10, :fixedtimedep, rng; nchildcells=1)
-        @test length(alivecells) == 2 #check number of alivecells equals pop size
-        @test !(root in alivecells) #check divided cell has been removed from alivecells
-        @test alivecells[end] == root.right.left
+        _, nextID = SomaticEvolution.celldivision!(treemodule, 2, 1.1, 3, 10, :fixedtimedep, rng; nchildcells=1)
+        @test length(treemodule.cells) == 2 #check number of alivecells equals pop size
+        @test !(root in treemodule.cells) #check divided cell has been removed from alivecells
+        @test treemodule.cells[end] == root.right.left
         @test isnothing(root.right.right) 
-        @test alivecells[end].data.id == 3
+        @test treemodule.cells[end].data.id == 3
 
 
     end
 
 
     @testset "death" begin
-        alivecells = SomaticEvolution.initialize_cells(TreeCell, 0)
+        treemodule = SomaticEvolution.initialize(TreeCell, WellMixed, 0, 1)
+        alivecells = treemodule.cells
         root = getsingleroot(alivecells)
-        _, nextID = SomaticEvolution.celldivision!(alivecells, 1, 1.1, 2, 10, :fixedtimedep, rng)
-        SomaticEvolution.celldeath!(alivecells, 1, 1.5, 10, :fixedtimedep, rng)
+        _, nextID = SomaticEvolution.celldivision!(treemodule, 1, 1.1, 2, 10, :fixedtimedep, rng)
+        SomaticEvolution.celldeath!(treemodule, 1, 1.5, 10, :fixedtimedep, rng)
         @test length(alivecells) == 1
         @test !(root.left.left.data.alive) #check dead cell has correct properties
         @test root.left.left.data.birthtime ≈ 1.5 atol=0.0001
@@ -79,15 +81,16 @@ rng = MersenneTwister(12)
     end
 
     @testset "death simple" begin
-        alivecells = SomaticEvolution.initialize_cells(SimpleTreeCell, 0)
+        treemodule = SomaticEvolution.initialize(SimpleTreeCell, WellMixed, 0, 1)
+        alivecells = treemodule.cells
         root = getsingleroot(alivecells)
-        _, nextID = SomaticEvolution.celldivision!(alivecells, 1, 1.1, 2, 10, :fixedtimedep, rng)
-        SomaticEvolution.celldeath!(alivecells, 1, 1.5, 10, :fixedtimedep, rng)
+        _, nextID = SomaticEvolution.celldivision!(treemodule, 1, 1.1, 2, 10, :fixedtimedep, rng)
+        SomaticEvolution.celldeath!(treemodule, 1, 1.5, 10, :fixedtimedep, rng)
         @test length(alivecells) == 1
-        _, nextID = SomaticEvolution.celldivision!(alivecells, 1, 1.1, 2, 10, :fixedtimedep, rng)
+        _, nextID = SomaticEvolution.celldivision!(treemodule, 1, 1.1, 2, 10, :fixedtimedep, rng)
         idx = 2
         deadcellnode = alivecells[idx]
-        SomaticEvolution.celldeath!(alivecells, idx)
+        SomaticEvolution.celldeath!(treemodule, idx)
         @test !AbstractTrees.intree(deadcellnode, root) #check dead cell is not in tree
         @test !(deadcellnode in alivecells) #check dead cell is not in alivecells vector
 

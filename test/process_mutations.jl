@@ -1,27 +1,31 @@
 population = [
     SomaticEvolution.CellModule(
-        [1, 2, 3, 4, 4, 3, 4, 3, 4], 
-        [0.0, 16.892494137270344, 68.68837372525104, 73.9360343780634, 95.06744895741765, 166.45694063272188, 186.08040859501872, 218.77527717255302, 227.24560639149834], 
-        Cell[Cell([2, 3, 9, 15], 1, 0), Cell([2, 4], 1, 0), Cell([2, 3, 10], 1, 0), Cell([2, 3, 9, 16], 1, 0)], 
+        Union{Cell, Nothing}[Cell([2, 3, 9, 15], 1, 0), Cell([2, 4], 1, 0), Cell([2, 3, 10], 1, 0), Cell([2, 3, 9, 16], 1, 0)], 
+        227.24560639149834,
+        [0.0, 166.45694063272188, 218.77527717255302],
         SomaticEvolution.CloneTracker[], 
         1, 
-        0
+        0,
+        WellMixed()
     )
     SomaticEvolution.CellModule(
-        [1, 2, 3], 
-        [166.45694063272188, 215.96281393553738, 216.40410240545967], 
-        Cell[Cell([1, 6, 8, 11, 13], 1, 0), Cell([1, 6, 8, 12], 1, 0), Cell([1, 6, 8, 11, 14], 1, 0)], 
+        Union{Cell, Nothing}[Cell([1, 6, 8, 11, 13], 1, 0), Cell([1, 6, 8, 12], 1, 0), Cell([1, 6, 8, 11, 14], 1, 0)], 
+        216.40410240545967,
+        [166.45694063272188], 
         SomaticEvolution.CloneTracker[], 
         2, 
-        1
+        1,
+        WellMixed()
+
     )
     SomaticEvolution.CellModule(
-        [1], 
+        Union{Cell, Nothing}[Cell(Int64[1, 5], 1, 0)], 
+        218.77527717255302,
         [218.77527717255302], 
-        Cell[Cell(Int64[1, 5], 1, 0)], 
         SomaticEvolution.CloneTracker[], 
         3, 
-        1
+        1,
+        WellMixed()
     )
 ]
 
@@ -61,17 +65,4 @@ rng = MersenneTwister(12)
     @test length(population[1].cells[2].mutations) == 2 * 1 + 3 + 2 * 1
     @test length(population[3].cells[1].mutations) == 2 * 2 + 3
 
-end
-
-SomaticEvolution.CellModule(
-    [1, 2, 3, 4, 4, 3, 4, 3, 4], 
-    [0.0, 16.892494137270344, 68.68837372525104, 73.9360343780634, 95.06744895741765, 166.45694063272188, 186.08040859501872, 218.77527717255302, 227.24560639149834], 
-    Cell[Cell([2, 3, 9, 15], 1, 0), Cell([2, 4], 1, 0), Cell([2, 3, 10], 1, 0), Cell([2, 3, 9, 16], 1, 0)], 
-    SomaticEvolution.CloneTracker[], 
-    1, 
-    0
-)
-
-@testset "singlesim" begin
-    
 end

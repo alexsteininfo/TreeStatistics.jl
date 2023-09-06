@@ -22,10 +22,18 @@ end
 
 function loadinput(inputdict::Dict)
     T = eval(Symbol(pop!(inputdict, :type)))
-    return T(;inputdict...)
+    return loadinput(T, inputdict)
 end
 
 function loadinput(::Type{T}, inputdict::Dict) where T
+    if isnothing(inputdict[:tmax]) 
+        inputdict[:tmax] = Inf
+    end
+    for (key, value) in pairs(inputdict)
+        if typeof(value) == String
+            inputdict[key] = Symbol(value)
+        end
+    end
     return T(;inputdict...)
 end
 
@@ -50,15 +58,7 @@ function saveoutput(population, output, outputdir, seed, id, rng::AbstractRNG=Ra
 
 end
 
-haskeytrue(output, key) = haskey(output, key) && output[key]    
-
-function save_moduleancestory(population, outputdir, id)
-    open(outputdir*"moduleancestory.txt", "w") do io
-        for cellmodule in population
-            write(io, "$(cellmodule.parentid)    $(cellmodule.id)    $(cellmodule.tvec[1])\n")
-        end
-    end
-end
+haskeytrue(output, key) = haskey(output, key) && output[key] 
 
 function save_sampled_module_compare(population, nsample, outputdir, id, rng)
     pairwisefixeddiff, sharedfixedmuts = sampledmoduledata(population, nsample, rng)

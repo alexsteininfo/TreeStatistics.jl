@@ -1,4 +1,4 @@
-function processresults!(cellmodule::CellModule, μ, clonalmutations, rng::AbstractRNG;
+function processresults!(cellmodule, μ, clonalmutations, rng::AbstractRNG;
     mutationdist=:poisson)
 
     mutationlist = get_mutationlist(cellmodule)
@@ -9,8 +9,8 @@ function processresults!(cellmodule::CellModule, μ, clonalmutations, rng::Abstr
     return cellmodule
 end
 
-function processresults!(population::Vector{CellModule}, μ, clonalmutations, 
-    rng::AbstractRNG; mutationdist=:poisson)
+function processresults!(population::Vector{T}, μ, clonalmutations, 
+    rng::AbstractRNG; mutationdist=:poisson) where T
     
     mutationlist = get_mutationlist(population)
     expandedmutationids = 
@@ -22,7 +22,7 @@ function processresults!(population::Vector{CellModule}, μ, clonalmutations,
     return population
 end
 
-function final_timedep_mutations!(population::Vector{CellModule}, μ, mutationdist, rng)
+function final_timedep_mutations!(population::Vector{T}, μ, mutationdist, rng) where T
     mutID = maximum(mutid 
         for cellmodule in population 
             for cell in cellmodule.cells
@@ -34,7 +34,7 @@ function final_timedep_mutations!(population::Vector{CellModule}, μ, mutationdi
     end
 end
 
-function final_timedep_mutations!(cellmodule::CellModule, μ, mutationdist, rng; mutID=nothing)
+function final_timedep_mutations!(cellmodule, μ, mutationdist, rng; mutID=nothing)
     tend = age(cellmodule)
     if isnothing(mutID)
         mutID = maximum(mutid for cell in cellmodule.cells for mutid in cell.mutations) + 1
@@ -78,7 +78,7 @@ function expandmutations(expandedmutationids, originalmutations)
     )
 end
 
-function get_mutationlist(population::Vector{CellModule})
+function get_mutationlist(population::Vector{T}) where T
     #get list of all mutations assigned to each cell
     mutationlist = [mutation 
         for cellmodule in population
@@ -88,7 +88,7 @@ function get_mutationlist(population::Vector{CellModule})
     return sort(unique(mutationlist))
 end
 
-function get_mutationlist(cellmodule::CellModule)
+function get_mutationlist(cellmodule)
     #get list of all mutations assigned to each cell
     mutationlist = [mutation 
         for cell in cellmodule.cells
@@ -123,7 +123,7 @@ function numberuniquemutations(rng, L, mutationdist, μ)
     end
 end
 
-function remove_undetectable!(cellmodule::CellModule, clonefreq, clonefreqp, numclones, detectableclones)
+function remove_undetectable!(cellmodule, clonefreq, clonefreqp, numclones, detectableclones)
     #if there are clones outside the detectable range remove them from the data
     if sum(detectableclones) < numclones
         numclones = sum(detectableclones)

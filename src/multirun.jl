@@ -6,11 +6,11 @@ function multiplesimulations(numsim, inputlist... ; rng::AbstractRNG = Random.GL
     return multsimlist
 end
 
-function multiplesimulations(numsim, input; rng::AbstractRNG = Random.GLOBAL_RNG)
+function multiplesimulations(::Type{T}, numsim, input; rng::AbstractRNG = Random.GLOBAL_RNG) where T
     
     results = MultiSimulation(input, CellModule[])
     for i in 1:numsim
-        simdata = runsimulation(input, rng)
+        simdata = runsimulation(T, input, rng)
         push!(results.output, simdata.output)
     end
     return results
