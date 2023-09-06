@@ -161,11 +161,11 @@ function runsimulation_timeseries_returnfinalpop(::Type{Cell}, input::Multilevel
             population, 
             t,
             input.maxmodules, 
-            input.b_module, 
-            input.d_module, 
+            input.birthrate, 
+            input.deathrate, 
             input.moranrate, 
-            input.branchrate, 
             input.asymmetricrate,
+            input.branchrate, 
             input.modulesize, 
             input.branchinitsize, 
             input.modulebranching,
@@ -178,7 +178,6 @@ function runsimulation_timeseries_returnfinalpop(::Type{Cell}, input::Multilevel
             moduleupdate=:moran,
             t0
         )
-        length(population) < input.maxmodules || break
         push!(data, func(population))
         t0 = t
     end

@@ -174,6 +174,11 @@ population = [module1, module2, module3]
     @test pairwise_fixed_differences_clonal(population) == (Dict(68 => 1, 102 => 1, 54 => 1), Dict(42 => 1, 32 => 1, 66 => 1))
 end
 
+@testset "mutation statistics" begin
+    @test clonal_mutations.(population) == [42, 32, 66]
+    @test all(average_mutations.(population) .≈ [78.0, 106.0, 108.0])
+end
+
 @testset "module splitting with replacement" begin
     rng = MersenneTwister(12)
     parentmodule = deepcopy(module1)
