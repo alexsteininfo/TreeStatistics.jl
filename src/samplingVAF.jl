@@ -1,7 +1,6 @@
 function getVAFresult(simulation, rng::AbstractRNG=Random.GLOBAL_RNG; read_depth=100.0, 
     detectionlimit=5/read_depth, cellularity=1.0)
-
-    trueVAF = getallelefreq(simulation)
+    trueVAF = getallelefreq(simulation, ploidy)
     sampledVAF = sampledallelefreq(trueVAF, rng, read_depth=read_depth, 
         detectionlimit=detectionlimit, cellularity=cellularity)
     freq, freqp = subclonefreq(simulation.output)
@@ -21,7 +20,7 @@ end
 function getVAFresult(multisimulation::MultiSimulation, moduleid, rng::AbstractRNG=Random.GLOBAL_RNG; read_depth=100.0, 
     detectionlimit=5/read_depth, cellularity=1.0)
 
-    trueVAF = getallelefreq(multisimulation[moduleid], multisimulation.input.ploidy)
+    trueVAF = getallelefreq(multisimulation, moduleid)
     sampledVAF = sampledallelefreq(trueVAF, rng, read_depth=read_depth, 
         detectionlimit=detectionlimit, cellularity=cellularity)
     freq, freqp = subclonefreq(multisimulation[moduleid])
@@ -41,7 +40,7 @@ end
 function getVAFresult(multisimulation::MultiSimulation, rng::AbstractRNG=Random.GLOBAL_RNG; read_depth=100.0, 
     detectionlimit=5/read_depth, cellularity=1.0)
 
-    trueVAF = getallelefreq(multisimulation, multisimulation.input.ploidy)
+    trueVAF = getallelefreq(multisimulation)
     sampledVAF = sampledallelefreq(trueVAF, rng, read_depth=read_depth, 
         detectionlimit=detectionlimit, cellularity=cellularity)
     freq, freqp = Float64[0.0], Float64[0.0] #TODO not implemented properly

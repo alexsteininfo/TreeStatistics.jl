@@ -154,7 +154,11 @@ end
 TBW
 """
 function runsimulation_timeseries(::Type{T}, ::Type{S}, input::SimulationInput, timesteps, func, rng::AbstractRNG=Random.GLOBAL_RNG) where {T, S}
-    return runsimulation_timeseries_returnfinalpop(T, input, timesteps, func, rng)[1] 
+    return runsimulation_timeseries_returnfinalpop(T, S, input, timesteps, func, rng)[1] 
+end
+
+function runsimulation_timeseries(::Type{T}, input::SimulationInput, timesteps, func, rng::AbstractRNG=Random.GLOBAL_RNG) where {T, S}
+    return runsimulation_timeseries(T, WellMixed, input, timesteps, func, rng)[1] 
 end
 
 getmoduleupdate(::MultilevelBranchingInput) = :branching

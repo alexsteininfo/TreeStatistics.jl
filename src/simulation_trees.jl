@@ -1,17 +1,3 @@
-"""
-    runsimulation(::Type{T}, input::SinglelevelInput, rng::AbstractRNG=Random.GLOBAL_RNG; 
-        timefunc=exptime, returnextinct=false) where T <: AbstractTreeCell
-
-Simulate a population of cells.
-"""
-
-
-
-
-function runsimulation_timeseries(::Type{T}, ::Type{S}, input::SinglelevelInput, timesteps, func, rng::AbstractRNG=Random.GLOBAL_RNG) where {T <: AbstractCell, S <: ModuleStructure}
-    return runsimulation_timeseries_returnfinalpop(T, S, input, timesteps, func, rng)[1] 
-end
-
 popsize_exceeded(popsize, input::BranchingInput) = popsize > input.Nmax
 popsize_exceeded(popsize, input::SinglelevelInput) = false
 
