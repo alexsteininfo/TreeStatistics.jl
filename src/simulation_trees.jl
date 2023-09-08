@@ -1,46 +1,12 @@
-function runsimulation(
-    ::Type{T}, 
-    input::SimulationInput, 
-    rng::AbstractRNG=Random.GLOBAL_RNG;
-    kwargs...
-) where {T <: AbstractTreeCell}
-
-    return runsimulation(T, WellMixed, input, rng; kwargs...)
-end
-
 """
     runsimulation(::Type{T}, input::SinglelevelInput, rng::AbstractRNG=Random.GLOBAL_RNG; 
         timefunc=exptime, returnextinct=false) where T <: AbstractTreeCell
 
 Simulate a population of cells.
 """
-function runsimulation(::Type{T}, ::Type{S}, input::SinglelevelInput, rng::AbstractRNG=Random.GLOBAL_RNG; 
-    timefunc=exptime, returnextinct=false) where {T <: AbstractTreeCell, S <: ModuleStructure}
-    while true
-        treemodule = initialize(T, S, input.clonalmutations, getNinit(input); rng)
-        simulate!(treemodule, input, rng; timefunc)
-        if length(treemodule) > 0 || returnextinct
-            return Simulation(input, treemodule)
-        end
-    end
 
-end
 
-function runsimulation_timeseries_returnfinalpop(::Type{T}, ::Type{S}, input::SinglelevelInput, 
-    timesteps, func, rng::AbstractRNG=Random.GLOBAL_RNG; timefunc=exptime) where {T <: AbstractCell, S <: ModuleStructure}
 
-    treemodule = initialize(T, S, input.clonalmutations, getNinit(input); rng)
-    data = []
-    t0 = 0.0
-    for t in timesteps
-        simulate!(treemodule, input, rng; timefunc, t0, tmax=t)
-        #stop branchingprocess simulations if maximum population size is exceeded
-        popsize_exceeded(length(treemodule), input) && break
-        push!(data, func(treemodule))
-        t0 = t
-    end
-    return data, treemodule
-end
 
 function runsimulation_timeseries(::Type{T}, ::Type{S}, input::SinglelevelInput, timesteps, func, rng::AbstractRNG=Random.GLOBAL_RNG) where {T <: AbstractCell, S <: ModuleStructure}
     return runsimulation_timeseries_returnfinalpop(T, S, input, timesteps, func, rng)[1] 
@@ -423,56 +389,6 @@ function prune_tree!(cellnode)
         end
     end
 end
-
-function initialize(::Type{T}, ::Type{S}, clonalmutations, N; rng=Random.GLOBAL_RNG) where {T <: AbstractTreeCell, S <: ModuleStructure}
-    structure = create_modulestructure(S, N)
-    cells = create_cells(T, structure, clonalmutations, N; rng)
-    initialmodule = new_module_from_cells(
-        cells, 
-        0.0,
-        [0.0],
-        CloneTracker[],
-        1,
-        0,
-        structure
-    )
-    return initialmodule
-end
-
-function newcell(::Type{T}, id, mutations) where T <: AbstractTreeCell
-    return BinaryNode{T}(T(;id, mutations))
-end
-
-# function initialize_cells(::Type{T}, input::MoranInput, structure::ModuleStructure, rng) where T <: AbstractTreeCell
-#     initialmutations =
-#         if input.mutationdist == :fixedtimedep || input.mutationdist == :poissontimedep 
-#             0
-#         else
-#             Int64[numbernewmutations(rng, input.mutationdist, input.μ) for i in 1:input.N]
-#         end
-#     return initialize_cells(T, structure, initialmutations, input.N)
-# end
-
-# function initialize_cells(::Type{T}, input, structure::ModuleStructure, rng) where T <: AbstractTreeCell
-#     initialmutations =
-#         if input.mutationdist == :fixedtimedep || input.mutationdist == :poissontimedep 
-#             0
-#         else
-#             numbernewmutations(rng, input.mutationdist, input.μ)
-#         end
-#     return create_cells(T, structure, initialmutations, 1)
-# end
-
-# initialmutations(::Type{Cell}, input, rng) = input.clonalmutations
-
-# function initialmutations(::Type{T}, input, rng) where T <: AbstractTreeCell
-#     if input.mutationdist == :fixedtimedep || input.mutationdist == :poissontimedep 
-#         return 0
-#     else
-#         numbernewmutations(rng, input.mutationdist, input.μ)
-#     end
-# end
-
 
 
 """

@@ -1,38 +1,3 @@
-"""
-    runsimulation(input::SinglelevelInput, rng::AbstractRNG=Random.GLOBAL_RNG)
-"""
-function runsimulation(input::SinglelevelInput, rng::AbstractRNG=Random.GLOBAL_RNG)
-    return runsimulation(Cell, WellMixed, input, rng)
-end
-
-function runsimulation(::Type{T}, input::SimulationInput, rng::AbstractRNG=Random.GLOBAL_RNG) where T <: AbstractCell
-    return runsimulation(T, WellMixed, input, rng)
-end
-
-function runsimulation(::Type{Cell}, ::Type{S}, input::SinglelevelInput, rng::AbstractRNG=Random.GLOBAL_RNG) where S <: ModuleStructure
-    #Initially set clonalmutations = 0 and μ = 1. These are expanded later. 
-    #UNLESS input.mutationdist=:poissontimedep or :fixedtimedep
-
-    μ, clonalmutations, mutationdist = input.μ, input.clonalmutations, input.mutationdist
-    if !(input.mutationdist ∈ (:poissontimedep, :fixedtimedep))
-        input = newinput(input, μ=1, clonalmutations=0, mutationdist=:fixed)
-    end
-
-    cellmodule = initialize(Cell, S, input.clonalmutations, getNinit(input); rng)
-
-    simulate!(cellmodule, input, rng)
-    
-    #If we set μ=1 etc we need to add proper mutations now (also remove undetectable subclones).
-    if !(input.mutationdist ∈ (:poissontimedep, :fixedtimedep) )  
-        processresults!(cellmodule, μ, clonalmutations, rng; mutationdist)
-        input = newinput(input; μ, clonalmutations, mutationdist)
-    #Otherwise if mutation accumulation is time dependent, add the final mutations.
-    else
-        final_timedep_mutations!(cellmodule::CellModule, input.μ, input.mutationdist, rng)
-    end
-    return Simulation(input, cellmodule)
-end
-
 function simulate!(cellmodule::CellModule, input::BranchingMoranInput, 
     rng::AbstractRNG=Random.GLOBAL_RNG; timefunc=exptime, t0=nothing, tmax=nothing)
 
@@ -325,79 +290,7 @@ function moranprocess!(cellmodule::CellModule, moranrate, tmax, μ, mutationdist
     return cellmodule
 end
 
-"""
-    initialize(::Type{T}, ::Type{S}, input, rng::AbstractRNG=Random.GLOBAL_RNG)
 
-Initialise population of cells based on `input` and return as a `TreeModule{T, S} or
-if `T == Cell` as a`CellModule{S}`.
-"""
-function initialize(
-    ::Type{T}, 
-    ::Type{S},
-    clonalmutations,
-    N;
-    rng::AbstractRNG=Random.GLOBAL_RNG,
-) where {T <: AbstractCell, S <: ModuleStructure}
-
-    modulestructure = create_modulestructure(S, N)
-    cells = create_cells(T, modulestructure, clonalmutations, N; rng)
-    return new_module_from_cells(
-        cells,
-        0.0,
-        Float64[0.0],
-        CloneTracker[],
-        1,
-        0,
-        modulestructure
-    )
-end
-
-getNinit(input::Union{BranchingInput, BranchingMoranInput}) = 1
-getNinit(input::MoranInput) = input.N
-
-
-function newcell(::Type{Cell}, id, mutations)
-    return Cell(
-        collect(1:mutations), 
-        1,  #clonetype (wild-type)
-        0,  #birthtime
-        id, #unique cell id
-        0   #parent id
-    )
-end
-
-function create_cells(::Type{T}, structure::ModuleStructure, initialmutations, N=1; rng=Random.GLOBAL_RNG) where T <:AbstractCell
-    alivecells = [
-        newcell(T, id, initialmutations)
-            for id in 1:N
-    ]
-    return position_cells(alivecells, structure, rng)
-end
-
-position_cells(alivecells, structure::ModuleStructure, rng) = alivecells
-
-function position_cells(cells, structure::Linear, rng)
-    N = length(cells)
-    pad1 = round(Int64, (structure.size - N - 1)/2)
-    pad2 = structure.size - pad1 - 1
-    if rand(rng, 1:2) == 2 
-        pad1, pad2 = pad2, pad1 
-    end
-    return [fill(nothing, pad1); cells; fill(nothing, pad2)]
-end
-
-function new_module_from_cells(cells::T, t, branchtimes, subclones, id, parentid, modulestructure::S) where {T, S}
-    cellmodule = moduletype(T, S)(
-        cells,
-        t,
-        branchtimes,
-        subclones,
-        id,
-        parentid,
-        modulestructure
-    )
-    return cellmodule
-end
 
 
 function addmutations!(cell1::Cell, cell2::Cell, μ, mutID, rng, mutationdist=mutationdist, Δt=Δt)
@@ -427,12 +320,6 @@ function addmutations!(cell::Cell, μ, mutID, rng, mutationdist=mutationdist, Δ
     end
     return mutID
 end
-
-# function newmutations!(cell, μ, mutID, rng::AbstractRNG; mutationdist=:poisson, Δt=nothing)
-#     #function to add new mutations to cells based on μ
-#     numbermutations = numbernewmutations(rng, mutationdist, μ, Δt=Δt)
-#     return addnewmutations!(cell, numbermutations, mutID)
-# end
 
 function numbernewmutations(rng, mutationdist, μ; Δt=nothing)
     if mutationdist == :fixed

@@ -1,145 +1,3 @@
-function run_multilevel_from_file(filename, outputdir)
-    inputdict = JSON.parsefile(filename, dicttype=Dict{Symbol, Any})
-    input = loadinput(MultilevelInput, inputdict[:input])
-    seeds = inputdict[:seeds]
-    output = inputdict[:output]
-    if inputdict[:repeat] > 1
-        for i in 1:inputdict[:repeat]
-            rng, seed = seeds !== nothing ? (MersenneTwister(seeds[i]), seeds[i]) : (MersenneTwister(), nothing)
-            population = runsimulation(input, rng, Symbol(inputdict[:simtype]))
-            saveoutput(population, output, outputdir, seed, i)
-        end
-    else
-        rng = MersenneTwister(seeds)
-        population = runsimulation(input, rng, Symbol(inputdict[:simtype]))
-        saveoutput(population, output, outputdir, seeds, 1)
-    end
-end
-
-function run_multilevel_from_file(filename, outputdir, id)
-    inputdict = JSON.parsefile(filename, dicttype=Dict{Symbol, Any})
-    input = loadinput(MultilevelInput, inputdict[:input])
-    seed = (inputdict[:seeds])[id]
-    output = inputdict[:output]
-    rng = MersenneTwister(seed)
-    population = runsimulation(input, rng, Symbol(inputdict[:simtype]))
-    saveoutput(population, output, outputdir, seed, id)
-end
-
-"""
-    runsimulation(input::MultilevelInput, rng::AbstractRNG = MersenneTwister; 
-        <keyword arguments>)
-
-    Simulate a growing population of modules, until it reaches `maxmodules`.
-    
-    Start with a single module comprised of a single cell that grows via a branching process  
-    to size `input.modulesize`, then switches to a Moran process. 
-    New modules are created with rate `input.branchrate`, by sampling cells from the parent 
-    module. Return output as a MultiSimulation.
-
-    Simulation is implemented by a Gillespie algorithm and runs until the number of modules 
-    exceeds input.maxmodules or time exceeds input.tmax.
-
-
-"""
-function runsimulation(input::MultilevelInput, args...)
-    return runsimulation(Cell, WellMixed, input, args...) 
-end
-
-getmoduleupdate(input::MultilevelBranchingInput) = :branching
-getmoduleupdate(input::MultilevelBranchingMoranInput) = :moran
-getmoduleupdate(input::MultilevelMoranInput) = :moran
-
-
-function runsimulation(::Type{Cell}, ::Type{S}, input::MultilevelInput, rng::AbstractRNG=Random.GLOBAL_RNG) where S
-    #if the population dies out we start a new simulation
-    while true 
-        population = initialize_population(
-            Cell,
-            S,
-            0,
-            getNinit(input);
-            rng
-        )
-        nextID, nextmoduleID = 2, 2
-        population, = 
-            simulate!(
-                population, 
-                input.tmax, 
-                input.maxmodules, 
-                input.birthrate, 
-                input.deathrate, 
-                input.moranrate, 
-                input.asymmetricrate,
-                input.branchrate, 
-                input.modulesize, 
-                input.branchinitsize, 
-                input.modulebranching,
-                1, #assume a single mutation at each division and add distribution of
-                :fixed, #mutations later,
-                input.moranincludeself,
-                nextID,
-                nextmoduleID,
-                rng,
-                moduleupdate=getmoduleupdate(input)
-            )
-        if length(population) != 0
-            break
-        end
-    end
-    population = 
-        processresults!(population, input.μ, input.clonalmutations, rng)
-    return MultiSimulation(input, population)
-end
-
-function runsimulation_timeseries_returnfinalpop(::Type{Cell}, ::Type{S}, input, timesteps, func, rng::AbstractRNG=Random.GLOBAL_RNG) where S
-    population = initialize_population(
-        Cell,
-        S,
-        0,
-        getNinit(input);
-        rng
-    )
-    data = []
-    t0 = 0.0
-    nextID, nextmoduleID = 2, 2
-    for t in timesteps
-        population, nextID, nextmoduleID = simulate!(
-            population, 
-            t,
-            input.maxmodules, 
-            input.birthrate, 
-            input.deathrate, 
-            input.moranrate, 
-            input.asymmetricrate,
-            input.branchrate, 
-            input.modulesize, 
-            input.branchinitsize, 
-            input.modulebranching,
-            input.μ,
-            input.mutationdist,
-            input.moranincludeself,
-            nextID,
-            nextmoduleID,
-            rng;
-            moduleupdate=getmoduleupdate(input),
-            t0
-        )
-        push!(data, func(population))
-        t0 = t
-    end
-    return data, population
-end
-
-"""
-    runsimulation_timeseries(::Type{T}, input::MultilevelInput, timesteps, func, rng::AbstractRNG=Random.GLOBAL_RNG) where T
-
-TBW
-"""
-function runsimulation_timeseries(::Type{T}, ::Type{S}, input::MultilevelInput, timesteps, func, rng::AbstractRNG=Random.GLOBAL_RNG) where {T, S}
-    return runsimulation_timeseries_returnfinalpop(T, input, timesteps, func, rng)[1] 
-end
-
 """
     simulate!(population, tmax, maxmodules, birthrate, deathrate, moranrate, branchrate, 
         modulesize, branchinitsize, rng; moduleupdate=:branching[, t0])
@@ -565,24 +423,16 @@ end
 
 killallcells!(population::CellVector, args...) = nothing
 
-"""
-    initialize_population(::Type{T}, ::Type{S}, clonalmutations, N, Nmodules=1; rng=Random.GLOBAL_RNG) where {T<: AbstractTreeCell, S<: ModuleStructure}
-
-Create a Vector{CellModule} or Vector{TreeModule} of `Nmodules` modules each containing a 
-single cell at time t=0. 
-"""
-function initialize_population(
-    ::Type{T}, 
-    ::Type{S}, 
-    clonalmutations, 
-    N,
-    Nmodules=1;
-    rng=Random.GLOBAL_RNG
-) where {T<: AbstractCell, S<: ModuleStructure}
-    return moduletype(T,S)[initialize(T, S, clonalmutations, N; rng) for _ in 1:Nmodules]
-end
-
-
-getNinit(input::MultilevelInput) = 1
-
 getnextID(population::Vector{CellModule{S}}) where S = maximum(map(x->getnextID(x.cells), population))
+
+function getnextID(population::Vector{TreeModule{T,S}}) where {T,S}
+    nextID = 1
+    for treemodule in population
+        for cellnode in treemodule.cells
+            if id(cellnode) + 1 > nextID
+                nextID = id(cellnode) + 1
+            end
+        end
+    end
+    return nextID
+end

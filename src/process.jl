@@ -1,4 +1,12 @@
-function processresults!(cellmodule, μ, clonalmutations, rng::AbstractRNG;
+function proccessresults!(treemodule::TreeModule, μ, clonalmutations, rng; mutationdist=:poisson)
+    return treemodule
+end
+
+function proccessresults!(population::Vector{TreeModule}, μ, clonalmutations, rng; mutationdist=:poisson)
+    return population
+end
+
+function processresults!(cellmodule::CellModule, μ, clonalmutations, rng::AbstractRNG;
     mutationdist=:poisson)
 
     mutationlist = get_mutationlist(cellmodule)
