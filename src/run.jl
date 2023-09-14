@@ -157,7 +157,7 @@ function runsimulation_timeseries(::Type{T}, ::Type{S}, input::SimulationInput, 
     return runsimulation_timeseries_returnfinalpop(T, S, input, timesteps, func, rng)[1] 
 end
 
-function runsimulation_timeseries(::Type{T}, input::SimulationInput, timesteps, func, rng::AbstractRNG=Random.GLOBAL_RNG) where {T, S}
+function runsimulation_timeseries(::Type{T}, input::SimulationInput, timesteps, func, rng::AbstractRNG=Random.GLOBAL_RNG) where {T}
     return runsimulation_timeseries(T, WellMixed, input, timesteps, func, rng)[1] 
 end
 

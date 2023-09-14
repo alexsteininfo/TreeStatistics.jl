@@ -500,7 +500,7 @@ end
     cell_subset_size(node, cells)
 
 Calculate the number of cell nodes (leaves of the tree of which `node` is the root) that are
-both alicve and present in the list `cells`.
+both alive and present in the list `cells`.
 """
 function cell_subset_size(node, cells)
     if node in cells
@@ -509,7 +509,12 @@ function cell_subset_size(node, cells)
     #To properly iterate over leaves we need to make node a true "root" (i.e. set its parent
     #field to nothing)
     root, parent = asroot!(node)
-    count = mapreduce(x -> (x in cells) && isalive(x), +, Leaves(root))
+    count = 0
+    for leaf in Leaves(root)
+        if leaf in cells && isalive(leaf)
+            count += 1
+        end
+    end
     root.parent = parent #reset node so that it is unchanged
     return count
 end
