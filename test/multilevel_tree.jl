@@ -162,9 +162,9 @@ node30 = rightchild!(root.left.right.left.left.right.left.left.left, cells[30])
 node23 = rightchild!(root.left.right.left.left.right.left.left, cells[23])
 
 structure = WellMixed()
-module1 = SomaticEvolution.TreeModule(Union{BinaryNode{SimpleTreeCell}, Nothing}[node19, node24, node25], 5.0, [0.0, 2.0], SomaticEvolution.CloneTracker[], 1, 0, structure)
-module2 = SomaticEvolution.TreeModule(Union{BinaryNode{SimpleTreeCell}, Nothing}[node26, node27, node28], 5.0, [2.0, 4.0], SomaticEvolution.CloneTracker[], 2, 1, structure)
-module3 = SomaticEvolution.TreeModule(Union{BinaryNode{SimpleTreeCell}, Nothing}[node29, node30, node23], 5.0, [4.0], SomaticEvolution.CloneTracker[], 3, 2, structure)
+module1 = SomaticEvolution.TreeModule(Union{BinaryNode{SimpleTreeCell}, Nothing}[node19, node24, node25], 5.0, [0.0, 2.0], 1, 0, structure)
+module2 = SomaticEvolution.TreeModule(Union{BinaryNode{SimpleTreeCell}, Nothing}[node26, node27, node28], 5.0, [2.0, 4.0], 2, 1, structure)
+module3 = SomaticEvolution.TreeModule(Union{BinaryNode{SimpleTreeCell}, Nothing}[node29, node30, node23], 5.0, [4.0], 3, 2, structure)
 population = [module1, module2, module3]
 #endregion
 

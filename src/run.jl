@@ -32,20 +32,24 @@ function runsimulation(
     #If T==Cell: Initially set clonalmutations = 0 and μ = 1. These are expanded later. 
     #UNLESS input.mutationdist=:poissontimedep or :fixedtimedep
     μ, clonalmutations, mutationdist = getmutationargs(T, input)
- 
+
     #if the population dies out we start a new simulation
     while true 
-        population = initialize_population(T, S, clonalmutations, getNinit(input); rng)
+        population = initialize_population(
+            T, S, 
+            clonalmutations, 
+            getNinit(input),
+            input.birthrate,
+            input.deathrate,
+            input.moranrate,
+            input.asymmetricrate;
+            rng)
         nextID, nextmoduleID = 2, 2
         population, = 
             simulate!(
                 population, 
                 input.tmax, 
                 input.maxmodules, 
-                input.birthrate, 
-                input.deathrate, 
-                input.moranrate, 
-                input.asymmetricrate,
                 input.branchrate, 
                 input.modulesize, 
                 input.branchinitsize, 

@@ -1,18 +1,17 @@
-population = [
-    SomaticEvolution.CellModule(
+homeostatic_modules = 
+    [SomaticEvolution.CellModule(
         Union{Cell, Nothing}[Cell([2, 3, 9, 15], 1, 0), Cell([2, 4], 1, 0), Cell([2, 3, 10], 1, 0), Cell([2, 3, 9, 16], 1, 0)], 
         227.24560639149834,
         [0.0, 166.45694063272188, 218.77527717255302],
-        SomaticEvolution.CloneTracker[], 
         1, 
         0,
         WellMixed()
-    )
+    )]
+growing_modules = [
     SomaticEvolution.CellModule(
         Union{Cell, Nothing}[Cell([1, 6, 8, 11, 13], 1, 0), Cell([1, 6, 8, 12], 1, 0), Cell([1, 6, 8, 11, 14], 1, 0)], 
         216.40410240545967,
         [166.45694063272188], 
-        SomaticEvolution.CloneTracker[], 
         2, 
         1,
         WellMixed()
@@ -22,12 +21,13 @@ population = [
         Union{Cell, Nothing}[Cell(Int64[1, 5], 1, 0)], 
         218.77527717255302,
         [218.77527717255302], 
-        SomaticEvolution.CloneTracker[], 
         3, 
         1,
         WellMixed()
     )
 ]
+
+population = Population(homeostatic_modules, growing_modules, 1.0, 0.0, 1.0, 0.0)
 
 μ = 2
 clonalmutations = 3

@@ -2,13 +2,12 @@ function proccessresults!(treemodule::TreeModule, μ, clonalmutations, rng; muta
     return treemodule
 end
 
-function proccessresults!(population::Vector{TreeModule}, μ, clonalmutations, rng; mutationdist=:poisson)
+function proccessresults!(population::Population{TreeModule}, μ, clonalmutations, rng; mutationdist=:poisson)
     return population
 end
 
 function processresults!(cellmodule::CellModule, μ, clonalmutations, rng::AbstractRNG;
     mutationdist=:poisson)
-
     mutationlist = get_mutationlist(cellmodule)
     expandedmutationids = 
         get_expandedmutationids(μ, mutationlist, clonalmutations, rng, mutationdist=mutationdist)
@@ -17,20 +16,21 @@ function processresults!(cellmodule::CellModule, μ, clonalmutations, rng::Abstr
     return cellmodule
 end
 
-function processresults!(population::Vector{T}, μ, clonalmutations, 
-    rng::AbstractRNG; mutationdist=:poisson) where T
+function processresults!(population::Population{CellModule}, μ, clonalmutations, 
+    rng::AbstractRNG; mutationdist=:poisson)
     
-    mutationlist = get_mutationlist(population)
+    modules = allmodules(population)
+    mutationlist = get_mutationlist(modules)
     expandedmutationids = 
         get_expandedmutationids(μ, mutationlist, clonalmutations, rng, mutationdist=mutationdist)
     
-    for cellmodule in population
+    for cellmodule in modules
         expandmutations!(cellmodule, expandedmutationids, clonalmutations)
     end
     return population
 end
 
-function final_timedep_mutations!(population::Vector{T}, μ, mutationdist, rng) where T
+function final_timedep_mutations!(population::Population, μ, mutationdist, rng)
     mutID = maximum(mutid 
         for cellmodule in population 
             for cell in cellmodule.cells
@@ -38,7 +38,7 @@ function final_timedep_mutations!(population::Vector{T}, μ, mutationdist, rng) 
     )
     tend = age(population)
     for cellmodule in population
-        mutID = final_timedep_mutations!(cellmodule, μ, mutationdist, tend, rng, mutID=mutID)
+        mutID = final_timedep_mutations!(cellmodule, μ, mutationdist, rng, mutID=mutID)
     end
 end
 
@@ -86,7 +86,7 @@ function expandmutations(expandedmutationids, originalmutations)
     )
 end
 
-function get_mutationlist(population::Vector{T}) where T
+function get_mutationlist(population)
     #get list of all mutations assigned to each cell
     mutationlist = [mutation 
         for cellmodule in population

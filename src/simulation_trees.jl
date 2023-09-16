@@ -219,7 +219,7 @@ If mutations are time-dependent, e.g. `mutationdist == poissontimedep`, add muta
 parent cell depending on the length of its lifetime. Otherwise assign mutations to each 
 child cell.
 """
-function celldivision!(treemodule::TreeModule{T}, parentcellidx, t, nextID, μ, 
+function celldivision!(treemodule::TreeModule{T}, subclones, parentcellidx, t, nextID, μ, 
     mutationdist, rng; nchildcells=2) where T <: AbstractTreeCell
 
     alivecells = treemodule.cells
@@ -256,6 +256,8 @@ function celldivision!(treemodule::TreeModule{T}, parentcellidx, t, nextID, μ,
         #the other cell is added to the end of alivecells
         push!(alivecells, rightchild!(parentcellnode, childcell2)) 
     end
+    #adjust subclone sizes
+    subclones[parentcellnode.clonetype].size += (nchildcells - 1)
     return treemodule, nextID + nchildcells
 end
 
@@ -265,7 +267,7 @@ end
 
 Remove dead cell from `alivecells` and remove references to it from tree. Add time dependent mutations (if applicable) to dying cell.
 """
-function celldeath!(treemodule::TreeModule, deadcellidx, t=nothing, 
+function celldeath!(treemodule::TreeModule, subclones, deadcellidx, t=nothing, 
     μ=nothing, mutationdist=nothing, rng=nothing)
 
     alivecells = treemodule.cells
@@ -273,6 +275,8 @@ function celldeath!(treemodule::TreeModule, deadcellidx, t=nothing,
     killcell!(alivecells, deadcellidx, t, μ, mutationdist, rng)
     #remove from alivecell vector
     deleteat!(alivecells, deadcellidx)
+    #adjust subclone sizes
+    subclones[parentcellnode.clonetype].size -= 1
     return treemodule
 end
 

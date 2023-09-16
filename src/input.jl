@@ -34,8 +34,8 @@ Input for a single level branching process simulation that starts with a single 
     mutations (:poisson, :fixed, :poissontimedep, :fixedtimedep, :geometric)
 - `ploidy::Int64 = 2`: cell ploidy 
 - `numclones::Int64 = 0`: number of mutant subclones
-- `selection::Vector{Float64} = [0.0, 0.0, ...]`: selection strength of each mutant subclone
-- `tevent::Vector{Float64} = [1.0, 1.5, ...]`: time each mutant arises
+- `mutant_selection::Vector{Float64} = [0.0, 0.0, ...]`: mutant_selection strength of each mutant subclone
+- `mutant_time::Vector{Float64} = [1.0, 1.5, ...]`: time each mutant arises
 """
 Base.@kwdef struct BranchingInput <: SinglelevelInput
     Nmax::Int64 = 1000
@@ -47,8 +47,8 @@ Base.@kwdef struct BranchingInput <: SinglelevelInput
     mutationdist::Symbol = :poisson
     ploidy::Int64 = 2
     numclones::Int64 = 0
-    selection::Vector{Float64} = fill(0.0,numclones)
-    tevent::Vector{Float64} = collect(1.0:0.5:(1+numclones)/2)
+    mutant_selection::Vector{Float64} = fill(0.0,numclones)
+    mutant_time::Vector{Float64} = collect(1.0:0.5:(1+numclones)/2)
 end
 
 """
@@ -67,9 +67,8 @@ Input for a single level Moran process simulation that starts with `N` identical
 - `mutationdist::Symbol = :poisson`: defines the distibution for new 
     mutations (:poisson, :fixed, :poissontimedep, :fixedtimedep, :geometric)
 - `ploidy::Int64 = 2`: cell ploidy 
-- `numclones::Int64 = 0`: number of mutant subclones
-- `selection::Vector{Float64} = [0.0, 0.0, ...]`: selection strength of each mutant subclone
-- `tevent::Vector{Float64} = [1.0, 1.5, ...]`: time each mutant arises
+- `mutant_selection::Vector{Float64} = []`: mutant_selection strength of each mutant subclone
+- `mutant_time::Vector{Float64} = []`: time each mutant arises
 """
 Base.@kwdef struct MoranInput <: SinglelevelInput
     N::Int64 = 1000
@@ -80,9 +79,8 @@ Base.@kwdef struct MoranInput <: SinglelevelInput
     μ::Float64 = 1.0
     mutationdist::Symbol = :poisson
     ploidy::Int64 = 2
-    numclones::Int64 = 0
-    selection::Vector{Float64} = fill(0.0,numclones)
-    tevent::Vector{Float64} = collect(1.0:0.5:(1+numclones)/2)
+    mutant_selection::Vector{Float64} = Float64[]
+    mutant_time::Vector{Float64} = Float64[]
 end
 
 """
@@ -107,8 +105,8 @@ Input for a single level simulation that grows by a branching process to `Nmax` 
     mutations (:poisson, :fixed, :poissontimedep, :fixedtimedep, :geometric)
 - `ploidy::Int64 = 2`: cell ploidy
 - `numclones::Int64 = 0`: number of mutant subclones
-- `selection::Vector{Float64} = [0.0, 0.0, ...]`: selection strength of each mutant subclone
-- `tevent::Vector{Float64} = [1.0, 1.5, ...]`: time each mutant arises
+- `mutant_selection::Vector{Float64} = []`: mutant_selection strength of each mutant subclone
+- `mutant_time::Vector{Float64} = []`: time each mutant arises
 """
 Base.@kwdef struct BranchingMoranInput <: SinglelevelInput
     Nmax::Int64 = 1000
@@ -122,8 +120,8 @@ Base.@kwdef struct BranchingMoranInput <: SinglelevelInput
     mutationdist::Symbol = :poisson
     ploidy::Int64 = 2
     numclones::Int64 = 0
-    selection::Vector{Float64} = fill(0.0,numclones)
-    tevent::Vector{Float64} = collect(1.0:0.5:(1+numclones)/2)
+    mutant_selection::Vector{Float64} = []
+    mutant_time::Vector{Float64} = []
 end
 #endregion
 
@@ -181,6 +179,9 @@ Base.@kwdef struct MultilevelBranchingInput <: MultilevelInput
     μ::Float64 = 1.0
     mutationdist::Symbol = :poisson
     ploidy::Int64 = 2
+    numclones::Int64 = 0
+    mutant_selection::Vector{Float64} = fill(0.0,numclones)
+    mutant_time::Vector{Float64} = collect(1.0:0.5:(1+numclones)/2)
 end
 
 """
@@ -237,6 +238,9 @@ Base.@kwdef struct MultilevelMoranInput <: MultilevelInput
     μ::Float64 = 1.0
     mutationdist::Symbol = :poisson
     ploidy::Int64 = 2
+    numclones::Int64 = 0
+    mutant_selection::Vector{Float64} = fill(0.0,numclones)
+    mutant_time::Vector{Float64} = collect(1.0:0.5:(1+numclones)/2)
 end
 
 
@@ -293,6 +297,9 @@ Base.@kwdef struct MultilevelBranchingMoranInput <: MultilevelInput
     μ::Float64 = 1.0
     mutationdist::Symbol = :poisson
     ploidy::Int64 = 2
+    numclones::Int64 = 0
+    mutant_selection::Vector{Float64} = fill(0.0,numclones)
+    mutant_time::Vector{Float64} = collect(1.0:0.5:(1+numclones)/2)
 end
 
 #endregion

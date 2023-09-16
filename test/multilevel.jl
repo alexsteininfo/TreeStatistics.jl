@@ -15,17 +15,17 @@ mt1 = SomaticEvolution.CellModule(
     Union{Cell, Nothing}[Cell([3, 4, 20], 1, 0), Cell([3, 5, 6, 8, 10, 17, 18, 19], 1, 0), Cell([3, 4, 21, 22, 23], 1, 0), Cell([1, 24], 1, 0)], 
     242.1,
     [0.0, 187.12],
-    SomaticEvolution.CloneTracker[], 1, 0, WellMixed())
+    1, 0, WellMixed())
 mt2 = SomaticEvolution.CellModule(
     Union{Cell, Nothing}[Cell([1, 13, 25, 26, 27], 1, 0), Cell([1, 13], 1, 0), Cell([1, 13, 25, 28, 29], 1, 0)], 
     257.2, 
     [257.2],
-    SomaticEvolution.CloneTracker[], 2, 1, WellMixed())
+    2, 1, WellMixed())
 mt3 = SomaticEvolution.CellModule(
     Union{Cell, Nothing}[Cell([1], 1, 0)],
     257.2,
     [257.2], 
-    SomaticEvolution.CloneTracker[], 3, 2, WellMixed())
+    3, 2, WellMixed())
 
 
 @testset "module sampling" begin
@@ -97,17 +97,17 @@ mt1 = SomaticEvolution.CellModule(
     Union{Cell, Nothing}[Cell([3, 4, 20], 1, 0), Cell([3, 5, 6, 8, 10, 17, 18, 19], 1, 0), Cell([3, 4, 21, 22, 23], 1, 0), Cell([1, 24], 1, 0)], 
     242.1,
     [0.0, 187.12],
-    SomaticEvolution.CloneTracker[], 1, 0, modulestructure)
+    1, 0, modulestructure)
 mt2 = SomaticEvolution.CellModule(
     Union{Cell, Nothing}[Cell([1, 13, 25, 26, 27], 1, 0), Cell([1, 13], 1, 0), Cell([1, 13, 25, 28, 29], 1, 0)], 
     257.2, 
     [257.2],
-    SomaticEvolution.CloneTracker[], 2, 1, modulestructure)
+    2, 1, modulestructure)
 mt3 = SomaticEvolution.CellModule(
     Union{Cell, Nothing}[Cell([1], 1, 0)],
     257.2,
     [257.2], 
-    SomaticEvolution.CloneTracker[], 3, 2, modulestructure)
+    3, 2, modulestructure)
 
 @testset "module splitting with replacement" begin
     rng = MersenneTwister(12)
@@ -182,7 +182,7 @@ end
     population = [
         SomaticEvolution.CellModule(
             Union{Cell, Nothing}[Cell([1], 1, 0), Cell([2], 1, 0)], 2.0, [0.0], 
-            SomaticEvolution.CloneTracker[], 1, 0, WellMixed())
+            1, 0, WellMixed())
     ]
     nextID = 3
     for i in 1:10

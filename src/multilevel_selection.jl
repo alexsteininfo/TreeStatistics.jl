@@ -1,17 +1,18 @@
 """
-    simulate!(population, tmax, maxmodules, birthrate, deathrate, moranrate, branchrate, 
-        modulesize, branchinitsize, rng; moduleupdate=:branching[, t0])
+    simulate_selection!(population, tmax, maxmodules, birthrate, deathrate, moranrate, asymmetricrate, branchrate, 
+    modulesize, branchinitsize, modulebranching, μ, mutationdist, moranincludeself, nextID, nextmoduleID, rng; moduleupdate=:branching, t0=nothing)
 
 Run a single multilevel simulation using the Gillespie algorithm, with the 
 `population` giving the initial state. Simulation runs until the module population 
 size reaches `maxmodules` or the age of the population reaches `tmax`. 
 
 """
-function simulate_neutral!(population, tmax, maxmodules, branchrate, 
+function simulate_selection!(population, mutant_selection, mutant_time, tmax, maxmodules, birthrate, deathrate, moranrate, asymmetricrate, branchrate, 
     modulesize, branchinitsize, modulebranching, μ, mutationdist, moranincludeself, nextID, nextmoduleID, rng; moduleupdate=:branching, t0=nothing)
-
+    
     t = isnothing(t0) ? age(population) : t0
-    transitionrates = get_neutral_transitionrates(population, branchrate, modulesize)
+    transitionrates = get_transitionrates(population, birthrate, deathrate, 
+        moranrate, asymmetricrate, branchrate, modulesize)
 
     while t < tmax && (moduleupdate==:moran || length(population) < maxmodules)
         population, transitionrates, t, nextID, nextmoduleID = 
@@ -66,7 +67,7 @@ function update_population!(population, transitionrates, birthrate, deathrate, m
             moduleupdate
         )
         if transitionid in 3:5
-            update_neutral_transitionrates!(transitionrates, population, branchrate, modulesize)
+            update_transitionrates!(transitionrates, population, birthrate, deathrate, moranrate, asymmetricrate, branchrate, modulesize)
         end
     end
     return population, transitionrates, t, nextID, nextmoduleID
@@ -115,8 +116,8 @@ that module one cell divides and one cell dies.
 function moranupdate!(population, modulesize, t, nextID, μ, mutationdist, rng; moranincludeself=true)
     cellmodule, parentcell, deadcell = 
         choose_homeostaticmodule_cells(population, modulesize, rng; moranincludeself)
-    _, nextID = celldivision!(cellmodule, population.subclones, parentcell, t, nextID, μ, mutationdist, rng)
-    celldeath!(cellmodule, population.subclones, deadcell, t, μ, mutationdist, rng)
+    _, nextID = celldivision!(cellmodule, parentcell, t, nextID, μ, mutationdist, rng)
+    celldeath!(cellmodule, deadcell, t, μ, mutationdist, rng)
     updatetime!(cellmodule, t)
     return population, nextID
 end
@@ -130,7 +131,7 @@ that module one cell divides, producing a single offspring.
 function asymmetricupdate!(population, modulesize, t, nextID, μ, mutationdist, rng)
     cellmodule, parentcell =
         choose_homeostaticmodule_cells(population, modulesize, rng; twocells=false)
-    _, nextID = celldivision!(cellmodule, population.subclones, parentcell, t, nextID, μ, mutationdist, rng; nchildcells=1)
+    _, nextID = celldivision!(cellmodule, parentcell, t, nextID, μ, mutationdist, rng; nchildcells=1)
     updatetime!(cellmodule, t)
     return population, nextID
 end
@@ -247,7 +248,7 @@ function sample_new_module_with_replacement!(cellmodule, nextmoduleID, branchini
     end        
 
     newcellmodule = 
-        new_module_from_cells(newcells, branchtime, [branchtime], nextmoduleID, 
+        new_module_from_cells(newcells, branchtime, [branchtime], cellmodule.subclones, nextmoduleID, 
             cellmodule.id, cellmodule.structure)
     updatetime!(cellmodule, branchtime)
     push!(cellmodule.branchtimes, branchtime)
@@ -279,7 +280,7 @@ function sample_new_module_without_replacement!(cellmodule, nextmoduleID, branch
     end        
 
     newcellmodule = 
-        new_module_from_cells(newcells, branchtime, [branchtime], nextmoduleID, 
+        new_module_from_cells(newcells, branchtime, [branchtime], cellmodule.subclones, nextmoduleID, 
             cellmodule.id, cellmodule.structure)
     updatetime!(cellmodule, branchtime)
     push!(cellmodule.branchtimes, branchtime)
@@ -303,7 +304,7 @@ function sample_new_module_split!(cellmodule, nextmoduleID, branchinitsize, bran
 
     sampleids = sample(rng, 1:length(cellmodule.cells), branchinitsize, replace=false)
     newcellmodule = 
-        new_module_from_cells(cellmodule.cells[sampleids], branchtime, [branchtime], nextmoduleID, 
+        new_module_from_cells(cellmodule.cells[sampleids], branchtime, [branchtime], cellmodule.subclones, nextmoduleID, 
             cellmodule.id, cellmodule.structure)
     updatetime!(cellmodule, branchtime)
     push!(cellmodule.branchtimes, branchtime)
@@ -366,19 +367,43 @@ end
 Compute the rates for moran update, cell division, death and module branching and return as 
 a Vector.
 """
-function get_neutral_transitionrates(population, branchrate, modulesize)
-    rates = zeros(Float64, 5)
-    return update_neutral_transitionrates!(rates, population, branchrate, modulesize)
-end
-
-function update_neutral_transitionrates!(rates, population, branchrate, modulesize)
-    birthrate, deathrate, moranrate, asymmetricrate = getwildtyperates(population)
-    number_homeostatic_modules = length(population.homeostatic_modules)
-    number_cells_in_growing_modules = sum(length.population.growing_modules)
+function get_transitionrates_selection(population, birthrate, deathrate, moranrate, asymmetricrate, branchrate, modulesize)
+    rates = Float64[]
+    transition_type = Int64[] #1) Moran 2) Asymmetric 3) Birth 4) Death 5) Module formation
+    number_homeostatic_modules = 0
+    for (i, cellmodule) in enumerate(population)
+        N = length(cellmodule)
+        if N < modulesize
+            rates[3] += N * birthrate
+            rates[4] += N * deathrate
+        elseif N == modulesize
+            number_homeostatic_modules += 1
+        else 
+            error("module size exceeds homeostatic size")
+        end
+    end
     rates[1] = number_homeostatic_modules * moranrate * modulesize
     rates[2] = number_homeostatic_modules * asymmetricrate * modulesize
-    rates[3] = number_cells_in_growing_modules * birthrate
-    rates[4] = number_cells_in_growing_modules * deathrate
+    rates[5] = number_homeostatic_modules * branchrate
+    return rates
+end
+
+function update_transitionrates!(rates, population, birthrate, deathrate, moranrate, asymmetricrate, branchrate, modulesize)
+    rates[3] = rates[4] = 0
+    number_homeostatic_modules = 0
+    for (i, cellmodule) in enumerate(population)
+        N = length(cellmodule)
+        if N < modulesize
+            rates[3] += N * birthrate
+            rates[4] += N * deathrate
+        elseif N == modulesize
+            number_homeostatic_modules += 1
+        else 
+            error("module size exceeds homeostatic size")
+        end
+    end
+    rates[1] = number_homeostatic_modules * moranrate * modulesize
+    rates[2] = number_homeostatic_modules * asymmetricrate * modulesize
     rates[5] = number_homeostatic_modules * branchrate
     return rates
 end

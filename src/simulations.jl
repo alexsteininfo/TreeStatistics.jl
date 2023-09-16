@@ -13,8 +13,8 @@ function simulate!(cellmodule::CellModule, input::BranchingMoranInput,
         timefunc,
         t0,
         numclones=input.numclones,
-        selection=input.selection, 
-        tevent=input.tevent, 
+        mutant_selection=input.mutant_selection, 
+        mutant_time=input.mutant_time, 
     )
     
     moranprocess!(
@@ -27,8 +27,8 @@ function simulate!(cellmodule::CellModule, input::BranchingMoranInput,
         timefunc,
         t0,
         numclones=input.numclones, 
-        selection=input.selection, 
-        tevent=input.tevent,
+        mutant_selection=input.mutant_selection, 
+        mutant_time=input.mutant_time,
         moranincludeself=input.moranincludeself
     )
 
@@ -50,8 +50,8 @@ function simulate!(cellmodule::CellModule, input::BranchingInput,
         timefunc,
         t0,
         numclones=input.numclones,
-        selection=input.selection, 
-        tevent=input.tevent, 
+        mutant_selection=input.mutant_selection, 
+        mutant_time=input.mutant_time, 
     )
     
     return cellmodule
@@ -71,8 +71,8 @@ function simulate!(cellmodule::CellModule, input::MoranInput,
         timefunc,
         t0,
         numclones=input.numclones, 
-        selection=input.selection, 
-        tevent=input.tevent,
+        mutant_selection=input.mutant_selection, 
+        mutant_time=input.mutant_time,
         moranincludeself=input.moranincludeself
     )
 
@@ -100,8 +100,8 @@ function runsimulation_clonalmuts(::Type{Cell}, input::MoranInput, tstep, rng::A
             input.mutationdist, 
             rng; 
             numclones=input.numclones, 
-            selection=input.selection, 
-            tevent=input.tevent,
+            mutant_selection=input.mutant_selection, 
+            mutant_time=input.mutant_time,
             moranincludeself=input.moranincludeself
         )
         push!(clonalmuts, clonal_mutations(cellmodule))
@@ -112,7 +112,7 @@ end
 
 """
     branchingprocess!(cellmodule::CellModule, birthrate, deathrate, Nmax, μ, mutationdist, tmax,
-    rng::AbstractRNG; numclones=0, selection=Float64[], tevent=Float64[])
+    rng::AbstractRNG; numclones=0, mutant_selection=Float64[], mutant_time=Float64[])
 
 Run branching process simulation, starting in state defined by cellmodule.
 
@@ -123,11 +123,11 @@ Cells accumulate neutral mutations at division with rate `μ`.
 
 If `numclones` = 0, all cells have the same fitness and there is only one (sub)clone. 
 Otherwise, `numclones` is the number of fit subclones. The `i`th subclone arises by a single 
-cell mutating at time `tevent[i]` and has selection coefficient `selection[i]`.
+cell mutating at time `mutant_time[i]` and has selection coefficient `mutant_selection[i]`.
 
 """
 function branchingprocess!(cellmodule::CellModule, birthrate, deathrate, Nmax, μ, mutationdist, tmax,
-    rng::AbstractRNG; numclones=0, selection=Float64[], tevent=Float64[],timefunc=exptime, t0=nothing)
+    rng::AbstractRNG; numclones=0, mutant_selection=Float64[], mutant_time=Float64[],timefunc=exptime, t0=nothing)
     
     t = !isnothing(t0) ? t0 : cellmodule.t
     N = length(cellmodule)
@@ -138,7 +138,7 @@ function branchingprocess!(cellmodule::CellModule, birthrate, deathrate, Nmax, �
     changemutrate = BitArray(undef, numclones + 1)
     changemutrate .= 1
 
-    birthrates, deathrates = set_branching_birthdeath_rates( birthrate, deathrate, selection)
+    birthrates, deathrates = set_branching_birthdeath_rates( birthrate, deathrate, mutant_selection)
 
     #Rmax starts with birthrate + deathrate and changes once a fitter mutant is introduced, this ensures
     #that birthrate and deathrate have correct units
@@ -164,8 +164,8 @@ function branchingprocess!(cellmodule::CellModule, birthrate, deathrate, Nmax, �
             #cell divides
             cellmodule, mutID = celldivision!(cellmodule, randcell, t, mutID, μ, mutationdist, rng)
             N += 1
-            #check if t>=tevent for next fit subclone
-            if nclonescurrent < numclones + 1 && t >= tevent[nclonescurrent]
+            #check if t>=mutant_time for next fit subclone
+            if nclonescurrent < numclones + 1 && t >= mutant_time[nclonescurrent]
                 #if current number clones != final number clones, one of the new cells is
                 #mutated to become fitter and form a new clone
                     cellmodule, nclonescurrent = cellmutation!(cellmodule, N, N, t, 
@@ -210,25 +210,35 @@ function getclonesize(N, subclones)
 end
 
 """
-    set_branching_birthdeath_rates( birthrate, deathrate, selection)
+    set_branching_birthdeath_rates( birthrate, deathrate, mutant_selection)
 
 Return Vectors of birthrates and deathrates for each subclone (including wild-type).
 """
-function set_branching_birthdeath_rates(birthrate, deathrate, selection)
+function set_branching_birthdeath_rates(birthrate, deathrate, mutant_selection)
     birthrates = [birthrate]
     deathrates = [deathrate]
     #add birth and death rates for each subclone. 
-    for i in 1:length(selection)
+    for i in 1:length(mutant_selection)
         push!(deathrates, deathrate)
-        push!(birthrates, (1 + selection[i]) .* birthrate)
+        push!(birthrates, (1 + mutant_selection[i]) .* birthrate)
     end
     return birthrates,deathrates
 end
 
+function set_all_rates(birthrate, deathrate, mutant_selection)
+    birthrates = [birthrate]
+    deathrates = [deathrate]
+    #add birth and death rates for each subclone. 
+    for i in 1:length(mutant_selection)
+        push!(deathrates, deathrate)
+        push!(birthrates, (1 + mutant_selection[i]) .* birthrate)
+    end
+    return birthrates,deathrates
+end
 
 """
     moranprocess!(cellmodule::CellModule, moranrate, tmax, μ, mutationdist, 
-    rng::AbstractRNG; numclones=0, selection=Float64[], tevent=Float64[])
+    rng::AbstractRNG; numclones=0, mutant_selection=Float64[], mutant_time=Float64[])
 
 Run Moran process simulation, starting in state defined by cellmodule.
 
@@ -236,7 +246,7 @@ See also [`moranprocess`](@ref)
 
 """
 function moranprocess!(cellmodule::CellModule, moranrate, tmax, μ, mutationdist, 
-    rng::AbstractRNG; numclones=0, selection=Float64[], tevent=Float64[],
+    rng::AbstractRNG; numclones=0, mutant_selection=Float64[], mutant_time=Float64[],
     timefunc=exptime, t0=nothing, moranincludeself=true)
 
     t = !isnothing(t0) ? t0 : cellmodule.t
@@ -258,7 +268,7 @@ function moranprocess!(cellmodule::CellModule, moranrate, tmax, μ, mutationdist
         if nclonescurrent == 1
             dividecellidx = rand(rng, 1:N)
         else
-            p = [cell.clonetype==1 ? 1 : 1 + selection[cell.clonetype - 1] 
+            p = [cell.clonetype==1 ? 1 : 1 + mutant_selection[cell.clonetype - 1] 
                     for cell in cellmodule.cells] 
             p /= sum(p)
             dividecellidx = sample(rng, 1:N, ProbabilityWeights(p)) 
@@ -276,8 +286,8 @@ function moranprocess!(cellmodule::CellModule, moranrate, tmax, μ, mutationdist
         #cell divides
         cellmodule, mutID = celldivision!(cellmodule, dividecellidx, t, mutID, μ, mutationdist, rng)
         
-        #check if t>=tevent for next fit subclone and more subclones are expected
-        if nclonescurrent < numclones + 1 && t >= tevent[nclonescurrent]
+        #check if t>=mutant_time for next fit subclone and more subclones are expected
+        if nclonescurrent < numclones + 1 && t >= mutant_time[nclonescurrent]
             cellmodule, nclonescurrent = cellmutation!(cellmodule, N+1, N, t, nclonescurrent)
         end
 
@@ -389,8 +399,6 @@ function cellmutation!(cellmodule::CellModule, mutatingcell, N, t, nclonescurren
     mutations = deepcopy(cellmodule.cells[mutatingcell].mutations)
     Ndivisions = length(cellmodule.cells[mutatingcell].mutations)
     avdivisions = mean(map(x -> length(x.mutations), cellmodule.cells))
-    clone = CloneTracker(parenttype, cellmodule.id, t, mutations, N, Ndivisions, 
-        avdivisions, 1)
     push!(cellmodule.subclones, clone)
 
     #change clone type of new cell and update clone sizes

@@ -9,10 +9,15 @@ function initialize_population(
     ::Type{S}, 
     clonalmutations, 
     N,
+    birthrate,
+    deathrate,
+    moranrate,
+    asymmetricrate,
     Nmodules=1;
     rng=Random.GLOBAL_RNG
 ) where {T<: AbstractCell, S<: ModuleStructure}
-    return moduletype(T,S)[initialize(T, S, clonalmutations, N; rng) for _ in 1:Nmodules]
+    growing_modules = moduletype(T,S)[initialize(T, S, clonalmutations, N; rng) for _ in 1:Nmodules]
+    return Population(growing_modules, birthrate, deathrate, moranrate, asymmetricrate)
 end
 
 
@@ -36,7 +41,6 @@ function initialize(
         cells,
         0.0,
         Float64[0.0],
-        CloneTracker[],
         1,
         0,
         modulestructure
@@ -82,12 +86,11 @@ function position_cells(cells, structure::Linear, rng)
     return [fill(nothing, pad1); cells; fill(nothing, pad2)]
 end
 
-function new_module_from_cells(cells::T, t, branchtimes, subclones, id, parentid, modulestructure::S) where {T, S}
+function new_module_from_cells(cells::T, t, branchtimes, id, parentid, modulestructure::S) where {T, S}
     cellmodule = moduletype(T, S)(
         cells,
         t,
         branchtimes,
-        subclones,
         id,
         parentid,
         modulestructure

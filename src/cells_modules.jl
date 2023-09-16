@@ -137,15 +137,15 @@ function Base.show(io::IO, cell::TreeCell)
     cell.alive || print(io, " X")
 end
 #endregion
-mutable struct CloneTracker
-    parenttype::Int64
-    parentmodule::Int64
-    time::Float64
-    mutations::Vector{Int64}
-    N0::Int64
-    Ndivisions::Int64
-    avdivisions::Float64
+
+mutable struct Subclone
+    subcloneid::Int64
+    mutationtime::Float64
     size::Int64
+    birthrate::Float64
+    deathrate::Float64
+    moranrate::Float64
+    asymmetricrate::Float64
 end
 
 #region Define module structure types
@@ -163,7 +163,6 @@ mutable struct CellModule{S<:ModuleStructure} <: AbstractModule
     cells::Vector{Union{Cell, Nothing}}
     t::Float64
     branchtimes::Vector{Float64}
-    subclones::Vector{CloneTracker}
     id::Int64
     parentid::Int64
     structure::S
@@ -173,7 +172,6 @@ mutable struct TreeModule{T<:AbstractTreeCell, S<:ModuleStructure} <: AbstractMo
     cells::Vector{Union{BinaryNode{T}, Nothing}}
     t::Float64
     branchtimes::Vector{Float64}
-    subclones::Vector{CloneTracker}
     id::Int64
     parentid::Int64
     structure::S

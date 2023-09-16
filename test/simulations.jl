@@ -45,19 +45,8 @@ end
     
 end
 
-subclones = [
-    SomaticEvolution.CloneTracker(
-        1, 1, 1.4437821887595856, [2], 2, 1, 1.0, 9
-    ),
-    SomaticEvolution.CloneTracker(
-        1, 1, 1.7344043713478965, [1, 4], 3, 2, 1.6666666666666667, 90
-    )
-]
-N = 100
-@test SomaticEvolution.getclonesize(N, subclones) == [1, 9, 90]
-
 #check birth and death rates are calculated correctly
-birthrate, deathrate, selection = 1, 0, [1, 2]
-birthrates, deathrates = SomaticEvolution.set_branching_birthdeath_rates(birthrate, deathrate, selection) 
+birthrate, deathrate, mutant_selection = 1, 0, [1, 2]
+birthrates, deathrates = SomaticEvolution.set_branching_birthdeath_rates(birthrate, deathrate, mutant_selection) 
 @test birthrates == [1, 2, 3]
 @test deathrates == [0, 0, 0]
