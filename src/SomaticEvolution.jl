@@ -5,11 +5,9 @@ using Statistics
 using Random
 using StatsBase
 using DataFrames
-using RecipesBase
 using GLM
 using Printf
 using CSV
-using Plots
 using JSON
 using DelimitedFiles
 using AbstractTrees
@@ -116,7 +114,6 @@ include("process.jl")
 include("samplingVAF.jl")
 include("analyseVAF.jl")
 include("multirun.jl")
-include("plot.jl")
 include("util.jl")
 include("statistics.jl")
 include("io.jl")
