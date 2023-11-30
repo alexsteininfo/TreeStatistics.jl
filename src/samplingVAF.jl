@@ -1,6 +1,6 @@
 function getVAFresult(simulation, rng::AbstractRNG=Random.GLOBAL_RNG; read_depth=100.0, 
     detectionlimit=5/read_depth, cellularity=1.0)
-    trueVAF = getallelefreq(simulation, ploidy)
+    trueVAF = getallelefreq(simulation)
     sampledVAF = sampledallelefreq(trueVAF, rng, read_depth=read_depth, 
         detectionlimit=detectionlimit, cellularity=cellularity)
     freq, freqp = subclonefreq(simulation.output)
