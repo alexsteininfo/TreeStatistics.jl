@@ -27,6 +27,7 @@ mt3 = SomaticEvolution.CellModule(
     [257.2], 
     3, 2, WellMixed())
 
+population1 = Population([deepcopy(mt1)], CellModule{WellMixed}[], [SomaticEvolution.Subclone(;size=4)])
 
 @testset "module sampling" begin
     rng = MersenneTwister(12)
@@ -39,13 +40,15 @@ mt3 = SomaticEvolution.CellModule(
     @test newcellmodule.t == 1.0
     cellmodule = deepcopy(mt1)
     nextmoduleID = 2
-    population, nextmoduleID = SomaticEvolution.modulebranchingupdate!([cellmodule], nextmoduleID, 4, 1, 2.0, rng)
+    population, nextmoduleID = SomaticEvolution.modulebranchingupdate!(population1, nextmoduleID, 1, 2.0, rng)
     @test nextmoduleID == 3
-    @test moduleid.(population) == [1,2]
+    @test moduleid.(population1.growing_modules) == [2, 1]
+    @test length(population1.homeostatic_modules) == 0
 end
-    
-
-simulation = SomaticEvolution.MultiSimulation(input, [mt1, mt2, mt3])
+ 
+rng = Random.MersenneTwister(12)
+population2 = Population([deepcopy(mt1)], deepcopy.([mt2, mt3]), [SomaticEvolution.Subclone(;size=8)])
+simulation = SomaticEvolution.Simulation(input, population2)
 
 #check that statistics are calculated correctly
 @testset "mutation statistics" begin
@@ -69,26 +72,27 @@ end
 
 @testset "updates" begin
     rng = MersenneTwister(12)
-    population = [deepcopy(mt1), deepcopy(mt1), deepcopy(mt3)]
+    population = Population([deepcopy(mt1)], [deepcopy(mt3)], [SomaticEvolution.Subclone(;size=8)])
 
-    #kills only cell in module 3 => population size goes to 2 
-    SomaticEvolution.deathupdate!(population, 4, 3, 1, :fixed, rng)
-    @test length(population) == 2
+    #moran update population size stays the same
+    @test sum(map(x -> length(x.cells), population)) == 5
+    SomaticEvolution.moranupdate!(population, 4, 1.0, 3, 1, :fixed, rng)
+    @test sum(map(x -> length(x.cells), population)) == 5
+
+    #kills only cell in module mt3 => population size goes to 1
+    SomaticEvolution.deathupdate!(population, 1.0, 1, :fixed, rng)
+    @test length(population) == 1
 
     #one module splits into two modules of length two
-    SomaticEvolution.modulebranchingupdate!(population, 2, 4, 2, 1.0, rng)
-    @test length(population) == 3
-    @test sum(map(x -> length(x.cells), population)) == 8
-    @test sum(map(x -> length(x), population)) == 8
+    SomaticEvolution.modulebranchingupdate!(population, 4, 2, 1.0, rng)
+    @test length(population) == 2
+    @test sum(map(x -> length(x.cells), population)) == 4
+    @test sum(map(x -> length(x), population)) == 4
 
     #birth update one module gets an extra cell
     SomaticEvolution.birthupdate!(population, 4, 1.0, 2, 1, :fixed, rng)
-    @test sum(map(x -> length(x.cells), population)) == 9
-    @test sum(map(x -> length(x), population)) == 9
-
-    #moran update population size stays the same
-    SomaticEvolution.moranupdate!(population, 4, 1.0, 3, 1, :fixed, rng)
-    @test sum(map(x -> length(x.cells), population)) == 9
+    @test sum(map(x -> length(x.cells), population)) == 5
+    @test sum(map(x -> length(x), population)) == 5
 
 end
 
@@ -112,7 +116,8 @@ mt3 = SomaticEvolution.CellModule(
 @testset "module splitting with replacement" begin
     rng = MersenneTwister(12)
     parentmodule = deepcopy(mt1)
-    parentmodule, newmodule, nextID = SomaticEvolution.sample_new_module_with_replacement!(parentmodule, 2, 1, 
+    subclones = Subclone[Subclone()]
+    parentmodule, newmodule, nextID = SomaticEvolution.sample_new_module_with_replacement!(parentmodule, subclones, 2, 1, 
         300, 25, 2, :fixed, rng)
     @test length(parentmodule) == 4
     @test length(newmodule) == 1
@@ -121,8 +126,11 @@ end
 @testset "module splitting without replacement" begin
     rng = MersenneTwister(12)
     parentmodule = deepcopy(mt1)
-    parentmodule, newmodule, nextID = SomaticEvolution.sample_new_module_without_replacement!(parentmodule, 2, 2, 
-        300, 25, 2, :fixed, rng)
+    subclones = Subclone[Subclone()]
+    parentmodule, newmodule, nextID = 
+        SomaticEvolution.sample_new_module_without_replacement!(
+            parentmodule, subclones, 2, 2, 300, 25, 2, :fixed, rng
+        )
     @test length(parentmodule) == 4
     @test length(newmodule) == 2
     @test length(newmodule.cells) == 2 
@@ -133,8 +141,9 @@ end
 @testset "module splitting without replacement no mutations" begin
     rng = MersenneTwister(12)
     parentmodule = deepcopy(mt1)
+    subclones = Subclone[Subclone()]
     parentmodule, newmodule, nextID = 
-        SomaticEvolution.modulesplitting!(parentmodule, 5, 2, 2, rng; 
+        SomaticEvolution.newmoduleformation!(parentmodule, subclones, 5, 2, 2, rng; 
             modulebranching=:withoutreplacement_nomutations, nextID=25, μ=1, mutationdist=:poisson)
     @test length(parentmodule) == 4
     @test length(newmodule) == 2
@@ -145,29 +154,20 @@ end
 
 @testset "moran updates" begin
     rng = MersenneTwister(12)
-    population = [deepcopy(mt1), deepcopy(mt2), deepcopy(mt3)]
-    transitionrates = SomaticEvolution.get_transitionrates(
+    population = Population(
+        [deepcopy(mt1)], 
+        [deepcopy(mt2), deepcopy(mt3)], 
+        Subclone[Subclone(;birthrate=1.0, deathrate=0.5, moranrate=0.2, asymmetricrate=1.0)]
+    )
+    @test SomaticEvolution.getwildtyperates(population) == (birthrate=1.0, deathrate=0.5, moranrate=0.2, asymmetricrate=1.0)
+    branchrate = 10.0
+    modulesize = 4
+    transitionrates = SomaticEvolution.get_neutral_transitionrates(
         population, 
-        1.0, 
-        0, 
-        1.0, 
-        0,
-        0.1, 
+        branchrate,
         4
     ) 
-    @test transitionrates == [4.0, 0.0, 4.0, 0.0, 0.1]
-
-    transitionrates = SomaticEvolution.get_transitionrates(
-        population, 
-        1.0, 
-        0.5, 
-        1.0, 
-        2.0,
-        0.1, 
-        4
-    ) 
-    @test transitionrates == [4.0, 8.0, 4.0, 2.0, 0.1]
-
+    @test transitionrates == [0.8, 4.0, 4.0, 2.0, 10.0]
     
     population, = SomaticEvolution.moranupdate!(population, 4, 1, 30, 1, :poisson, rng; moranincludeself=false)
     @test length(mt1) == 4
@@ -175,19 +175,21 @@ end
     population, = SomaticEvolution.asymmetricupdate!(population, 4, 2, 32, 1, :poisson, rng)
     @test length(mt1) == 4
 
-    SomaticEvolution.modulemoranupdate!(population, 4, 4, 2, 5, rng)
+    SomaticEvolution.modulemoranupdate!(population, 4, 2, 5, rng)
     @test length(population) == 3
 
     #test moran update not including self
-    population = [
-        SomaticEvolution.CellModule(
+    population = Population(
+        [SomaticEvolution.CellModule(
             Union{Cell, Nothing}[Cell([1], 1, 0), Cell([2], 1, 0)], 2.0, [0.0], 
-            1, 0, WellMixed())
-    ]
+            1, 0, WellMixed())],
+        SomaticEvolution.CellModule{WellMixed}[],
+        Subclone[Subclone()])
+    
     nextID = 3
     for i in 1:10
-        chosenmodule, dividecellidx, deadcellidx, chosenmodule_id = SomaticEvolution.choose_homeostaticmodule_cells(population, 2, rng; twocells=true, moranincludeself=false)
-        @test dividecellidx != deadcellidx
+        chosenmoduleid, dividecellid, deadcellid = SomaticEvolution.choose_homeostaticmodule_cells(population, rng; twocells=true, moranincludeself=false)
+        @test dividecellid != deadcellid
         population, nextID = SomaticEvolution.moranupdate!(population, 2, 1, nextID, 1, :fixed, rng; moranincludeself=false)
         @test population[1].cells[1].mutations[1:end-1] == population[1].cells[2].mutations[1:end-1]
     end
@@ -207,11 +209,11 @@ end
         μ=1,
         moranincludeself=false
     )
-    population = runsimulation(SimpleTreeCell, input, rng)
+    population = runsimulation(SimpleTreeCell, input, rng).output
     nextID = maximum(cell.data.id for cell in population[1].cells) + 1
     for i in 1:10
-        chosenmodule, dividecellidx, deadcellidx, chosenmodule_id = SomaticEvolution.choose_homeostaticmodule_cells(population, 2, rng; twocells=true, moranincludeself=false)
-        @test dividecellidx != deadcellidx
+        chosenmoduleid, dividecellid, deadcellid = SomaticEvolution.choose_homeostaticmodule_cells(population, rng; twocells=true, moranincludeself=false)
+        @test dividecellid != deadcellid
         population, nextID = SomaticEvolution.moranupdate!(population, 2, 1, nextID, 1, :fixed, rng; moranincludeself=false)
         @test population[1].cells[1].data.birthtime == population[1].cells[2].data.birthtime
     end

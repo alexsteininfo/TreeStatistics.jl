@@ -5,15 +5,17 @@ end
 
 abstract type SimulationResult end
 
-struct Simulation{S<:SimulationInput, T<:AbstractModule} <: SimulationResult
+struct Simulation{S<:SimulationInput, T<:AbstractPopulation} <: SimulationResult
     input::S
     output::T
 end
 
-struct MultiSimulation{S<:SimulationInput, T<:AbstractModule} <: SimulationResult
-    input::S
-    output::Vector{T}
-end
+const MultiSimulation = Simulation{S, T} where {S<:MultilevelInput, T<:Population}
+
+# struct MultiSimulation{S<:SimulationInput, T<:AbstractModule} <: SimulationResult
+#     input::S
+#     output::Vector{T}
+# end
 
 Base.length(multisim::MultiSimulation) = length(multisim.output)
 Base.iterate(multisim::MultiSimulation) = iterate(multisim.output)
@@ -62,20 +64,20 @@ function Base.show(io::IO, simulation::SimulationResult)
 
 end
 
-function Base.show(io::IO, abstractmodule::AbstractModule)
-    @printf(io, "Final size = %d cells\n", length(abstractmodule))
-    @printf(io, "Final time = %.2f", age(abstractmodule))
-end
+# function Base.show(io::IO, abstractmodule::AbstractModule)
+#     @printf(io, "Final size = %d cells\n", length(abstractmodule))
+#     @printf(io, "Final time = %.2f", age(abstractmodule))
+# end
 
-function Base.show(io::IO, population::Vector{T}) where T<:AbstractModule
-    if length(population) == 0
-        @printf(io, "Empty population")
-    else
-        @printf(io, "%d-module Population{%s} at time %.2f.\n", length(population), T, age(population))
-        @printf(io, "Module sizes:")
-        show(io, [length(m) for m in population])
-    end
-end
+# function Base.show(io::IO, population::Population{T}) where T
+#     if length(population) == 0
+#         @printf(io, "Empty population")
+#     else
+#         @printf(io, "%d-module Population{%s} at time %.2f.\n", length(population), T, age(population))
+#         @printf(io, "Module sizes:")
+#         show(io, [length(m) for m in population])
+#     end
+# end
 
 function Base.show(io::IO, input::BranchingInput)
     @printf(io, "Single level branching process:\n")
@@ -90,7 +92,7 @@ function Base.show(io::IO, input::MoranInput)
     @printf(io, "Single level Moran process:\n")
     @printf(io, "    Maximum cells = %d\n", input.N)
     @printf(io, "    Maximum time = %.2f\n", input.tmax)
-    @printf(io, "    Birth/death rate = %.2f (Moran)\n", input.moranrate)
+    @printf(io, "    Moran rate = %.2f \n", input.moranrate)
     @printf(io, "    %s: μ = %.1f\n", mutationdist_string(input.mutationdist), input.μ)
     @printf(io, "    Clonal mutations = %d\n", input.clonalmutations)
 end
@@ -100,33 +102,21 @@ function Base.show(io::IO, input::BranchingMoranInput)
     @printf(io, "    Maximum cells = %d\n", input.Nmax)
     @printf(io, "    Maximum time = %.2f\n", input.tmax)
     @printf(io, "    Birth rate = %.2f, death rate = %.2f (branching)\n", input.birthrate, input.deathrate)
-    @printf(io, "    Birth/death rate = %.2f (Moran)\n", input.moranrate)
+    @printf(io, "    Moran rate = %.2f (Moran)\n", input.moranrate)
     @printf(io, "    %s: μ = %.1f\n", mutationdist_string(input.mutationdist), input.μ)
     @printf(io, "    Clonal mutations = %d\n", input.clonalmutations)
 end
 
-function Base.show(io::IO, input::MultilevelBranchingInput)
+function Base.show(io::IO, input::MultilevelInput)
     @printf(io, "Multilevel branching process:\n")
     @printf(io, "    Maximum modules = %d\n", input.maxmodules)
     @printf(io, "    Maximum time = %.2f\n", input.tmax)
     @printf(io, "    Branch rate = %.2f\n", input.branchrate)
-    @printf(io, "    Module size = %d\n", input.modulesize)
-    @printf(io, "    Initial module size = %d\n", input.branchinitsize)
-    @printf(io, "    Birth rate = %.2f, death rate = %.2f (branching)\n", input.birthrate, input.deathrate)
-    @printf(io, "    Birth/death rate = %.2f (Moran)\n", input.moranrate)
-    @printf(io, "    %s: μ = %.1f\n", mutationdist_string(input.mutationdist), input.μ)
-    @printf(io, "    Clonal mutations = %d\n", input.clonalmutations)
-end
-
-function Base.show(io::IO, input::MultilevelBranchingMoranInput)
-    @printf(io, "Multilevel branching -> Moran process:\n")
-    @printf(io, "    Maximum modules = %d\n", input.maxmodules)
-    @printf(io, "    Maximum time = %.2f\n", input.tmax)
-    @printf(io, "    Branch rate = %.2f\n", input.branchrate)
-    @printf(io, "    Module size = %d\n", input.modulesize)
-    @printf(io, "    Initial module size = %d\n", input.branchinitsize)
-    @printf(io, "    Birth rate = %.2f, death rate = %.2f (branching)\n", input.birthrate, input.deathrate)
-    @printf(io, "    Birth/death rate = %.2f (Moran)\n", input.moranrate)
+    @printf(io, "    Module size = %d\n", getmaxmodulesize(input))
+    @printf(io, "    Number module founder cells = %d\n", input.branchinitsize)
+    @printf(io, "    Birth rate = %.2f, death rate = %.2f\n", input.birthrate, input.deathrate)
+    @printf(io, "    Moran rate = %.2f\n", input.moranrate)
+    @printf(io, "    Asymmetric rate = %.2f (Moran)\n", input.asymmetricrate)
     @printf(io, "    %s: μ = %.1f\n", mutationdist_string(input.mutationdist), input.μ)
     @printf(io, "    Clonal mutations = %d\n", input.clonalmutations)
 end

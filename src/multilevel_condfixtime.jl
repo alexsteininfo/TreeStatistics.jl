@@ -7,10 +7,15 @@ function runsimulation_condfixtime(::Type{Cell}, ::Type{S}, input::MultilevelBra
     #if the population dies out we start a new simulation
     while true 
         population = initialize_population(
-            Cell,
-            S,
-            input.modulesize, 
-            clonalmutations=input.clonalmutations
+            T, S, 
+            clonalmutations, 
+            getNinit(input),
+            getmaxmodulesize(input),
+            input.birthrate,
+            input.deathrate,
+            input.moranrate,
+            input.asymmetricrate;
+            rng
         )
         nextID, nextmoduleID = 2, 2
 
@@ -286,7 +291,7 @@ that module one cell divides and one cell dies.
 """
 function moranupdate_condfixtimes!(population, mosaic_mutations, condfixtimes, modulesize, t, nextID, μ, mutationdist, rng; moranincludeself=true)
     cellmodule, parentcell, deadcell, cellmodule_id = 
-        choose_homeostaticmodule_cells(population, modulesize, rng; moranincludeself)
+        choose_homeostaticmodule_cells(population, rng; moranincludeself, maxmodulesize=modulesize)
     nextID_before = nextID
     _, nextID = celldivision!(cellmodule, parentcell, t, nextID, μ, mutationdist, rng)
     new_mosaic_mutations!(mosaic_mutations[cellmodule_id], nextID_before, nextID-1, t)
@@ -304,7 +309,7 @@ that module one cell divides, producing a single offspring.
 """
 function asymmetricupdate_condfixtimes!(population, mosaic_mutations, modulesize, t, nextID, μ, mutationdist, rng)
     cellmodule, parentcell, _, cellmodule_id =
-        choose_homeostaticmodule_cells(population, modulesize, rng; twocells=false)
+        choose_homeostaticmodule_cells(population, modulesize, rng; twocells=false, maxmodulesize=modulesize)
     nextID_before = nextID
     _, nextID = celldivision!(cellmodule, parentcell, t, nextID, μ, mutationdist, rng; nchildcells=1)
     new_mosaic_mutations!(mosaic_mutations[cellmodule_id], nextID_before, nextID-1, t)
@@ -361,7 +366,7 @@ function modulebranchingupdate_condfixtimes!(population, mosaic_mutations, condf
     
     parentmodule, parentmodule_id = choose_homeostaticmodule(population, modulesize, rng)
     parentmodule, newmodule, nextID = 
-        modulesplitting!(parentmodule, nextmoduleID, branchinitsize, t, rng; 
+        newmoduleformation!(parentmodule, nextmoduleID, branchinitsize, t, rng; 
             modulebranching, nextID, μ, mutationdist)
     push!(population, newmodule)
     push!(mosaic_mutations, copy(mosaic_mutations[parentmodule_id]))
@@ -376,7 +381,7 @@ function modulemoranupdate_condfixtimes!(population, mosaic_mutations, condfixti
 
     parentmodule, parentmodule_id = choose_homeostaticmodule(population, modulesize, rng)
     parentmodule, newmodule, nextID = 
-        modulesplitting!(parentmodule, nextmoduleID, branchinitsize, t, rng; 
+        newmoduleformation!(parentmodule, nextmoduleID, branchinitsize, t, rng; 
             modulebranching, nextID, μ, mutationdist)
     push!(population, newmodule)
     push!(mosaic_mutations, copy(mosaic_mutations[parentmodule_id]))

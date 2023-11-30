@@ -15,17 +15,26 @@
 
 """
 function runsimulation(input::SimulationInput, args...)
-    return runsimulation(SimpleTreeCell, WellMixed, input, args...) 
+    return runsimulation(SimpleTreeCell, WellMixed, input, NeutralSelection(), args...) 
+end
+
+function runsimulation(input::SimulationInput, selection::AbstractSelection, args...)
+    return runsimulation(SimpleTreeCell, WellMixed, input, selection, args...) 
 end
 
 function runsimulation(::Type{T}, input::SimulationInput, args...) where T <: AbstractCell
-    return runsimulation(T, WellMixed, input, args...) 
+    return runsimulation(T, WellMixed, input, NeutralSelection(), args...) 
+end
+
+function runsimulation(::Type{T}, input::SimulationInput, selection::AbstractSelection, args...) where T <: AbstractCell
+    return runsimulation(T, WellMixed, input, selection, args...) 
 end
 
 function runsimulation(
     ::Type{T}, 
     ::Type{S}, 
     input::MultilevelInput, 
+    selection=NeutralSelection()::AbstractSelection,
     rng::AbstractRNG=Random.GLOBAL_RNG
 ) where {T, S}
 
@@ -39,6 +48,7 @@ function runsimulation(
             T, S, 
             clonalmutations, 
             getNinit(input),
+            getmaxmodulesize(input),
             input.birthrate,
             input.deathrate,
             input.moranrate,
@@ -48,6 +58,7 @@ function runsimulation(
         population, = 
             simulate!(
                 population, 
+                selection, 
                 input.tmax, 
                 input.maxmodules, 
                 input.branchrate, 
@@ -71,10 +82,12 @@ function runsimulation(
         population = processresults!(population, input.μ, input.clonalmutations, rng)
     end
 
-    return MultiSimulation(input, population)
+    return Simulation(input, population)
 end
 
-function runsimulation(::Type{Cell}, ::Type{S}, input::SinglelevelInput, rng::AbstractRNG=Random.GLOBAL_RNG) where S <: ModuleStructure
+function runsimulation(::Type{Cell}, ::Type{S}, input::SinglelevelInput, 
+    selection=NeutralSelection()::AbstractSelection, 
+    rng::AbstractRNG=Random.GLOBAL_RNG, timefunc=exptime) where S <: ModuleStructure
     #Initially set clonalmutations = 0 and μ = 1. These are expanded later. 
     #UNLESS input.mutationdist=:poissontimedep or :fixedtimedep
 
@@ -82,29 +95,48 @@ function runsimulation(::Type{Cell}, ::Type{S}, input::SinglelevelInput, rng::Ab
     if !(input.mutationdist ∈ (:poissontimedep, :fixedtimedep))
         input = newinput(input, μ=1, clonalmutations=0, mutationdist=:fixed)
     end
+    birthrate, deathrate, moranrate, asymmetricrate = getinputrates(input)
+    population = initialize_singlelevelpopulation(
+        Cell, S, 
+        input.clonalmutations, 
+        getNinit(input), 
+        birthrate,
+        deathrate,
+        moranrate,
+        asymmetricrate;
+        rng)
 
-    cellmodule = initialize(Cell, S, input.clonalmutations, getNinit(input); rng)
-
-    simulate!(cellmodule, input, rng)
+    simulate!(population, input, selection, rng; timefunc)
     
     #If we set μ=1 etc we need to add proper mutations now (also remove undetectable subclones).
     if !(input.mutationdist ∈ (:poissontimedep, :fixedtimedep) )  
-        processresults!(cellmodule, μ, clonalmutations, rng; mutationdist)
+        processresults!(population.singlemodule, μ, clonalmutations, rng; mutationdist)
         input = newinput(input; μ, clonalmutations, mutationdist)
     #Otherwise if mutation accumulation is time dependent, add the final mutations.
     else
-        final_timedep_mutations!(cellmodule::CellModule, input.μ, input.mutationdist, rng)
+        final_timedep_mutations!(population.singlemodule::CellModule, input.μ, input.mutationdist, rng)
     end
-    return Simulation(input, cellmodule)
+    return Simulation(input, population)
 end
 
-function runsimulation(::Type{T}, ::Type{S}, input::SinglelevelInput, rng::AbstractRNG=Random.GLOBAL_RNG; 
+function runsimulation(::Type{T}, ::Type{S}, input::SinglelevelInput, 
+    selection=NeutralSelection()::AbstractSelection, rng::AbstractRNG=Random.GLOBAL_RNG; 
     timefunc=exptime, returnextinct=false) where {T <: AbstractTreeCell, S <: ModuleStructure}
+
+    birthrate, deathrate, moranrate, asymmetricrate = getinputrates(input)
     while true
-        treemodule = initialize(T, S, input.clonalmutations, getNinit(input); rng)
-        simulate!(treemodule, input, rng; timefunc)
-        if length(treemodule) > 0 || returnextinct
-            return Simulation(input, treemodule)
+        population = initialize_singlelevelpopulation(
+            T, S, 
+            input.clonalmutations, 
+            getNinit(input), 
+            birthrate,
+            deathrate,
+            moranrate,
+            asymmetricrate;
+            rng)
+        simulate!(population, input, selection, rng; timefunc)
+        if length(population.singlemodule) > 0 || returnextinct
+            return Simulation(input, population)
         end
     end
 
@@ -115,7 +147,12 @@ function runsimulation_timeseries_returnfinalpop(::Type{T}, ::Type{S}, input, ti
         T,
         S,
         input.clonalmutations,
-        getNinit(input);
+        getNinit(input),
+        getmaxmodulesize(input),
+        input.birthrate,
+        input.deathrate,
+        input.moranrate,
+        input.asymmetricrate;
         rng
     )
     data = []
@@ -125,12 +162,10 @@ function runsimulation_timeseries_returnfinalpop(::Type{T}, ::Type{S}, input, ti
     for t in timesteps
         population, nextID, nextmoduleID = simulate!(
             population, 
+            selection,
+            input.mutant_time,
             t,
             input.maxmodules, 
-            input.birthrate, 
-            input.deathrate, 
-            input.moranrate, 
-            input.asymmetricrate,
             input.branchrate, 
             input.modulesize, 
             input.branchinitsize, 
@@ -169,8 +204,13 @@ getmoduleupdate(::MultilevelBranchingInput) = :branching
 getmoduleupdate(::MultilevelBranchingMoranInput) = :moran
 getmoduleupdate(::MultilevelMoranInput) = :moran
 
+getinputrates(input::BranchingInput) = input.birthrate, input.deathrate, 0.0, 0.0
+getinputrates(input::MoranInput) = 0.0, 0.0, input.moranrate, 0.0
+getinputrates(input::BranchingMoranInput) = input.birthrate, input.deathrate, input.moranrate, 0.0
+
+
 function getmutationargs(::Type{Cell}, input) 
-    if input.mutationdist ∈ (:poissontimedep, :fixedtimedep)
+    if (input.mutationdist ∈ (:poissontimedep, :fixedtimedep)) || (input.μ <= 1)
         return input.μ, input.clonalmutations, input.mutationdist
     else
         return 1, 0, :fixed

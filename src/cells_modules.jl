@@ -138,15 +138,22 @@ function Base.show(io::IO, cell::TreeCell)
 end
 #endregion
 
-mutable struct Subclone
-    subcloneid::Int64
-    mutationtime::Float64
-    size::Int64
-    birthrate::Float64
-    deathrate::Float64
-    moranrate::Float64
-    asymmetricrate::Float64
+getclonetype(cell::Cell) = cell.clonetype
+getclonetype(cellnode::BinaryNode) = cellnode.data.clonetype
+setclonetype(cell::Cell, newclonetype) = (cell.clonetype = newclonetype)
+setclonetype(cellnode::BinaryNode, newclonetype) = (cellnode.data.clonetype = newclonetype)
+@kwdef mutable struct Subclone 
+    subcloneid::Int64 = 1
+    parentid::Int64 = 0
+    mutationtime::Float64 = 0.0
+    size::Int64 = 1
+    birthrate::Float64 = 1.0
+    deathrate::Float64 = 0.0
+    moranrate::Float64 = 1.0
+    asymmetricrate::Float64 = 0.0
 end
+
+Base.length(subclone::Subclone) = subclone.size
 
 #region Define module structure types
 abstract type ModuleStructure end
@@ -189,8 +196,6 @@ moduletype(::Type{BinaryNode{T}}, ::Type{S}) where {T <: AbstractTreeCell, S} = 
 moduletype(::Type{Cell}, ::Type{S}) where S = CellModule{S}
 moduletype(::Type{Vector{T}}, ::Type{S}) where {T, S} = moduletype(T, S)
 moduletype(::Type{Vector{Union{T, Nothing}}}, ::Type{S}) where {T, S} = moduletype(T, S)
-
-Base.length(abstractmodule::AbstractModule) = length(abstractmodule.cells)
 
 moduleid(abstractmodule::AbstractModule) = abstractmodule.id
 
@@ -256,3 +261,11 @@ function findMRCA(treemodule)
     return findMRCA(treemodule.cells)
 end
 #endregion
+
+Base.length(abstractmodule::AbstractModule) = length(abstractmodule.cells)
+Base.iterate(abstractmodule::AbstractModule) = iterate(abstractmodule.cells)
+Base.iterate(abstractmodule::AbstractModule, state) = iterate(abstractmodule.cells, state)
+Base.getindex(abstractmodule::AbstractModule, i) = getindex(abstractmodule.cells, i)
+Base.setindex(abstractmodule::AbstractModule, v, i) = getindex(abstractmodule.cells, v, i)
+Base.firstindex(abstractmodule::AbstractModule) = firstindex(abstractmodule.cells)
+Base.lastindex(abstractmodule::AbstractModule) = lastindex(abstractmodule.cells)

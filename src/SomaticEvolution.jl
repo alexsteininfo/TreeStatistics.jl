@@ -11,6 +11,7 @@ using CSV
 using JSON
 using DelimitedFiles
 using AbstractTrees
+using MakieCore
 
 export 
 Cell,
@@ -20,6 +21,7 @@ BinaryNode,
 MultiSimulation,
 CellModule,
 TreeModule,
+Subclone,
 SimulationInput,
 BranchingMoranInput,
 BranchingInput,
@@ -36,6 +38,12 @@ TreeCellVector,
 SimpleTreeCellVector,
 AbstractTreeCellVector,
 CellVector,
+Population,
+SinglelevelPopulation,
+AbstractSelection,
+SelectionPredefined,
+SelectionDistribution,
+NeutralSelection,
 
 #functions for running multilevel or single-level simulations
 runsimulation,
@@ -69,6 +77,7 @@ subclonefreq,
 
 #other statistics (work for Cell and (Simple)TreeCell simulations)
 pairwisedistance,
+pairwisedistances,
 pairwise_fixed_differences,
 pairwise_fixed_differences_matrix,
 pairwise_fixed_differences_statistics,
@@ -95,6 +104,10 @@ popsize,
 findMRCA,
 moduleid,
 
+#other
+getsubclonesizes,
+getclonetype,
+
 #util
 newinput,
 saveinput,
@@ -103,11 +116,14 @@ saveinput,
 loadinput
 
 include("input.jl")
+include("selection.jl")
 include("cells_modules.jl")
+include("population.jl")
 include("results.jl")
 include("initialisation.jl")
 include("simulations.jl")
 include("multilevel.jl")
+include("multilevel_selection.jl")
 include("multilevel_condfixtime.jl")
 include("run.jl")
 include("process.jl")
@@ -118,7 +134,7 @@ include("util.jl")
 include("statistics.jl")
 include("io.jl")
 include("simulation_trees.jl")
-
+include("plot.jl")
 
 
 

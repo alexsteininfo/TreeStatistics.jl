@@ -10,10 +10,10 @@ tests = [
     "initialisation",
     "multilevel",
     "simulations",
-    "testio",
     "process_mutations",
     "analysis",
-    "treesimulations"
+    "treesimulations",
+    "multilevel_selection"
 ]
 
 @testset "SomaticEvolution.jl" begin

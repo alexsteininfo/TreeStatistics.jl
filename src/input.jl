@@ -119,9 +119,6 @@ Base.@kwdef struct BranchingMoranInput <: SinglelevelInput
     μ::Float64 = 1.0
     mutationdist::Symbol = :poisson
     ploidy::Int64 = 2
-    numclones::Int64 = 0
-    mutant_selection::Vector{Float64} = []
-    mutant_time::Vector{Float64} = []
 end
 #endregion
 
@@ -170,7 +167,7 @@ Base.@kwdef struct MultilevelBranchingInput <: MultilevelInput
     moranrate::Float64 = 1.0
     moranincludeself::Bool = true
     asymmetricrate::Float64 = 0.0
-    birthrate::Float64 = 1.0
+    birthrate::Float64 = maximum((moranrate, asymmetricrate))
     deathrate::Float64 = 0.0
     branchrate::Float64  = 5.0
     branchinitsize::Int64 = 1
@@ -179,9 +176,6 @@ Base.@kwdef struct MultilevelBranchingInput <: MultilevelInput
     μ::Float64 = 1.0
     mutationdist::Symbol = :poisson
     ploidy::Int64 = 2
-    numclones::Int64 = 0
-    mutant_selection::Vector{Float64} = fill(0.0,numclones)
-    mutant_time::Vector{Float64} = collect(1.0:0.5:(1+numclones)/2)
 end
 
 """
@@ -229,7 +223,7 @@ Base.@kwdef struct MultilevelMoranInput <: MultilevelInput
     moranrate::Float64 = 1.0
     moranincludeself::Bool = true
     asymmetricrate::Float64 = 0.0
-    birthrate::Float64 = 1.0
+    birthrate::Float64 = maximum((moranrate, asymmetricrate))
     deathrate::Float64 = 0.0
     branchrate::Float64  = 5.0
     branchinitsize::Int64 = 1
@@ -238,9 +232,6 @@ Base.@kwdef struct MultilevelMoranInput <: MultilevelInput
     μ::Float64 = 1.0
     mutationdist::Symbol = :poisson
     ploidy::Int64 = 2
-    numclones::Int64 = 0
-    mutant_selection::Vector{Float64} = fill(0.0,numclones)
-    mutant_time::Vector{Float64} = collect(1.0:0.5:(1+numclones)/2)
 end
 
 
@@ -288,7 +279,7 @@ Base.@kwdef struct MultilevelBranchingMoranInput <: MultilevelInput
     moranrate::Float64 = 1.0
     moranincludeself::Bool = true
     asymmetricrate::Float64 = 0.0
-    birthrate::Float64 = 1.0
+    birthrate::Float64 = maximum((moranrate, asymmetricrate))
     deathrate::Float64 = 0.0
     branchrate::Float64  = 5.0
     branchinitsize::Int64 = 1
@@ -297,9 +288,6 @@ Base.@kwdef struct MultilevelBranchingMoranInput <: MultilevelInput
     μ::Float64 = 1.0
     mutationdist::Symbol = :poisson
     ploidy::Int64 = 2
-    numclones::Int64 = 0
-    mutant_selection::Vector{Float64} = fill(0.0,numclones)
-    mutant_time::Vector{Float64} = collect(1.0:0.5:(1+numclones)/2)
 end
 
 #endregion

@@ -1,9 +1,9 @@
 function getVAFresult(simulation, rng::AbstractRNG=Random.GLOBAL_RNG; read_depth=100.0, 
     detectionlimit=5/read_depth, cellularity=1.0)
-    trueVAF = getallelefreq(simulation, ploidy)
+    trueVAF = getallelefreq(simulation)
     sampledVAF = sampledallelefreq(trueVAF, rng, read_depth=read_depth, 
         detectionlimit=detectionlimit, cellularity=cellularity)
-    freq, freqp = subclonefreq(simulation.output)
+    freq, freqp = subclonefreq(simulation.output.subclones)
 
     return VAFResult(
         read_depth,
@@ -23,7 +23,7 @@ function getVAFresult(multisimulation::MultiSimulation, moduleid, rng::AbstractR
     trueVAF = getallelefreq(multisimulation, moduleid)
     sampledVAF = sampledallelefreq(trueVAF, rng, read_depth=read_depth, 
         detectionlimit=detectionlimit, cellularity=cellularity)
-    freq, freqp = subclonefreq(multisimulation[moduleid])
+    freq, freqp = subclonefreq(multisimulation[moduleid], length(multisimulation.output.subclones))
 
     return VAFResult(
         read_depth,
@@ -104,7 +104,7 @@ end
 Calculate allele frequency for each mutation in the module (or vector of modules) specified 
     by `moduleid`.
 """
-function getallelefreq(simulation::MultiSimulation, moduleid)
+function getallelefreq(simulation::Simulation, moduleid)
     return getallelefreq(simulation.output[moduleid], simulation.input.ploidy)
 end
 
@@ -116,8 +116,8 @@ end
 Calculate allele frequency for all mutations in a single `module` or `cellvector` with given
     `ploidy`.
 """
-function getallelefreq(abstractmodule::AbstractModule, ploidy)
-    return getallelefreq(abstractmodule.cells, ploidy)
+function getallelefreq(singlelevelpopulation::SinglelevelPopulation, ploidy)
+    return getallelefreq(singlelevelpopulation.singlemodule.cells, ploidy)
 end
 
 function getallelefreq(cells::CellVector, ploidy)
@@ -177,18 +177,17 @@ end
 
 Calculate allele frequency for all mutations in a vector of `modules` with given `ploidy`.
 """
-function getallelefreq(modules::Vector{M}, ploidy) where M <: AbstractModule
-    return getallelefreq(reduce(vcat, [mod.cells for mod in modules]), ploidy)
+function getallelefreq(population::Population, ploidy)
+    return getallelefreq([cell for m in population for cell in m.cells], ploidy)
 end
-
-
 
 function getfixedallelefreq(mutations::Vector{Int64})
     return counts(mutations)    
 end
 
-function getfixedallelefreq(population::Union{MultiSimulation{S, T}, Vector{T}}, 
-    idx=nothing) where {S, T <: CellModule}
+getfixedallelefreq(simulation, idx=nothing) = getfixedallelefreq(simulation.output, idx)
+
+function getfixedallelefreq(population::Population{T}, idx=nothing) where T <: CellModule
     mutations = reduce(vcat, clonal_mutation_ids(population, idx))
     return getfixedallelefreq(mutations)
 end
@@ -209,7 +208,8 @@ function cellsconvert(cells)
 end
 
 """
-    sampledhist(trueVAF::Vector{Float64}, cellnum::Int64; <keyword arguments>)
+    sampledallelefreq(trueVAF::Vector{Float64}, rng::AbstractRNG; 
+    read_depth=100.0, detectionlimit=5/read_depth, cellularity=1.0)
 
 Create synthetic experimental data by smapling from the true VAF distribution 
 according to experimental constraints. 
@@ -262,9 +262,9 @@ function addcumfreq!(df,colname)
 end
 
 
-function subclonefreq(cellmodule)
+function subclonefreq(cellmodule, nsubclones)
     #get proportion of cells in each subclone
-    clonesize = getclonesize(cellmodule)
+    clonesize = getsubclonesizes(cellmodule, nsubclones)
     clonefreqp = clonesize[2:end]/sum(clonesize)
     clonefreq = copy(clonefreqp)
     if length(clonefreqp) > 1

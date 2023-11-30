@@ -1,51 +1,35 @@
-@testset "module initialization" begin
-    @testset "branching" begin
-        for clonalmutations in [0,100]
-            module1 = SomaticEvolution.initialize(Cell, WellMixed, clonalmutations, 1)
-            module2 = SomaticEvolution.initialize(Cell, WellMixed, clonalmutations, 1)
-            for initmodule in (module1, module2)
-                @test length(initmodule) == 1
-                @test initmodule.t == 0.0
-                @test length(initmodule.cells) == 1
-                @test length(initmodule.cells[1].mutations) == clonalmutations
-                @test initmodule.cells[1].clonetype == 1
-                @test length(initmodule.subclones) == 0
-                @test initmodule.id == 1
-            end
-        end
+@testset "population initialization" begin
+    clonalmutations = 50
+    initmodule = SomaticEvolution.initialize(Cell, WellMixed, clonalmutations, 1)
+    @test length(initmodule) == 1
+    @test initmodule.t == 0.0
+    @test length(initmodule.cells) == 1
+    @test length(initmodule.cells[1].mutations) == clonalmutations
+    @test initmodule.cells[1].clonetype == 1
+    @test initmodule.id == 1
 
-        @testset "moran" begin
-            for clonalmutations in [0,100]
-                N = 100
-                initmodule = SomaticEvolution.initialize(Cell, WellMixed, clonalmutations, N)
-                @test length(initmodule) == N
-                @test initmodule.branchtimes[1] == 0.0
-                @test length(initmodule.cells) == N
-                allmuts = [cell.mutations for cell in initmodule.cells]
-                @test all(x -> x == allmuts[1], allmuts)
-                @test length(initmodule.cells[1].mutations) == clonalmutations
-                @test initmodule.cells[1].clonetype == 1
-                @test length(initmodule.subclones) == 0
-                @test initmodule.id == 1
-            end
-        end
+    population = SomaticEvolution.initialize_population(Cell, WellMixed, clonalmutations, 
+        1, 5, 1.0, 0.0, 2.0, 0.5, 2)
+    @test length(population.subclones) == 1
+    @test SomaticEvolution.getwildtyperates(population) == (birthrate=1.0, deathrate=0.0, moranrate=2.0, asymmetricrate=0.5)
+    @test length(population) == 2
+    @test length(population.growing_modules) == 2
+    @test length(population.homeostatic_modules) == 0
+    @test length.(population.growing_modules) == [1,1]
+end
 
-        @testset "sampled" begin
-            subclones = SomaticEvolution.CloneTracker[]
-            cells = Cell[]
-            push!(cells, Cell([1,2,3,4], 1, 0.2, 1, 0))
-            push!(cells, Cell([1,2,3], 1, 0.2, 2, 1))
-            id = 1
-            parentid = 0
-            inittime = 5
-            initmodule = SomaticEvolution.new_module_from_cells(cells, inittime, [inittime], subclones, id,
-                parentid, WellMixed())
-            @test initmodule.branchtimes[1] == inittime
-            @test length(initmodule.cells) == length(cells)
-            @test initmodule.cells[1].mutations == [1,2,3,4]
-            @test initmodule.cells[1].clonetype == initmodule.cells[2].clonetype == 1
-            @test length(initmodule.subclones) == length(subclones)
-            @test initmodule.id == id
-        end
-    end
+@testset "module sampling" begin
+        cells = Cell[]
+        push!(cells, Cell([1,2,3,4], 1, 0.2, 1, 0))
+        push!(cells, Cell([1,2,3], 1, 0.2, 2, 1))
+        id = 1
+        parentid = 0
+        inittime = 5
+        initmodule = SomaticEvolution.new_module_from_cells(cells, inittime, [inittime], id,
+            parentid, WellMixed())
+        @test initmodule.branchtimes[1] == inittime
+        @test length(initmodule.cells) == length(cells)
+        @test initmodule.cells[1].mutations == [1,2,3,4]
+        @test SomaticEvolution.getclonetype(initmodule.cells[1]) == SomaticEvolution.getclonetype(initmodule.cells[2]) == 1
+        @test initmodule.id == id
 end

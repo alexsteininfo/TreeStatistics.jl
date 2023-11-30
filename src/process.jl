@@ -16,15 +16,14 @@ function processresults!(cellmodule::CellModule, μ, clonalmutations, rng::Abstr
     return cellmodule
 end
 
-function processresults!(population::Population{CellModule}, μ, clonalmutations, 
-    rng::AbstractRNG; mutationdist=:poisson)
+function processresults!(population::Population{CellModule{T}}, μ, clonalmutations, 
+    rng::AbstractRNG; mutationdist=:poisson) where T
     
-    modules = allmodules(population)
-    mutationlist = get_mutationlist(modules)
+    mutationlist = get_mutationlist(population)
     expandedmutationids = 
         get_expandedmutationids(μ, mutationlist, clonalmutations, rng, mutationdist=mutationdist)
     
-    for cellmodule in modules
+    for cellmodule in population
         expandmutations!(cellmodule, expandedmutationids, clonalmutations)
     end
     return population
@@ -69,12 +68,6 @@ function expandmutations!(cellmodule, expandedmutationids, clonalmutations)
             cell.mutations = collect(1:clonalmutations)
         end
     end
-    #get list of mutations in each subclone
-    if length(expandedmutationids) > 0
-        for subclone in cellmodule.subclones
-            subclone.mutations = expandmutations(expandedmutationids, subclone.mutations)
-        end
-    end
     return cellmodule
 end
 
@@ -86,7 +79,7 @@ function expandmutations(expandedmutationids, originalmutations)
     )
 end
 
-function get_mutationlist(population)
+function get_mutationlist(population::Population)
     #get list of all mutations assigned to each cell
     mutationlist = [mutation 
         for cellmodule in population

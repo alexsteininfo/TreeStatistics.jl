@@ -37,7 +37,7 @@ rng = MersenneTwister(12)
     #gets list of all mutations in the population
     @test Set(SomaticEvolution.get_mutationlist(population)) == 
         Set([1, 2, 3, 4, 5, 6, 8, 9, 10, 11, 12, 13, 14, 15, 16])
-    @test Set(SomaticEvolution.get_mutationlist(population[1])) ==
+    @test Set(SomaticEvolution.get_mutationlist(population.homeostatic_modules[1])) ==
         Set([2, 3, 9, 15, 4, 10, 16])
     mutationlist = SomaticEvolution.get_mutationlist(population)
 
@@ -48,7 +48,7 @@ rng = MersenneTwister(12)
     expandedmutationids = SomaticEvolution.get_expandedmutationids(3, collect(1:100000), clonalmutations, rng, mutationdist=:geometric)
     @test  mean(reduce(vcat,map(length,values(expandedmutationids)))) ≈ 3 atol=0.01
 
-    module1 = deepcopy(population[2])
+    module1 = deepcopy(population.growing_modules[1])
     expandedmutationids = Dict(1=>[4], 2=>[5,6], 3=>[7], 6=>[8,9,10], 8=>[11], 11=>[], 12=>[], 13=>[12,13,14], 14=>[15,16])
     SomaticEvolution.expandmutations!(module1, expandedmutationids, clonalmutations)
     @test sort(SomaticEvolution.clonal_mutation_ids(module1)) == [1, 2, 3, 4, 8, 9, 10, 11]
@@ -60,9 +60,9 @@ rng = MersenneTwister(12)
     @test Set(mutationlist) == keys(expandedmutationids)
     @test all(reduce(vcat,map(length,values(expandedmutationids))) .== 2)
     SomaticEvolution.processresults!(population, μ, clonalmutations, rng, mutationdist=:fixed)
-    @test clonal_mutations(population[1]) == 2 * 1 + 3
-    @test length(population[1].cells[1].mutations) == 2 * 1 + 3 + 2 * 3
-    @test length(population[1].cells[2].mutations) == 2 * 1 + 3 + 2 * 1
-    @test length(population[3].cells[1].mutations) == 2 * 2 + 3
+    @test clonal_mutations(population.homeostatic_modules[1]) == 2 * 1 + 3
+    @test length(population.homeostatic_modules[1].cells[1].mutations) == 2 * 1 + 3 + 2 * 3
+    @test length(population.homeostatic_modules[1].cells[2].mutations) == 2 * 1 + 3 + 2 * 1
+    @test length(population.growing_modules[2].cells[1].mutations) == 2 * 2 + 3
 
 end

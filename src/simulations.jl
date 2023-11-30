@@ -1,118 +1,75 @@
-function simulate!(cellmodule::CellModule, input::BranchingMoranInput, 
-    rng::AbstractRNG=Random.GLOBAL_RNG; timefunc=exptime, t0=nothing, tmax=nothing)
+function simulate!(population::SinglelevelPopulation, input::BranchingMoranInput, 
+    selection::AbstractSelection, rng::AbstractRNG=Random.GLOBAL_RNG; 
+    timefunc=exptime, t0=nothing, tmax=nothing)
 
     branchingprocess!(
-        cellmodule, 
-        input.birthrate, 
-        input.deathrate, 
+        population,
+        selection,
         input.Nmax, 
         input.μ, 
         input.mutationdist,
         isnothing(tmax) ? input.tmax : minimum((tmax, input.tmax)),
         rng;
         timefunc,
-        t0,
-        numclones=input.numclones,
-        mutant_selection=input.mutant_selection, 
-        mutant_time=input.mutant_time, 
+        t0
     )
     
     moranprocess!(
-        cellmodule, 
-        input.moranrate, 
+        population,
+        selection,
         isnothing(tmax) ? input.tmax : minimum((tmax, input.tmax)),
         input.μ, 
         input.mutationdist, 
         rng;
         timefunc,
         t0,
-        numclones=input.numclones, 
-        mutant_selection=input.mutant_selection, 
-        mutant_time=input.mutant_time,
         moranincludeself=input.moranincludeself
     )
 
-    return cellmodule
+    return population
 end
 
-function simulate!(cellmodule::CellModule, input::BranchingInput, 
-    rng::AbstractRNG=Random.GLOBAL_RNG; timefunc=exptime, t0=nothing, tmax=nothing)
+function simulate!(population::SinglelevelPopulation, input::BranchingInput, 
+    selection::AbstractSelection, rng::AbstractRNG=Random.GLOBAL_RNG; 
+    timefunc=exptime, t0=nothing, tmax=nothing)
 
     branchingprocess!(
-        cellmodule, 
-        input.birthrate, 
-        input.deathrate, 
+        population,
+        selection,
         input.Nmax, 
         input.μ, 
         input.mutationdist,
         isnothing(tmax) ? input.tmax : minimum((tmax, input.tmax)),
         rng; 
         timefunc,
-        t0,
-        numclones=input.numclones,
-        mutant_selection=input.mutant_selection, 
-        mutant_time=input.mutant_time, 
+        t0
     )
     
-    return cellmodule
+    return population
 end
 
-function simulate!(cellmodule::CellModule, input::MoranInput, 
-    rng::AbstractRNG=Random.GLOBAL_RNG; timefunc=exptime, t0=nothing, tmax=nothing)
-
+function simulate!(population::SinglelevelPopulation, input::MoranInput, 
+    selection::AbstractSelection, rng::AbstractRNG=Random.GLOBAL_RNG; 
+    timefunc=exptime, t0=nothing, tmax=nothing)
 
     moranprocess!(
-        cellmodule, 
-        input.moranrate, 
+        population,
+        selection,
         isnothing(tmax) ? input.tmax : minimum((tmax, input.tmax)),
         input.μ, 
         input.mutationdist, 
         rng; 
         timefunc,
         t0,
-        numclones=input.numclones, 
-        mutant_selection=input.mutant_selection, 
-        mutant_time=input.mutant_time,
         moranincludeself=input.moranincludeself
     )
 
-    return cellmodule
+    return population
 end
 
 """
-    runsimulation_clonalmuts(::Type{Cell}, input::MoranInput[, rng::AbstractRNG]; tstep)
-
-    Simulate a population of cells according to a Moran process for fixed time. Return 
-    a vector of the number of clonal mutations acquired at given time intervals.
-"""
-
-function runsimulation_clonalmuts(::Type{Cell}, input::MoranInput, tstep, rng::AbstractRNG=Random.GLOBAL_RNG)
-
-    cellmodule = initialize(Cell, input, rng)
-
-    clonalmuts = Int64[]
-    for t in 0:tstep:input.tmax
-        cellmodule = moranprocess!(
-            cellmodule, 
-            input.moranrate, 
-            input.tmax, 
-            input.μ, 
-            input.mutationdist, 
-            rng; 
-            numclones=input.numclones, 
-            mutant_selection=input.mutant_selection, 
-            mutant_time=input.mutant_time,
-            moranincludeself=input.moranincludeself
-        )
-        push!(clonalmuts, clonal_mutations(cellmodule))
-    end
-
-    return Simulation(input,cellmodule), clonalmuts
-end
-
-"""
-    branchingprocess!(cellmodule::CellModule, birthrate, deathrate, Nmax, μ, mutationdist, tmax,
-    rng::AbstractRNG; numclones=0, mutant_selection=Float64[], mutant_time=Float64[])
+    branchingprocess!(population::SinglelevelPopulation{CellModule}, Nmax, μ, mutationdist, tmax,
+    rng::AbstractRNG; mutant_selection=Float64[], mutant_time=Float64[], timefunc=exptime, t0=nothing)
 
 Run branching process simulation, starting in state defined by cellmodule.
 
@@ -126,182 +83,193 @@ Otherwise, `numclones` is the number of fit subclones. The `i`th subclone arises
 cell mutating at time `mutant_time[i]` and has selection coefficient `mutant_selection[i]`.
 
 """
-function branchingprocess!(cellmodule::CellModule, birthrate, deathrate, Nmax, μ, mutationdist, tmax,
-    rng::AbstractRNG; numclones=0, mutant_selection=Float64[], mutant_time=Float64[],timefunc=exptime, t0=nothing)
-    
-    t = !isnothing(t0) ? t0 : cellmodule.t
-    N = length(cellmodule)
-    
-    mutID = N == 1 ? 1 : getnextID(cellmodule.cells)
+function branchingprocess!(population::SinglelevelPopulation, selection::AbstractSelection, 
+    Nmax, μ, mutationdist, tmax, rng::AbstractRNG; timefunc=exptime, t0=nothing)
 
-    nclonescurrent = length(cellmodule.subclones) + 1  
-    changemutrate = BitArray(undef, numclones + 1)
-    changemutrate .= 1
+    t = !isnothing(t0) ? t0 : age(population.singlemodule)
+    N = length(population.singlemodule)
+    nextID = getnextID(population.singlemodule.cells)
 
-    birthrates, deathrates = set_branching_birthdeath_rates( birthrate, deathrate, mutant_selection)
+    nsubclones = getmaxsubclones(selection)
+    nsubclonescurrent = length(population.subclones)
+    birthrates = getbirthrates(population.subclones)
+    deathrates = getdeathrates(population.subclones)
 
-    #Rmax starts with birthrate + deathrate and changes once a fitter mutant is introduced, this ensures
-    #that birthrate and deathrate have correct units
-    Rmax = (maximum(birthrates[1:nclonescurrent])
-                                + maximum(deathrates[1:nclonescurrent]))
+    #Rmax starts with birthrate + deathrate and changes once a fitter mutant is introduced
+    Rmax = maximum(birthrates) + maximum(deathrates)
 
-    while N < Nmax
+    while N < Nmax && N > 0
 
         #calc next event time and break if it exceeds tmax 
-        Δt =  1/(Rmax * N) .* timefunc(rng)
-        t = t + Δt
-        if t > tmax
-            break
+        Δt =  1 / (Rmax * N) .* timefunc(rng)
+        t + Δt <= tmax || break # end simulation if time exceeds maximum
+        t += Δt
+
+        population, birthrates, deathrates, Rmax, N, nextID, nsubclonescurrent, nsubclones = 
+            branchingupdate!(population, selection, birthrates, deathrates, Rmax, N, nextID, 
+                nsubclonescurrent, nsubclones, t, μ, 
+                mutationdist, rng)
+    end
+    return population
+end
+
+function branchingupdate!(population::SinglelevelPopulation, selection, birthrates, 
+    deathrates, Rmax, N, nextID, nsubclonescurrent, nsubclones, t, μ, mutationdist, rng)
+
+    randcellid = rand(rng, 1:N) #pick a random cell
+    randcell = population.singlemodule.cells[randcellid]
+    r = rand(rng, Uniform(0, Rmax))
+    #get birth and death rates for randcell
+    cellsubclone = getclonetype(randcell)
+    br = birthrates[cellsubclone]
+    dr = deathrates[cellsubclone]
+
+    if r < br 
+        #cell divides
+        cellmodule, subclones, nextID = celldivision!(population.singlemodule, population.subclones, 
+            randcellid, t, nextID, μ, mutationdist, rng)
+        N += 1
+        #check if ready for a new mutant subclone
+        if newsubclone_ready(selection, nsubclonescurrent, nsubclones, t, rng)
+            newmutant_selectioncoeff = getselectioncoefficient(selection, nsubclonescurrent, rng)
+            cellmutation!(cellmodule, population.subclones, newmutant_selectioncoeff, randcell, t)
+            nsubclonescurrent += 1
+            #update rates and Rmax
+            birthrates = getbirthrates(population.subclones)
+            deathrates = getdeathrates(population.subclones)
+            Rmax = maximum(birthrates) + maximum(deathrates)
         end
-
-        randcell = rand(rng,1:N) #pick a random cell
-        r = rand(rng,Uniform(0,Rmax))
-        #get birth and death rates for randcell
-        br = birthrates[cellmodule.cells[randcell].clonetype]
-        dr = deathrates[cellmodule.cells[randcell].clonetype]
-
-        if r < br 
-            #cell divides
-            cellmodule, mutID = celldivision!(cellmodule, randcell, t, mutID, μ, mutationdist, rng)
-            N += 1
-            #check if t>=mutant_time for next fit subclone
-            if nclonescurrent < numclones + 1 && t >= mutant_time[nclonescurrent]
-                #if current number clones != final number clones, one of the new cells is
-                #mutated to become fitter and form a new clone
-                    cellmodule, nclonescurrent = cellmutation!(cellmodule, N, N, t, 
-                        nclonescurrent)
-                
-                    #change Rmax now there is a new fitter mutant
-                    Rmax = (maximum(birthrates[1:nclonescurrent])
-                                + maximum(deathrates[1:nclonescurrent]))
-            end
-            updatetime!(cellmodule, t)
-
-
-        elseif r < br + dr
-            #cell dies
-            cellmodule = celldeath!(cellmodule, randcell)
-            N -= 1
-            updatetime!(cellmodule, t)
-            #return empty cellmodule if all cells have died
-            if N == 0
-                return cellmodule
-            end
-        end
+    elseif r < br + dr
+        #cell dies
+        cellmodule = celldeath!(population.singlemodule, population.subclones, randcellid, t)
+        N -= 1
+        #return empty population if all cells have died
     end
-    return cellmodule
+    updatetime!(population.singlemodule, t)
+    return population, birthrates, deathrates, Rmax, N, nextID, nsubclonescurrent, nsubclones
 end
 
 """
-    getclonesize(cellmodule::CellModule)
-
-Return number of cells in each subclone (including wild-type).
-"""
-function getclonesize(cellmodule::CellModule)
-    return getclonesize(length(cellmodule), cellmodule.subclones)
-end
-
-"""
-    getclonesize(N, subclones)
-"""
-function getclonesize(N, subclones)
-   sizevec = [clone.size for clone in subclones]
-   prepend!(sizevec, N - sum(sizevec)) 
-end
-
-"""
-    set_branching_birthdeath_rates( birthrate, deathrate, mutant_selection)
-
-Return Vectors of birthrates and deathrates for each subclone (including wild-type).
-"""
-function set_branching_birthdeath_rates(birthrate, deathrate, mutant_selection)
-    birthrates = [birthrate]
-    deathrates = [deathrate]
-    #add birth and death rates for each subclone. 
-    for i in 1:length(mutant_selection)
-        push!(deathrates, deathrate)
-        push!(birthrates, (1 + mutant_selection[i]) .* birthrate)
-    end
-    return birthrates,deathrates
-end
-
-function set_all_rates(birthrate, deathrate, mutant_selection)
-    birthrates = [birthrate]
-    deathrates = [deathrate]
-    #add birth and death rates for each subclone. 
-    for i in 1:length(mutant_selection)
-        push!(deathrates, deathrate)
-        push!(birthrates, (1 + mutant_selection[i]) .* birthrate)
-    end
-    return birthrates,deathrates
-end
-
-"""
-    moranprocess!(cellmodule::CellModule, moranrate, tmax, μ, mutationdist, 
-    rng::AbstractRNG; numclones=0, mutant_selection=Float64[], mutant_time=Float64[])
+    moranprocess!(population::SinglelevelPopulation, tmax, μ, mutationdist, 
+    rng::AbstractRNG; numclones=0, mutant_selection=Float64[], mutant_time=Float64[],
 
 Run Moran process simulation, starting in state defined by cellmodule.
 
 See also [`moranprocess`](@ref)
 
 """
-function moranprocess!(cellmodule::CellModule, moranrate, tmax, μ, mutationdist, 
-    rng::AbstractRNG; numclones=0, mutant_selection=Float64[], mutant_time=Float64[],
-    timefunc=exptime, t0=nothing, moranincludeself=true)
+function moranprocess!(population::SinglelevelPopulation, selection, tmax, μ, mutationdist, 
+    rng::AbstractRNG; timefunc=exptime, t0=nothing, moranincludeself=true)
 
-    t = !isnothing(t0) ? t0 : cellmodule.t
-    N = length(cellmodule)
-    mutID = getnextID(cellmodule.cells)
+    t = !isnothing(t0) ? t0 : age(population.singlemodule)
+    N = length(population.singlemodule)
+    nextID = getnextID(population.singlemodule.cells)
 
-    nclonescurrent = length(cellmodule.subclones) + 1  
-
+    nsubclones = getmaxsubclones(selection)
+    nsubclonescurrent = length(population.subclones)
+    moranrates = getmoranrates(population.subclones)
+    Rmax = maximum(moranrates)
     while true
 
-        #calc next event time and break if it exceeds tmax 
-        Δt =  1/(moranrate*N) .* timefunc(rng)
+        #calc next event time and break if it exceeds tmax
+        Δt =  1 / (Rmax * N) .* timefunc(rng)
         t = t + Δt
         if t > tmax
             break
         end
+        population, moranrates, Rmax, N, nextID, nsubclonescurrent = 
+            moranupdate!(population, selection, moranrates, Rmax, N, nextID, 
+                nsubclonescurrent, nsubclones, t, μ, mutationdist, moranincludeself, rng)
 
-        #pick a cell to divide proportional to clonetype
-        if nclonescurrent == 1
-            dividecellidx = rand(rng, 1:N)
-        else
-            p = [cell.clonetype==1 ? 1 : 1 + mutant_selection[cell.clonetype - 1] 
-                    for cell in cellmodule.cells] 
-            p /= sum(p)
-            dividecellidx = sample(rng, 1:N, ProbabilityWeights(p)) 
-        end
+    end
+    return population
+end
 
+function moranupdate!(population::SinglelevelPopulation, selection, moranrates, Rmax, N, nextID, 
+    nsubclonescurrent, nsubclones, t, μ, mutationdist, moranincludeself, rng)
+
+    dividecellid = rand(rng, 1:N) #pick a random cell to divide 
+    dividecell = population.singlemodule.cells[dividecellid]
+    r = rand(rng, Uniform(0, Rmax))
+    mr = moranrates[getclonetype(dividecell)]
+    if r < mr
         #pick a random cell to die
-        deadcellidx = if moranincludeself 
-            deadcellidx = rand(rng, 1:N)
-            #if dead cell and divide cell are the same kill one of the offspring
-            deadcellidx = deadcellidx == dividecellidx ? N : deadcellidx
-        else
-            #exclude dividecellidx
-            deadcellidx = rand(rng, deleteat!(collect(1:N), dividecellidx))
-        end
+        deadcell = choose_moran_deadcell(N, dividecellid, moranincludeself, rng)
         #cell divides
-        cellmodule, mutID = celldivision!(cellmodule, dividecellidx, t, mutID, μ, mutationdist, rng)
-        
+        cellmodule, subclones, nextID = celldivision!(population.singlemodule, population.subclones, 
+            dividecellid, t, nextID, μ, mutationdist, rng)
+
         #check if t>=mutant_time for next fit subclone and more subclones are expected
-        if nclonescurrent < numclones + 1 && t >= mutant_time[nclonescurrent]
-            cellmodule, nclonescurrent = cellmutation!(cellmodule, N+1, N, t, nclonescurrent)
+            if newsubclone_ready(selection, nsubclonescurrent, nsubclones, t, rng)
+                newmutant_selectioncoeff = getselectioncoefficient(selection, nsubclonescurrent, rng)
+                cellmutation!(cellmodule, population.subclones, newmutant_selectioncoeff, dividecell, t)
+            nsubclonescurrent += 1
+            #update rates and Rmax
+            moranrates = getmoranrates(population.subclones)
+            Rmax = maximum(moranrates)
         end
 
         #cell dies
-        cellmodule = celldeath!(cellmodule, deadcellidx)
-
-        updatetime!(cellmodule, t)
-
+        cellmodule = celldeath!(cellmodule, population.subclones, deadcell, t)
     end
-    return cellmodule
+    updatetime!(population.singlemodule, t)
+    return population, moranrates, Rmax, N, nextID, nsubclonescurrent
+
+end
+
+function choose_moran_deadcell(modulesize, dividecellid, moranincludeself, rng)
+    if moranincludeself
+        deadcellid = rand(rng, 1:modulesize)
+        #if dead cell and divide cell are the same kill one of the offspring
+        if deadcellid == dividecellid 
+            return modulesize + 1 
+        else 
+            return deadcellid
+        end
+    else
+        #exclude dividecellidx
+        return rand(rng, deleteat!(collect(1:modulesize), dividecellid))
+    end
 end
 
 
+getbirthrates(subclones) = Float64[subclone.birthrate for subclone in subclones]
+getdeathrates(subclones) = Float64[subclone.deathrate for subclone in subclones]
+getmoranrates(subclones) = Float64[subclone.moranrate for subclone in subclones]
+getasymmetricrates(subclones) = Float64[subclone.asymmetricrate for subclone in subclones]
 
+
+
+function getwildtyperates(population::AbstractPopulation)
+    return getwildtyperates(population.subclones)
+end
+
+function getwildtyperates(subclones::Vector{Subclone})
+    return (
+        birthrate = subclones[1].birthrate,
+        deathrate = subclones[1].deathrate,
+        moranrate = subclones[1].moranrate,
+        asymmetricrate = subclones[1].asymmetricrate
+    )
+end
+
+"""
+    get_newsubclone_rates(wildtype, selection)
+Compute new birth, death, moran and asymmetric rates for a new subclone.
+
+All `wildtype` rates are increased by a factor of `(1 + selection)` (except for death rate 
+which is unchanged).
+"""
+function get_newsubclone_rates(wildtype, selectioncoefficient)
+    #TODO check whether this is how Francesco defines (i.e. should selection act on wildtype
+    #fitness or parent fitness?)
+    return (
+        birthrate = wildtype.birthrate * (1 + selectioncoefficient),
+        deathrate = wildtype.deathrate,
+        moranrate = wildtype.moranrate * (1 + selectioncoefficient),
+        asymmetricrate =  wildtype.asymmetricrate * (1 + selectioncoefficient)
+    )
+end
 
 function addmutations!(cell1::Cell, cell2::Cell, μ, mutID, rng, mutationdist=mutationdist, Δt=Δt)
     if mutationdist == :poissontimedep || mutationdist == :fixedtimedep
@@ -365,7 +333,7 @@ end
 
 updatetime!(abstractmodule, t) = abstractmodule.t = t
 
-function celldivision!(cellmodule::CellModule, parentcell, t, mutID, μ, mutationdist, rng; nchildcells=2)
+function celldivision!(cellmodule::CellModule, subclones, parentcell, t, mutID, μ, mutationdist, rng; nchildcells=2)
     
     Δt = t - cellmodule.cells[parentcell].birthtime
     cellmodule.cells[parentcell].birthtime = t
@@ -373,6 +341,8 @@ function celldivision!(cellmodule::CellModule, parentcell, t, mutID, μ, mutatio
         push!(cellmodule.cells, copycell(cellmodule.cells[parentcell])) #add new copy of parent cell to cells
         cellmodule.cells[end].id = cellmodule.cells[end-1].id + 1
         cellmodule.cells[end].parentid = cellmodule.cells[parentcell].id
+        subclones[cellmodule.cells[parentcell].clonetype].size += 1
+
     end
     #add new mutations to both new cells
     if μ > 0.0 
@@ -384,62 +354,47 @@ function celldivision!(cellmodule::CellModule, parentcell, t, mutID, μ, mutatio
                 mutID, rng, mutationdist, Δt)
         end
     end
-    clonetype = cellmodule.cells[parentcell].clonetype
-    if clonetype > 1 && nchildcells == 2
-        cellmodule.subclones[clonetype - 1].size += 1
-    end
     updatetime!(cellmodule, t)
-    return cellmodule, mutID
+    return cellmodule, subclones, mutID
 end
 
-function cellmutation!(cellmodule::CellModule, mutatingcell, N, t, nclonescurrent)
+function cellmutation!(cellmodule, subclones, selectioncoefficient, mutatingcell, t)
     
     #add new clone
-    parenttype = cellmodule.cells[mutatingcell].clonetype
-    mutations = deepcopy(cellmodule.cells[mutatingcell].mutations)
-    Ndivisions = length(cellmodule.cells[mutatingcell].mutations)
-    avdivisions = mean(map(x -> length(x.mutations), cellmodule.cells))
-    push!(cellmodule.subclones, clone)
+    subcloneid = length(subclones) + 1
+    parentid = getclonetype(mutatingcell)
+    wildtype_rates = getwildtyperates(subclones)
+    birthrate, deathrate, moranrate, asymmetricrate = get_newsubclone_rates(wildtype_rates, selectioncoefficient)
+    newsubclone = Subclone(subcloneid, parentid, t, 1, birthrate, deathrate, moranrate, asymmetricrate)
+    push!(subclones, newsubclone)
 
     #change clone type of new cell and update clone sizes
-    nclonescurrent += 1
-    cellmodule.cells[mutatingcell].clonetype = nclonescurrent
-
-    if parenttype > 1
-        cellmodule.subclones[parenttype - 1].size -= 1
+    setclonetype(mutatingcell, subcloneid)
+    if parentid != 0
+        subclones[parentid].size -= 1
     end
-
-
-    return (;cellmodule, nclonescurrent)
+    return cellmodule, subclones
 end
 
-function celldeath!(cellmodule::CellModule, deadcell::Int64, args...)
+function celldeath!(cellmodule::CellModule, subclones, deadcell::Int64, args...)
     #frequency of cell type decreases
     clonetype = cellmodule.cells[deadcell].clonetype 
-    if clonetype > 1
-        cellmodule.subclones[clonetype - 1].size -= 1
-    end
+    subclones[clonetype].size -= 1
     #remove deleted cell
     deleteat!(cellmodule.cells, deadcell)
 
     return cellmodule
 end
 
-function celldeath!(cellmodule::CellModule, deadcells::Vector{Int64}, args...)
+function celldeath!(cellmodule::CellModule, subclones, deadcells::Vector{Int64}, args...)
     for deadcell in deadcells
         clonetype = cellmodule.cells[deadcell].clonetype 
-        if clonetype > 1
-            cellmodule.subclones[clonetype - 1].size -= 1
-        end
+        subclones[clonetype].size -= 1
     end
     deleteat!(cellmodule.cells, sort(deadcells))
 
     return cellmodule
 end
-
-cellremoval!(cellmodule::CellModule, deadcells::Vector{Int64}) = 
-    celldeath!(cellmodule, deadcells)
-
 
 function getnextID(cells::CellVector)
     if all(no_mutations.(cells))
@@ -448,6 +403,17 @@ function getnextID(cells::CellVector)
         allmutations = reduce(vcat, [cell.mutations for cell in cells])
         return maximum(allmutations)
     end
+end
+
+function getnextID(cells::AbstractTreeCellVector)
+    nextID = 1
+    for cellnode in cells
+        if isnothing(cellnode) continue end
+        if id(cellnode) + 1 > nextID
+            nextID = id(cellnode) + 1
+        end
+    end
+    return nextID
 end
 
 function copycell(cellold::Cell)
@@ -477,7 +443,8 @@ function no_mutations(cell)
 end
 
 age(abstractmodule::AbstractModule) = abstractmodule.t
-age(population::Vector{T}) where T<:AbstractModule = maximum(map(age, population))
+age(population::Population) = maximum(map(age, population))
+age(population::SinglelevelPopulation) = age(population.singlemodule)
 age(simulation::Simulation) = age(simulation.output)
 age(multisim::MultiSimulation) = maximum(age(output) for output in multisim.output)
 
