@@ -99,7 +99,7 @@ function getallelefreq(simulation)
 end
 
 """
-    getallelefreq(population::MultiSimulation, moduleid)
+    getallelefreq(simulation::MultiSimulation, moduleid)
 
 Calculate allele frequency for each mutation in the module (or vector of modules) specified 
     by `moduleid`.
@@ -109,6 +109,7 @@ function getallelefreq(simulation::Simulation, moduleid)
 end
 
 """
+    getallelefreq(module::SinglelevelPopulation, ploidy)
     getallelefreq(module::AbstractModule, ploidy)
     getallelefreq(cellvector::AbstractCellVector, ploidy)
 
@@ -118,6 +119,10 @@ Calculate allele frequency for all mutations in a single `module` or `cellvector
 """
 function getallelefreq(singlelevelpopulation::SinglelevelPopulation, ploidy)
     return getallelefreq(singlelevelpopulation.singlemodule.cells, ploidy)
+end
+
+function getallelefreq(singlemodule::AbstractModule, ploidy)
+    return getallelefreq(singlemodule.cells, ploidy)
 end
 
 function getallelefreq(cells::CellVector, ploidy)

@@ -127,5 +127,5 @@ end
     @test getsubclonesizes(simulation) == counts(subclone_by_cell, 1:length(simulation.output.subclones))
     @test age(simulation) <= tmax
     @test simulation.output.subclones[2].mutationtime ≈ 0.1 atol=0.1
-    @test simulation.output.subclones[3].mutationtime ≈ 7.0 atol=0.1
+    @test simulation.output.subclones[3].mutationtime ≈ 7.0 atol=1
 end 

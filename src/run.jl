@@ -87,7 +87,7 @@ end
 
 function runsimulation(::Type{Cell}, ::Type{S}, input::SinglelevelInput, 
     selection=NeutralSelection()::AbstractSelection, 
-    rng::AbstractRNG=Random.GLOBAL_RNG, timefunc=exptime) where S <: ModuleStructure
+    rng::AbstractRNG=Random.GLOBAL_RNG, timefunc=exptime, returnextinct=false) where S <: ModuleStructure
     #Initially set clonalmutations = 0 and μ = 1. These are expanded later. 
     #UNLESS input.mutationdist=:poissontimedep or :fixedtimedep
 
@@ -96,17 +96,23 @@ function runsimulation(::Type{Cell}, ::Type{S}, input::SinglelevelInput,
         input = newinput(input, μ=1, clonalmutations=0, mutationdist=:fixed)
     end
     birthrate, deathrate, moranrate, asymmetricrate = getinputrates(input)
-    population = initialize_singlelevelpopulation(
-        Cell, S, 
-        input.clonalmutations, 
-        getNinit(input), 
-        birthrate,
-        deathrate,
-        moranrate,
-        asymmetricrate;
-        rng)
+    #if the population dies out we start a new simulation
+    while true 
+        population = initialize_singlelevelpopulation(
+            Cell, S, 
+            input.clonalmutations, 
+            getNinit(input), 
+            birthrate,
+            deathrate,
+            moranrate,
+            asymmetricrate;
+            rng)
 
-    simulate!(population, input, selection, rng; timefunc)
+        simulate!(population, input, selection, rng; timefunc)
+        if length(population.singlemodule) > 0 || returnextinct
+            return Simulation(input, population)
+        end
+    end
     
     #If we set μ=1 etc we need to add proper mutations now (also remove undetectable subclones).
     if !(input.mutationdist ∈ (:poissontimedep, :fixedtimedep) )  
@@ -163,7 +169,6 @@ function runsimulation_timeseries_returnfinalpop(::Type{T}, ::Type{S}, input, ti
         population, nextID, nextmoduleID = simulate!(
             population, 
             selection,
-            input.mutant_time,
             t,
             input.maxmodules, 
             input.branchrate, 

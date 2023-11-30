@@ -137,14 +137,18 @@ function Base.show(io::IO, mod::AbstractModule)
 end
 
 function printmodule(io::IO, mod::AbstractModule; maxsubclone=nothing)
-    subclonelist = [getclonetype(cell) for cell in mod]
-    maxsubclone = isnothing(maxsubclone) ? maximum(subclonelist) : maxsubclone
-    subclone_counts = counts(subclonelist, 1:maxsubclone)
-    @printf(io, "[%d", subclone_counts[1])
-    if length(subclone_counts) > 1
-        for c in subclone_counts[2:end]
-            @printf(io, ", %d", c)
+    if length(mod) == 0
+        @printf(io, "[]")
+    else
+        subclonelist = [getclonetype(cell) for cell in mod]
+        maxsubclone = isnothing(maxsubclone) ? maximum(subclonelist) : maxsubclone
+        subclone_counts = counts(subclonelist, 1:maxsubclone)
+        @printf(io, "[%d", subclone_counts[1])
+        if length(subclone_counts) > 1
+            for c in subclone_counts[2:end]
+                @printf(io, ", %d", c)
+            end
         end
+        @printf(io, "]")
     end
-    @printf(io, "]")
 end

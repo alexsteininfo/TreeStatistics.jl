@@ -562,6 +562,7 @@ function get_moduleid_cellid(modules, subclone, chosen_cell)
             end
         end
     end
+    error("cell number $chosen_cell of subclone: $subclone not found")
 end
 
 function allclonetypes(modules)

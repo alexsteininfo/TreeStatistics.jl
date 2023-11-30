@@ -35,14 +35,14 @@
         #Homeostatic modules: [(1, 2), (2, 2)]
         #Growing modules: [(1, 3)], [(3, 1)]
         @test SomaticEvolution.allclonetypes(population.growing_modules) == [1, 1, 1, 3]
-        @test SomaticEvolution.get_moduleid_cellid(population.growing_modules, 1) == (1, 1)
-        @test SomaticEvolution.get_moduleid_cellid(population.growing_modules, 3) == (1, 3)
-        @test SomaticEvolution.get_moduleid_cellid(population.growing_modules, 4) == (2, 1)
+        @test SomaticEvolution.get_moduleid_cellid(population.growing_modules, 1, 1) == (1, 1)
+        @test SomaticEvolution.get_moduleid_cellid(population.growing_modules, 1, 3) == (1, 3)
+        @test SomaticEvolution.get_moduleid_cellid(population.growing_modules, 3, 1) == (2, 1)
 
-        moduleid, cellid = SomaticEvolution.choose_module_cell(population.growing_modules, 1, rng)
+        moduleid, cellid = SomaticEvolution.choose_module_cell(population.growing_modules, 1, 3, rng)
         @test moduleid == 1
         @test cellid <=3
-        moduleid, cellid = SomaticEvolution.choose_module_cell(population.growing_modules, 3, rng)
+        moduleid, cellid = SomaticEvolution.choose_module_cell(population.growing_modules, 3, 1, rng)
         @test moduleid == 2
         @test cellid == 1
 
@@ -58,7 +58,7 @@
         #check choosing cell/module
         @testset "choose cell" begin
             homeostaticmoduleid, parentcellid = 
-                SomaticEvolution.choose_module_cell(population.homeostatic_modules, 2, rng)
+                SomaticEvolution.choose_module_cell(population.homeostatic_modules, 2, 2, rng)
             homeostaticmodule = population.homeostatic_modules[homeostaticmoduleid]
             @test homeostaticmoduleid == 1
             @test homeostaticmodule.cells[parentcellid].clonetype == 2
@@ -67,7 +67,7 @@
                 SomaticEvolution.choose_moran_deadcell(4, parentcellid, false, rng)
             @test  deadcellid != parentcellid
             growingmoduleid, parentcellid = 
-                SomaticEvolution.choose_module_cell(population.growing_modules, 3, rng)
+                SomaticEvolution.choose_module_cell(population.growing_modules, 3, 1, rng)
             @test growingmoduleid == 2
             @test SomaticEvolution.choose_homeostaticmodule(population, rng) == 1
         end
