@@ -129,13 +129,10 @@ include("run.jl")
 include("process.jl")
 include("samplingVAF.jl")
 include("analyseVAF.jl")
-include("multirun.jl")
 include("util.jl")
 include("statistics.jl")
 include("io.jl")
 include("simulation_trees.jl")
-include("plot.jl")
-
 
 
 end

@@ -21,7 +21,6 @@ rng = MersenneTwister(12)
             birthrate=1, 
             deathrate=0.05,
             clonalmutations=0, 
-            numclones=0,
             μ=10,
             mutationdist=:poisson
         )

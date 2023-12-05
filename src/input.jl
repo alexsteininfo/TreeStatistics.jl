@@ -3,15 +3,17 @@
 
 Supertype for simulation inputs.
 
-# Subtypes:
-    - `BranchingInput <: SinglelevelInput`: input for simulating a branching process
-    - `MoranInput <: SinglelevelInput`: input for simulating a Moran process 
-    - `BranchingMoranInput <: SinglelevelInput`: input for simulating a branching process 
-        until fixed size is reached, then switching to Moran process
-    - `MultilevelBranchingInput <: MultilevelInput`: input for simulating a module branching 
-        process
-    - `MultilevelBranchingMoranInput <: MultilevelInput` input for simulating a module 
-        branching process until fixed size is reached, then switching to Moran
+# Subtypes
+- `BranchingInput <: SinglelevelInput`: input for simulating a branching process
+- `MoranInput <: SinglelevelInput`: input for simulating a Moran process 
+- `BranchingMoranInput <: SinglelevelInput`: input for simulating a branching process 
+    until fixed size is reached, then switching to Moran process
+- `MultilevelBranchingInput <: MultilevelInput`: input for simulating a module branching 
+    process (each module is formed of cells and grows by a branching process then
+    switches to a Moran process and/or asymmetric cell division)
+- `MultilevelBranchingMoranInput <: MultilevelInput` input for simulating a module 
+    branching process until fixed size is reached, then switching to Moran (module-level
+    dynamics are the same as for MultilevelBranchingInput)
 """
 abstract type SimulationInput end
 
@@ -21,7 +23,7 @@ abstract type SinglelevelInput <: SimulationInput end
 """
     BranchingInput <: SinglelevelInput <:SimulationInput
 
-Input for a single level branching process simulation that starts with a single cell.
+Input type for a single level branching process simulation that starts with a single cell.
     
 # Keyword arguments:
 - `Nmax::Int64 = 1000`: maximum number of cells
@@ -33,9 +35,6 @@ Input for a single level branching process simulation that starts with a single 
 - `mutationdist::Symbol = :poisson`: defines the distibution for new 
     mutations (:poisson, :fixed, :poissontimedep, :fixedtimedep, :geometric)
 - `ploidy::Int64 = 2`: cell ploidy 
-- `numclones::Int64 = 0`: number of mutant subclones
-- `mutant_selection::Vector{Float64} = [0.0, 0.0, ...]`: mutant_selection strength of each mutant subclone
-- `mutant_time::Vector{Float64} = [1.0, 1.5, ...]`: time each mutant arises
 """
 Base.@kwdef struct BranchingInput <: SinglelevelInput
     Nmax::Int64 = 1000
@@ -46,15 +45,12 @@ Base.@kwdef struct BranchingInput <: SinglelevelInput
     μ::Float64 = 1.0
     mutationdist::Symbol = :poisson
     ploidy::Int64 = 2
-    numclones::Int64 = 0
-    mutant_selection::Vector{Float64} = fill(0.0,numclones)
-    mutant_time::Vector{Float64} = collect(1.0:0.5:(1+numclones)/2)
 end
 
 """
     MoranInput <: SinglelevelInput
 
-Input for a single level Moran process simulation that starts with `N` identical cells.
+Input type for a single level Moran process simulation that starts with `N` identical cells.
 
 # Keyword arguments:
 - `N::Int64 = 1000`: number of cells
@@ -67,8 +63,6 @@ Input for a single level Moran process simulation that starts with `N` identical
 - `mutationdist::Symbol = :poisson`: defines the distibution for new 
     mutations (:poisson, :fixed, :poissontimedep, :fixedtimedep, :geometric)
 - `ploidy::Int64 = 2`: cell ploidy 
-- `mutant_selection::Vector{Float64} = []`: mutant_selection strength of each mutant subclone
-- `mutant_time::Vector{Float64} = []`: time each mutant arises
 """
 Base.@kwdef struct MoranInput <: SinglelevelInput
     N::Int64 = 1000
@@ -79,14 +73,12 @@ Base.@kwdef struct MoranInput <: SinglelevelInput
     μ::Float64 = 1.0
     mutationdist::Symbol = :poisson
     ploidy::Int64 = 2
-    mutant_selection::Vector{Float64} = Float64[]
-    mutant_time::Vector{Float64} = Float64[]
 end
 
 """
     BranchingMoranInput <: SinglelevelInput
 
-Input for a single level simulation that grows by a branching process to `Nmax` cells and
+Input type for a single level simulation that grows by a branching process to `Nmax` cells and
     then switches to a Moran process.
 
 # Keyword arguments:
@@ -104,9 +96,6 @@ Input for a single level simulation that grows by a branching process to `Nmax` 
 - `mutationdist::Symbol = :poisson`: defines the distibution for new 
     mutations (:poisson, :fixed, :poissontimedep, :fixedtimedep, :geometric)
 - `ploidy::Int64 = 2`: cell ploidy
-- `numclones::Int64 = 0`: number of mutant subclones
-- `mutant_selection::Vector{Float64} = []`: mutant_selection strength of each mutant subclone
-- `mutant_time::Vector{Float64} = []`: time each mutant arises
 """
 Base.@kwdef struct BranchingMoranInput <: SinglelevelInput
     Nmax::Int64 = 1000
@@ -128,7 +117,7 @@ abstract type MultilevelInput <: SimulationInput end
 """
     MultilevelBranchingInput <: MultilevelInput
 
-Input for a multilevel branching simulation that starts with a single cell in a single module. 
+Input type for a multilevel branching simulation that starts with a single cell in a single module. 
     
 Within module dynamics follows a branching process until `modulesize` is reached and then
 switches to a Moran process. Module level dynamics follow a branching process (homeostatic 
@@ -181,7 +170,7 @@ end
 """
     MultilevelMoranInput <: MultilevelInput
 
-Input for a multilevel branching simulation that starts with `maxmodules` modules, each with
+Input type for a multilevel branching simulation that starts with `maxmodules` modules, each with
 a single cell. 
     
 Within module dynamics follows a branching process until `modulesize` is reached and then
@@ -238,7 +227,7 @@ end
 """
     MultilevelBranchingMoranInput <: MultilevelInput
 
-Input for a multilevel simulation of a homeostatic population that starts with a single cell 
+Input type for a multilevel simulation of a homeostatic population that starts with a single cell 
     in a single module. 
     
 Within module dynamics follows a branching process until `modulesize` is reached and then
@@ -313,4 +302,69 @@ function newinput(input::InputType; kwargs...) where InputType <: SimulationInpu
         field in keys(kwargs) ? field => kwargs[field] : field => getfield(input, field)
             for field in fieldnames(InputType))
     return InputType(;newkwargs...)
+end
+
+
+function Base.show(io::IO, input::BranchingInput)
+    @printf(io, "Single level branching process:\n")
+    @printf(io, "    Maximum cells = %d\n", input.Nmax)
+    @printf(io, "    Maximum time = %.2f\n", input.tmax)
+    @printf(io, "    Birth rate = %.3f, death rate = %.3f\n", input.birthrate, input.deathrate)
+    @printf(io, "    %s: μ = %.1f\n", mutationdist_string(input.mutationdist), input.μ)
+    @printf(io, "    Clonal mutations = %d\n", input.clonalmutations)
+    @printf(io, "    Ploidy = %d\n", input.ploidy)
+end 
+  
+function Base.show(io::IO, input::MoranInput)
+    @printf(io, "Single level Moran process:\n")
+    @printf(io, "    Maximum cells = %d\n", input.N)
+    @printf(io, "    Maximum time = %.2f\n", input.tmax)
+    @printf(io, "    Moran rate = %.3f \n", input.moranrate)
+    @printf(io, "    %s: μ = %.1f\n", mutationdist_string(input.mutationdist), input.μ)
+    @printf(io, "    Clonal mutations = %d\n", input.clonalmutations)
+    @printf(io, "    Ploidy = %d\n", input.ploidy)
+
+end
+
+function Base.show(io::IO, input::BranchingMoranInput)
+    @printf(io, "Single level Branching -> Moran process:\n")
+    @printf(io, "    Maximum cells = %d\n", input.Nmax)
+    @printf(io, "    Maximum time = %.2f\n", input.tmax)
+    @printf(io, "    Birth rate = %.3f, death rate = %.3f\n", input.birthrate, input.deathrate)
+    @printf(io, "    Moran rate = %.3f\n", input.moranrate)
+    @printf(io, "    %s: μ = %.1f\n", mutationdist_string(input.mutationdist), input.μ)
+    @printf(io, "    Clonal mutations = %d\n", input.clonalmutations)
+    @printf(io, "    Ploidy = %d\n", input.ploidy)
+
+end
+
+function Base.show(io::IO, input::MultilevelInput)
+    @printf(io, "Multilevel branching process:\n")
+    @printf(io, "    Maximum modules = %d\n", input.maxmodules)
+    @printf(io, "    Maximum time = %.2f\n", input.tmax)
+    @printf(io, "    Module formation rate = %.2f\n", input.branchrate)
+    @printf(io, "    Module formation mechanism = %s\n", input.modulebranching)
+    @printf(io, "    Module size = %d\n", getmaxmodulesize(input))
+    @printf(io, "    Number module founder cells = %d\n", input.branchinitsize)
+    @printf(io, "    Birth rate = %.3f, death rate = %.3f\n", input.birthrate, input.deathrate)
+    includestring = input.moranincludeself ? "include" : "exclude"
+    @printf(io, "    Moran rate = %.3f (%s self)\n", input.moranrate, includestring)
+    @printf(io, "    Asymmetric rate = %.3f\n", input.asymmetricrate)
+    @printf(io, "    %s: μ = %.1f\n", mutationdist_string(input.mutationdist), input.μ)
+    @printf(io, "    Clonal mutations = %d\n", input.clonalmutations)
+    @printf(io, "    Ploidy = %d\n", input.ploidy)
+end
+
+function mutationdist_string(mutationdist)
+    if mutationdist == :fixed
+        return "Fixed mutations"
+    elseif mutationdist == :fixedtimedep
+        return "Time-dependent fixed mutations"
+    elseif mutationdist == :poisson
+        return "Poisson distributed mutations"
+    elseif mutationdist == :poissontimedep
+        return "Time-dependent Poisson distibuted mutations"
+    elseif mutationdist == :geometric
+        return "Geometric distributed mutations"
+    end
 end
