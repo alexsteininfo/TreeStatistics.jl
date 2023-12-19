@@ -1,23 +1,42 @@
 """
-    simulate!(population, selection::NeutralSelection, tmax, maxmodules, branchrate, 
-        modulesize, branchinitsize, rng; moduleupdate=:branching[, t0])
+    simulate!(population, input, selection::NeutralSelection, counters, rng; 
+    timefunc=exptime, t0=nothing, tmax=Inf)
 
 Run a single multilevel simulation using the Gillespie algorithm, with the 
 `population` giving the initial state. Simulation runs until the module population 
 size reaches `maxmodules` or the age of the population reaches `tmax`. 
 
 """
-function simulate!(population, selection::NeutralSelection, tmax, maxmodules, branchrate, 
-    modulesize, branchinitsize, modulebranching, μ, mutationdist, moranincludeself, nextID, 
-    nextmoduleID, rng; moduleupdate=:branching, t0=nothing)
+function simulate!(population, input::MultilevelInput, ::NeutralSelection, counters, rng; 
+    timefunc=exptime, t0=nothing, tmax=Inf)
 
+    tmax = minimum((input.tmax, tmax))
+    nextID, nextmoduleID = counters
     t = isnothing(t0) ? age(population) : t0
-    transitionrates = get_neutral_transitionrates(population, branchrate, modulesize)
+    transitionrates = get_neutral_transitionrates(population, input.branchrate, input.modulesize)
+    moduleupdate = getmoduleupdate(input)
 
-    while t < tmax && (moduleupdate==:moran || length(population) < maxmodules)
+    while t < tmax && (moduleupdate==:moran || length(population) < input.maxmodules)
         population, transitionrates, t, nextID, nextmoduleID = 
-            update_population_neutral!(population, transitionrates, branchrate, modulesize, 
-                branchinitsize, modulebranching, t, nextID, nextmoduleID, μ, mutationdist, tmax, maxmodules, moranincludeself, rng; moduleupdate)
+            update_population_neutral!(
+                population, 
+                transitionrates, 
+                input.branchrate, 
+                input.modulesize, 
+                input.branchinitsize, 
+                input.modulebranching, 
+                t, 
+                nextID, 
+                nextmoduleID, 
+                input.μ, 
+                input.mutationdist, 
+                tmax, 
+                input.maxmodules, 
+                input.moranincludeself, 
+                rng; 
+                moduleupdate,
+                timefunc
+            )
         #returns empty list of modules if population dies out
         if length(population) == 0
             return population, nextID, nextmoduleID
@@ -26,8 +45,12 @@ function simulate!(population, selection::NeutralSelection, tmax, maxmodules, br
     return population, nextID, nextmoduleID
 end
 
+getmoduleupdate(::MultilevelBranchingInput) = :branching
+getmoduleupdate(::MultilevelBranchingMoranInput) = :moran
+getmoduleupdate(::MultilevelMoranInput) = :moran
+
 """
-    update_population!(population, birthrate, deathrate, moranrate, branchrate, modulesize, 
+    update_population_neutral!(population, birthrate, deathrate, moranrate, branchrate, modulesize, 
         branchinitsize, nextID, t, tmax, rng)
 
 Perform a single Gillespie step to advance the simulation of a multilevel population, and
@@ -40,9 +63,9 @@ selects from these transitions with probability proportional to rate. Time is in
 
 function update_population_neutral!(population, transitionrates, branchrate, modulesize, 
     branchinitsize, modulebranching, t, nextID, nextmoduleID, μ, mutationdist, tmax, 
-    maxmodules, moranincludeself, rng; moduleupdate=:branching)
+    maxmodules, moranincludeself, rng; moduleupdate=:branching, timefunc=exptime)
 
-    t += exptime(rng, sum(transitionrates))
+    t += timefunc(rng, sum(transitionrates))
     #only update the population if t < tmax
     if t < tmax
         #choose transition type: 1=moran, 2=asymmetric, 3=birth, 4=death, 5=branch

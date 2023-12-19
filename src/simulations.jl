@@ -1,75 +1,80 @@
 function simulate!(population::SinglelevelPopulation, input::BranchingMoranInput, 
-    selection::AbstractSelection, rng::AbstractRNG=Random.GLOBAL_RNG; 
+    selection::AbstractSelection, nextID::Int64, rng::AbstractRNG=Random.GLOBAL_RNG; 
     timefunc=exptime, t0=nothing, tmax=nothing)
 
-    branchingprocess!(
+    population, nextID = branchingprocess!(
         population,
         selection,
         input.Nmax, 
         input.μ, 
         input.mutationdist,
         isnothing(tmax) ? input.tmax : minimum((tmax, input.tmax)),
+        nextID,
         rng;
         timefunc,
         t0
     )
     
-    moranprocess!(
+    population, nextID = moranprocess!(
         population,
         selection,
-        isnothing(tmax) ? input.tmax : minimum((tmax, input.tmax)),
         input.μ, 
         input.mutationdist, 
+        isnothing(tmax) ? input.tmax : minimum((tmax, input.tmax)),
+        nextID,
         rng;
         timefunc,
         t0,
         moranincludeself=input.moranincludeself
     )
 
-    return population
+    return population, nextID
 end
 
 function simulate!(population::SinglelevelPopulation, input::BranchingInput, 
-    selection::AbstractSelection, rng::AbstractRNG=Random.GLOBAL_RNG; 
+    selection::AbstractSelection, nextID::Int64, rng::AbstractRNG=Random.GLOBAL_RNG; 
     timefunc=exptime, t0=nothing, tmax=nothing)
 
-    branchingprocess!(
+    population, nextID = branchingprocess!(
         population,
         selection,
         input.Nmax, 
         input.μ, 
         input.mutationdist,
         isnothing(tmax) ? input.tmax : minimum((tmax, input.tmax)),
+        nextID,
         rng; 
         timefunc,
         t0
     )
     
-    return population
+    return population, nextID
 end
 
 function simulate!(population::SinglelevelPopulation, input::MoranInput, 
-    selection::AbstractSelection, rng::AbstractRNG=Random.GLOBAL_RNG; 
+    selection::AbstractSelection, nextID::Int64, rng::AbstractRNG=Random.GLOBAL_RNG; 
     timefunc=exptime, t0=nothing, tmax=nothing)
 
-    moranprocess!(
+    population, nextID = moranprocess!(
         population,
         selection,
-        isnothing(tmax) ? input.tmax : minimum((tmax, input.tmax)),
         input.μ, 
         input.mutationdist, 
+        isnothing(tmax) ? input.tmax : minimum((tmax, input.tmax)),
+        nextID,
         rng; 
         timefunc,
         t0,
         moranincludeself=input.moranincludeself
     )
 
-    return population
+    return population, nextID
 end
 
 """
-    branchingprocess!(population::SinglelevelPopulation{CellModule}, Nmax, μ, mutationdist, tmax,
-    rng::AbstractRNG; mutant_selection=Float64[], mutant_time=Float64[], timefunc=exptime, t0=nothing)
+    branchingprocess!(population::SinglelevelPopulation{CellModule}, 
+    selection::AbstractSelection, Nmax, μ, mutationdist, tmax, nextID, rng::AbstractRNG;
+    timefunc=exptime, t0=nothing)
 
 Run branching process simulation, starting in state defined by cellmodule.
 
@@ -77,18 +82,12 @@ Simulate a stochastic branching process, starting with a single cell, with with 
 `b`, death rate `d` until population reaches size `Nmax`.
 
 Cells accumulate neutral mutations at division with rate `μ`.
-
-If `numclones` = 0, all cells have the same fitness and there is only one (sub)clone. 
-Otherwise, `numclones` is the number of fit subclones. The `i`th subclone arises by a single 
-cell mutating at time `mutant_time[i]` and has selection coefficient `mutant_selection[i]`.
-
 """
 function branchingprocess!(population::SinglelevelPopulation, selection::AbstractSelection, 
-    Nmax, μ, mutationdist, tmax, rng::AbstractRNG; timefunc=exptime, t0=nothing)
+    Nmax, μ, mutationdist, tmax, nextID, rng::AbstractRNG; timefunc=exptime, t0=nothing)
 
     t = !isnothing(t0) ? t0 : age(population.singlemodule)
     N = length(population.singlemodule)
-    nextID = getnextID(population.singlemodule.cells)
 
     nsubclones = getmaxsubclones(selection)
     nsubclonescurrent = length(population.subclones)
@@ -110,7 +109,7 @@ function branchingprocess!(population::SinglelevelPopulation, selection::Abstrac
                 nsubclonescurrent, nsubclones, t, μ, 
                 mutationdist, rng)
     end
-    return population
+    return population, nextID
 end
 
 function branchingupdate!(population::SinglelevelPopulation, selection, birthrates, 
@@ -151,20 +150,15 @@ end
 
 """
     moranprocess!(population::SinglelevelPopulation, tmax, μ, mutationdist, 
-    rng::AbstractRNG; numclones=0, mutant_selection=Float64[], mutant_time=Float64[],
+    rng::AbstractRNG)
 
 Run Moran process simulation, starting in state defined by cellmodule.
-
-See also [`moranprocess`](@ref)
-
 """
-function moranprocess!(population::SinglelevelPopulation, selection, tmax, μ, mutationdist, 
-    rng::AbstractRNG; timefunc=exptime, t0=nothing, moranincludeself=true)
+function moranprocess!(population::SinglelevelPopulation, selection, μ, mutationdist, tmax, 
+    nextID, rng::AbstractRNG; timefunc=exptime, t0=nothing, moranincludeself=true)
 
     t = !isnothing(t0) ? t0 : age(population.singlemodule)
     N = length(population.singlemodule)
-    nextID = getnextID(population.singlemodule.cells)
-
     nsubclones = getmaxsubclones(selection)
     nsubclonescurrent = length(population.subclones)
     moranrates = getmoranrates(population.subclones)
@@ -182,7 +176,7 @@ function moranprocess!(population::SinglelevelPopulation, selection, tmax, μ, m
                 nsubclonescurrent, nsubclones, t, μ, mutationdist, moranincludeself, rng)
 
     end
-    return population
+    return population, nextID
 end
 
 function moranupdate!(population::SinglelevelPopulation, selection, moranrates, Rmax, N, nextID, 
@@ -303,11 +297,11 @@ function numbernewmutations(rng, mutationdist, μ; Δt=nothing)
     if mutationdist == :fixed
         return round(Int64, μ)
     elseif mutationdist == :poisson
-        return rand(rng,Poisson(μ))
+        return rand(rng, Poisson(μ))
     elseif mutationdist == :geometric
         return rand(rng, Geometric(1/(1+μ)))
     elseif mutationdist == :poissontimedep
-        return rand(rng,Poisson(μ*Δt))
+        return rand(rng, Poisson(μ*Δt))
     elseif mutationdist == :fixedtimedep
         return round(Int64, μ*Δt)
     else
@@ -333,24 +327,24 @@ end
 
 updatetime!(abstractmodule, t) = abstractmodule.t = t
 
-function celldivision!(cellmodule::CellModule, subclones, parentcell, t, mutID, μ, mutationdist, rng; nchildcells=2)
+function celldivision!(cellmodule::CellModule, subclones, parentcellid, t, mutID, μ, mutationdist, rng; nchildcells=2)
     
-    Δt = t - cellmodule.cells[parentcell].birthtime
-    cellmodule.cells[parentcell].birthtime = t
+    Δt = t - cellmodule.cells[parentcellid].birthtime
+    cellmodule.cells[parentcellid].birthtime = t
     if nchildcells == 2
-        push!(cellmodule.cells, copycell(cellmodule.cells[parentcell])) #add new copy of parent cell to cells
+        push!(cellmodule.cells, copycell(cellmodule.cells[parentcellid])) #add new copy of parent cell to cells
         cellmodule.cells[end].id = cellmodule.cells[end-1].id + 1
-        cellmodule.cells[end].parentid = cellmodule.cells[parentcell].id
-        subclones[cellmodule.cells[parentcell].clonetype].size += 1
+        cellmodule.cells[end].parentid = cellmodule.cells[parentcellid].id
+        subclones[cellmodule.cells[parentcellid].clonetype].size += 1
 
     end
     #add new mutations to both new cells
     if μ > 0.0 
         if nchildcells == 2
-            mutID = addmutations!(cellmodule.cells[parentcell], cellmodule.cells[end], μ, 
+            mutID = addmutations!(cellmodule.cells[parentcellid], cellmodule.cells[end], μ, 
                 mutID, rng, mutationdist, Δt)
         else
-            mutID = addmutations!(cellmodule.cells[parentcell], μ, 
+            mutID = addmutations!(cellmodule.cells[parentcellid], μ, 
                 mutID, rng, mutationdist, Δt)
         end
     end
@@ -395,6 +389,8 @@ function celldeath!(cellmodule::CellModule, subclones, deadcells::Vector{Int64},
 
     return cellmodule
 end
+
+getnextID(population::SinglelevelPopulation) = getnextID(population.singlemodule.cells)
 
 function getnextID(cells::CellVector)
     if all(no_mutations.(cells))

@@ -31,13 +31,7 @@
     population = SomaticEvolution.initialize_population(
         TreeCell, 
         WellMixed, 
-        input.clonalmutations, 
-        SomaticEvolution.getNinit(input),
-        modulesize,
-        input.birthrate,
-        input.deathrate,
-        input.moranrate,
-        input.asymmetricrate; 
+        input; 
         rng)
 
     nextID = SomaticEvolution.getnextID(population)

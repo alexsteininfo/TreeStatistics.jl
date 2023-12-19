@@ -1,4 +1,5 @@
 @testset "population initialization" begin
+    rng = Random.MersenneTwister(12)
     clonalmutations = 50
     initmodule = SomaticEvolution.initialize(Cell, WellMixed, clonalmutations, 1)
     @test length(initmodule) == 1
@@ -7,11 +8,15 @@
     @test length(initmodule.cells[1].mutations) == clonalmutations
     @test initmodule.cells[1].clonetype == 1
     @test initmodule.id == 1
-
-    population = SomaticEvolution.initialize_population(Cell, WellMixed, clonalmutations, 
-        1, 5, 1.0, 0.0, 2.0, 0.5, 2)
+    birthrate=1.0
+    deathrate=0.0
+    moranrate=2.0
+    asymmetricrate=0.5
+    input = MultilevelMoranInput(;clonalmutations, modulesize=5, maxmodules=2, birthrate,
+        deathrate, moranrate, asymmetricrate)
+    population = SomaticEvolution.initialize_population(Cell, WellMixed, input; rng)
     @test length(population.subclones) == 1
-    @test SomaticEvolution.getwildtyperates(population) == (birthrate=1.0, deathrate=0.0, moranrate=2.0, asymmetricrate=0.5)
+    @test SomaticEvolution.getwildtyperates(population) == (;birthrate, deathrate, moranrate, asymmetricrate)
     @test length(population) == 2
     @test length(population.growing_modules) == 2
     @test length(population.homeostatic_modules) == 0

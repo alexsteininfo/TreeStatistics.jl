@@ -29,7 +29,7 @@ function processresults!(population::Population{CellModule{T}}, μ, clonalmutati
     return population
 end
 
-function final_timedep_mutations!(population::Population, μ, mutationdist, rng)
+function final_timedep_mutations!(population::Population{CellModule}, μ, mutationdist, rng)
     mutID = maximum(mutid 
         for cellmodule in population 
             for cell in cellmodule.cells
@@ -37,12 +37,16 @@ function final_timedep_mutations!(population::Population, μ, mutationdist, rng)
     )
     tend = age(population)
     for cellmodule in population
-        mutID = final_timedep_mutations!(cellmodule, μ, mutationdist, rng, mutID=mutID)
+        mutID = final_timedep_mutations!(cellmodule, μ, mutationdist, rng; mutID, tend)
     end
 end
 
-function final_timedep_mutations!(cellmodule, μ, mutationdist, rng; mutID=nothing)
-    tend = age(cellmodule)
+function final_timedep_mutations!(cellmodule::CellModule, μ, mutationdist, rng; 
+    mutID=nothing, tend=nothing)
+
+    if isnothing(tend)
+        tend = age(population)
+    end
     if isnothing(mutID)
         mutID = maximum(mutid for cell in cellmodule.cells for mutid in cell.mutations) + 1
     end
@@ -52,6 +56,25 @@ function final_timedep_mutations!(cellmodule, μ, mutationdist, rng; mutID=nothi
         mutID = addnewmutations!(cell, numbermutations, mutID)
     end
     return mutID
+end
+
+function final_timedep_mutations!(population::Population{TreeModule{T, S}}, μ, mutationdist, 
+    rng) where {T <: AbstractTreeCell, S}
+    
+    tend = age(population)
+    for treemodule in population
+        mutID = final_timedep_mutations!(treemodule, μ, mutationdist, rng; mutID, tend)
+    end
+end
+
+function final_timedep_mutations!(treemodule::TreeModule, μ, mutationdist, rng; tend=nothing)
+    if isnothing(tend)
+        tend = age(population)
+    end
+    for cell in treemodule.cells
+        Δt = tend - cell.birthtime
+        cell.data.mutations = numbernewmutations(rng, mutationdist, μ, Δt=Δt)
+    end
 end
 
 function expandmutations!(cellmodule, expandedmutationids, clonalmutations)

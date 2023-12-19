@@ -1,162 +1,9 @@
 popsize_exceeded(popsize, input::BranchingInput) = popsize > input.Nmax
 popsize_exceeded(popsize, input::SinglelevelInput) = false
 
-# """
-#     branchingprocess!(population::SinglelevelPopulation{T}, Nmax, μ, mutationdist, 
-#     tmax, rng::AbstractRNG; mutant_selection=Float64[], mutant_time=Float64[], timefunc=exptime, t0=nothing) where T<:TreeModule
-
-# Simulate a population of cells, defined by `treemodule` that grows by a branching process.
-
-# """
-# function branchingprocess!(population::SinglelevelPopulation{T}, Nmax, μ, mutationdist, 
-#     tmax, rng::AbstractRNG; mutant_selection=Float64[], mutant_time=Float64[], timefunc=exptime, t0=nothing) where T<:TreeModule
-
-#     # set initial time, population size and next cell ID
-#     t = !isnothing(t0) ? t0 : age(population.singlemodule)
-#     N = length(population.singlemodule)
-#     nextID = getnextID(population.singlemodule.cells)
-
-#     nsubclones = length(mutant_selection) + 1
-#     nsubclonescurrent = length(population.subclones)
-#     birthrates = getbirthrates(population.subclones)
-#     deathrates = getdeathrates(population.subclones)
-
-#     #Rmax starts with birthrate + deathrate and changes once a fitter mutant is introduced
-#     Rmax = maximum(birthrates) + maximum(deathrates)
-
-#     while N < Nmax && N > 0
-#         Δt =  1 / (Rmax * N) .* timefunc(rng)
-#         t + Δt <= tmax || break # end simulation if time exceeds maximum
-#         t += Δt
-#         _, N, nextID = 
-#             branchingupdate!(population, N, t, nextID, μ, mutationdist, rng)
-#     end
-#     #add final mutations to all alive cells if mutations are time dependent
-#     if mutationdist == :fixedtimedep || mutationdist == :poissontimedep    
-#         add_mutations!(treemodule, t, mutationdist, μ, rng)
-#     end
-
-#     return treemodule
-
-# end
-
-# """
-#     branchingupdate!(treemodule::TreeModule, subclones, N, t, nextID, μ, mutationdist, rng; 
-#     timefunc=exptime)
-    
-# Single update step of branching process.
-# """
-# function branchingupdate!(population::SinglelevelPopulation{T}, birthrates, 
-#     deathrates, Rmax, N, nextID, nsubclonescurrent, nsubclones, t, mutant_time, mutant_selection,
-#     μ, mutationdist, rng) where T <: TreeModule
-
-#     randcell = rand(rng, 1:N) #pick a random cell
-#     r = rand(rng, Uniform(0, Rmax))
-#     #get birth and death rates for randcell
-#     br = birthrates[population.singlemodule.cells[randcell].clonetype]
-#     dr = deathrates[population.singlemodule.cells[randcell].clonetype]
-
-#     if r < br
-#         cellmodule, nextID = celldivision!(population.singlemodule, population.subclones, randcell, t, 
-#                 nextID, μ, mutationdist, rng)
-#         N += 1
-#         updatetime!(treemodule, t)
-
-#     elseif r < br + dr
-#         celldeath!(treemodule, randcellidx, t, μ, mutationdist, rng)
-#         N -= 1
-#         updatetime!(treemodule, t)
-
-#     end
-#     return treemodule, N, nextID
-# end
-
-# """
-#     moranprocess!(treemodule::TreeModule, moranrate, tmax, μ, mutationdist, rng; 
-#         N=length(treemodule), timefunc=exptime)
-
-# Simulate a population of cells in `treemodule` with Moran process dynamics.
-# """
-# function moranprocess!(treemodule::TreeModule, subclones, moranrate, tmax, μ, mutationdist, rng; 
-#     timefunc=exptime, t0=nothing, moranincludeself=true)
-
-#     # set initial time and next cell ID
-#     t = !isnothing(t0) ? t0 : age(population.singlemodule)
-#     N = length(population.singlemodule)
-#     nextID = getnextID(population.singlemodule.cells)
-
-#     while true
-#         Δt = timefunc(rng, N * moranrate)
-#         t + Δt <= tmax || break # end simulation if time exceeds maximum
-#         t += Δt
-#         _, nextID = 
-#             moranupdate!(treemodule, subclones, t, nextID, μ, mutationdist, rng; N, timefunc, moranincludeself)
-#     end
-#     #add final mutations to all alive cells if mutations are time dependent
-#     if mutationdist == :fixedtimedep || mutationdist == :poissontimedep    
-#         add_mutations!(treemodule, t, mutationdist, μ, rng)
-#     end
-
-#     return treemodule
-
-# end
-# """
-#     moranupdate!(treemodule::TreeModule, t, nextID, μ, mutationdist, rng; 
-#         N=length(treemodule), timefunc=timefunc)
-
-# Single update step of Moran process.
-# """
-# function moranupdate!(treemodule::TreeModule, subclones, t, nextID, μ, mutationdist, rng; 
-#     N=length(treemodule), timefunc=timefunc, moranincludeself=true)
-
-#     #pick a cell to divide and a cell to die
-#     dividecellidx = rand(rng, 1:N) 
-#     deadcellidx = 
-#         if moranincludeself 
-#             deadcellidx = rand(rng, 1:N)
-#             #if dead cell and divide cell are the same kill one of the offspring
-#             deadcellidx = deadcellidx == dividecellidx ? N + 1 : deadcellidx
-#         else
-#             #exclude dividecellidx
-#             deadcellidx = rand(rng, deleteat!(collect(1:N), dividecellidx))
-#         end
-
-#     _, nextID = celldivision!(treemodule, subclones, dividecellidx, t, nextID, μ, mutationdist, rng)
-#     celldeath!(treemodule, subclones, deadcellidx, t, μ, mutationdist, rng)
-#     updatetime!(treemodule, t)
-#     return treemodule, subclones, nextID
-# end
-
-# function asymmetricupdate!(treemodule::TreeModule, subclones, t, nextID, μ, mutationdist, rng; 
-#     N=length(treemodule), timefunc=timefunc)
-
-#     #pick a cell to divide
-#     dividecellidx = rand(rng, 1:N) 
-#     _, nextID = celldivision!(treemodule, subclones, dividecellidx, t, nextID, μ, mutationdist, rng; 
-#         nchildcells=1)
-#         updatetime!(cellmodule, t)
-#     return treemodule, subclones, nextID
-# end
-
 """
-    add_mutations!(treemodule, t, mutationdist, μ, rng)
-
-Add mutations to live cells in `treemodule`, that have occured between cell birth time and 
-time `t`.
-
-"""
-function add_mutations!(treemodule, t, mutationdist, μ, rng)
-    for cellnode in treemodule.cells
-        Δt = t - cellnode.data.birthtime
-        cellnode.data.mutations += numbernewmutations(rng, mutationdist, μ, Δt=Δt)
-    end
-    return cells
-end
-
-
-"""
-    celldivision!(treemodule::TreeModule{T}, subclones, parentcellidx, t, nextID, μ, 
-    mutationdist, rng; nchildcells=2) where T <: AbstractTreeCell
+    celldivision!(treemodule::TreeModule{T, S}, subclones, parentcellidx, t, nextID, μ, 
+    mutationdist, rng; nchildcells=2) where {T <: AbstractTreeCell, S}
 
 Remove parent cell from `alivecells` and add `nchildcells` new child cells (can be 1 or 2). 
 
@@ -164,11 +11,11 @@ If mutations are time-dependent, e.g. `mutationdist == poissontimedep`, add muta
 parent cell depending on the length of its lifetime. Otherwise assign mutations to each 
 child cell.
 """
-function celldivision!(treemodule::TreeModule{T}, subclones, parentcellidx, t, nextID, μ, 
-    mutationdist, rng; nchildcells=2) where T <: AbstractTreeCell
+function celldivision!(treemodule::TreeModule{T, S}, subclones, parentcellid, t, nextID, μ, 
+    mutationdist, rng; nchildcells=2) where {T <: AbstractTreeCell, S}
 
     alivecells = treemodule.cells
-    parentcellnode = alivecells[parentcellidx] #get parent cell node
+    parentcellnode = alivecells[parentcellid] #get parent cell node
 
     #if mutations are time dependent assign mutations to parent cell and give new cells
     #no initial mutations
@@ -188,7 +35,7 @@ function celldivision!(treemodule::TreeModule{T}, subclones, parentcellidx, t, n
             clonetype=parentcellnode.data.clonetype
     )
     #one cell replaces the parent in alivecells
-    alivecells[parentcellidx] = leftchild!(parentcellnode, childcell1)
+    alivecells[parentcellid] = leftchild!(parentcellnode, childcell1)
 
     if nchildcells == 2
         childcell2 = T(

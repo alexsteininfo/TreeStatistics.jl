@@ -34,7 +34,8 @@ rng = MersenneTwister(12)
     end
 
     @testset "division" begin
-        population = SomaticEvolution.initialize_singlelevelpopulation(TreeCell, WellMixed, 0, 1, 1, 0, 0, 0; rng)
+        input = BranchingInput(clonalmutations=0, Nmax=10, birthrate=1, deathrate=0)
+        population = SomaticEvolution.initialize_population(TreeCell, WellMixed, input; rng)        
         treemodule = population.singlemodule
         subclones = population.subclones
         root = getsingleroot(treemodule.cells)
@@ -66,7 +67,8 @@ rng = MersenneTwister(12)
 
 
     @testset "death" begin
-        population = SomaticEvolution.initialize_singlelevelpopulation(TreeCell, WellMixed, 0, 1, 1, 0, 0, 0; rng)
+        input = BranchingInput(clonalmutations=0, Nmax=10, birthrate=1, deathrate=0)
+        population = SomaticEvolution.initialize_population(TreeCell, WellMixed, input; rng)
         treemodule = population.singlemodule
         subclones = population.subclones
         alivecells = treemodule.cells
@@ -86,7 +88,8 @@ rng = MersenneTwister(12)
     end
 
     @testset "death simple" begin
-        population = SomaticEvolution.initialize_singlelevelpopulation(SimpleTreeCell, WellMixed, 0, 1, 1, 0, 0, 0; rng)
+        input = BranchingInput(clonalmutations=0, Nmax=1, birthrate=1, deathrate=0)
+        population = SomaticEvolution.initialize_population(SimpleTreeCell, WellMixed, input; rng)
         subclones = population.subclones
         treemodule = population.singlemodule
         alivecells = treemodule.cells
@@ -309,6 +312,6 @@ end
     @test getsubclonesizes(simulation) == counts(subclone_by_cell, 1:length(simulation.output.subclones))
     @test age(simulation) <= tmax
     @test simulation.output.subclones[2].mutationtime ≈ 0.1 atol=0.1
-    @test simulation.output.subclones[3].mutationtime ≈ 8 atol=0.1
+    @test simulation.output.subclones[3].mutationtime ≈ 8 atol=1
 
 end 

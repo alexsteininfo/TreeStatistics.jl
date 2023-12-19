@@ -1,20 +1,38 @@
 
-function simulate!(population, selection, tmax, maxmodules, branchrate, 
-    modulesize, branchinitsize, modulebranching, μ, mutationdist, moranincludeself, nextID, 
-    nextmoduleID, rng; moduleupdate=:branching, t0=nothing)
+function simulate!(population, input::MultilevelInput, selection, counters, rng; 
+    timefunc=exptime, t0=nothing, tmax=Inf)
 
     t = isnothing(t0) ? age(population) : t0
+    tmax = minimum((input.tmax, tmax))
+    nextID, nextmoduleID = counters
     nsubclones = getmaxsubclones(selection)
     nsubclonescurrent = length(population.subclones)
-    transitionrates = get_selection_transitionrates(population, branchrate, nsubclones)
-
-    while t < tmax && (moduleupdate==:moran || length(population) < maxmodules)
+    transitionrates = get_selection_transitionrates(population, input.branchrate, nsubclones)
+    moduleupdate = getmoduleupdate(input)
+    while t < tmax && (moduleupdate==:moran || length(population) < input.maxmodules)
 
         population, transitionrates, nsubclonescurrent, t, nextID, nextmoduleID = 
-            update_population_selection!(population, transitionrates, nsubclonescurrent, 
-                nsubclones, selection, branchrate, modulesize, 
-                branchinitsize, modulebranching, t, nextID, nextmoduleID, μ, mutationdist, 
-                tmax, maxmodules, moranincludeself, rng; moduleupdate)
+            update_population_selection!(
+                population, 
+                transitionrates, 
+                nsubclonescurrent, 
+                nsubclones, 
+                selection, 
+                input.branchrate, 
+                input.modulesize, 
+                input.branchinitsize, 
+                input.modulebranching, 
+                t, 
+                nextID, 
+                nextmoduleID, 
+                input.μ, 
+                input.mutationdist, 
+                tmax, 
+                input.maxmodules, 
+                input.moranincludeself, 
+                rng;
+                moduleupdate,
+                timefunc)
 
         #returns empty list of modules if population dies out
         if length(population) == 0
@@ -28,9 +46,9 @@ end
 function update_population_selection!(population, transitionrates, nsubclonescurrent, 
     nsubclones, selection, branchrate, modulesize, branchinitsize, modulebranching, 
     t, nextID, nextmoduleID, μ, mutationdist, tmax, maxmodules, moranincludeself, rng; 
-    moduleupdate=:branching)
+    moduleupdate=:branching, timefunc=exptime)
 
-    t += exptime(rng, sum(transitionrates))
+    t += timefunc(rng, sum(transitionrates))
     #only update the population if t < tmax
     
     if t < tmax

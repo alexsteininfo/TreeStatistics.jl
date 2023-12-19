@@ -1,23 +1,19 @@
 """
-    initialize_population(::Type{T}, ::Type{S}, clonalmutations, N, Nmodules=1; rng=Random.GLOBAL_RNG) where {T<: AbstractCell, S<: ModuleStructure}
+    initialize_population(::Type{T}, ::Type{S}, input; rng=Random.GLOBAL_RNG) where {T<: AbstractCell, S<: ModuleStructure}
 
-Create a Vector{CellModule} or Vector{TreeModule} of length `Nmodules` each containing a 
-single cell at time `t=0`. 
+Create the initial `Population` or `SinglelevelPopulation`. 
 """
 function initialize_population(
     ::Type{T}, 
     ::Type{S}, 
-    clonalmutations, 
-    N,
-    modulesize,
-    birthrate,
-    deathrate,
-    moranrate,
-    asymmetricrate,
-    Nmodules=1;
+    input::MultilevelInput;
     rng=Random.GLOBAL_RNG
 ) where {T<: AbstractCell, S<: ModuleStructure}
-    modules = moduletype(T,S)[initialize(T, S, clonalmutations, N; rng) for _ in 1:Nmodules]
+
+    N = getNinit(input)
+    modulesize = getmaxmodulesize(input)
+    Nmodules = getNmodules_init(input)
+    modules = moduletype(T,S)[initialize(T, S, input.clonalmutations, N; rng) for _ in 1:Nmodules]
     homeostatic_modules, growing_modules = 
         if N == modulesize
             modules, moduletype(T,S)[]
@@ -28,27 +24,21 @@ function initialize_population(
         return Population(
             homeostatic_modules, 
             growing_modules, 
-            birthrate, deathrate, moranrate, asymmetricrate
+            input.birthrate, input.deathrate, input.moranrate, input.asymmetricrate
         )
 end
 
-"""
-    initialize_singlelevelpopulation(::Type{T}, ::Type{S}, clonalmutations, N; rng=Random.GLOBAL_RNG) where {T<: AbstractCell, S<: ModuleStructure}
-
-Create a `SinglelevelPopulation` with a single CellModule or TreeModule containing `N` cells at time `t=0`. 
-"""
-function initialize_singlelevelpopulation(
+function initialize_population(
     ::Type{T}, 
     ::Type{S}, 
-    clonalmutations, 
-    N,
-    birthrate,
-    deathrate,
-    moranrate,
-    asymmetricrate;
+    input::SinglelevelInput;
     rng=Random.GLOBAL_RNG
 ) where {T<: AbstractCell, S<: ModuleStructure}
-    singlemodule = initialize(T, S, clonalmutations, N; rng)
+
+    N = getNinit(input)
+    singlemodule = initialize(T, S, input.clonalmutations, N; rng)
+    birthrate, deathrate, moranrate, asymmetricrate = getinputrates(input)
+
     return SinglelevelPopulation(singlemodule, birthrate, deathrate, moranrate, asymmetricrate)
 end
 
@@ -83,6 +73,10 @@ end
 getNinit(input::Union{BranchingInput, BranchingMoranInput}) = 1
 getNinit(input::MoranInput) = input.N
 getNinit(input::MultilevelInput) = 1
+
+getNmodules_init(input::MultilevelMoranInput) = input.maxmodules
+getNmodules_init(input::Union{MultilevelBranchingInput, MultilevelBranchingMoranInput}) = 1
+
 getmaxmodulesize(input::MultilevelInput) = input.modulesize
 getmaxmodulesize(input::Union{MoranInput, BranchingMoranInput}) = input.N
 getmaxmodulesize(input::BranchingInput) = Inf
