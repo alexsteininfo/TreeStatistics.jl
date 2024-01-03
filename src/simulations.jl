@@ -1,5 +1,16 @@
+"""
+    simulate!(population, input, selection, counters, rng::AbstractRNG=Random.GLOBAL_RNG;
+        timefunc=exptime, t0=age(population), tmax=input.tmax)
+    
+Run a simulation defined by `input` and `selection`, with `population` giving the 
+initial state. The time between update events is determined by `timefunc`. Simulation time 
+begins at `t0` and runs to a maximum time given by `minimum((tmax, input.tmax))`.
+
+"""
+function simulate! end
+
 function simulate!(population::SinglelevelPopulation, input::BranchingMoranInput, 
-    selection::AbstractSelection, nextID::Int64, rng::AbstractRNG=Random.GLOBAL_RNG; 
+    selection::AbstractSelection, nextID::Integer, rng::AbstractRNG=Random.GLOBAL_RNG; 
     timefunc=exptime, t0=nothing, tmax=nothing)
 
     population, nextID = branchingprocess!(
@@ -32,7 +43,7 @@ function simulate!(population::SinglelevelPopulation, input::BranchingMoranInput
 end
 
 function simulate!(population::SinglelevelPopulation, input::BranchingInput, 
-    selection::AbstractSelection, nextID::Int64, rng::AbstractRNG=Random.GLOBAL_RNG; 
+    selection::AbstractSelection, nextID::Integer, rng::AbstractRNG=Random.GLOBAL_RNG; 
     timefunc=exptime, t0=nothing, tmax=nothing)
 
     population, nextID = branchingprocess!(
@@ -52,7 +63,7 @@ function simulate!(population::SinglelevelPopulation, input::BranchingInput,
 end
 
 function simulate!(population::SinglelevelPopulation, input::MoranInput, 
-    selection::AbstractSelection, nextID::Int64, rng::AbstractRNG=Random.GLOBAL_RNG; 
+    selection::AbstractSelection, nextID::Integer, rng::AbstractRNG=Random.GLOBAL_RNG; 
     timefunc=exptime, t0=nothing, tmax=nothing)
 
     population, nextID = moranprocess!(
@@ -72,7 +83,7 @@ function simulate!(population::SinglelevelPopulation, input::MoranInput,
 end
 
 """
-    branchingprocess!(population::SinglelevelPopulation{CellModule}, 
+    branchingprocess!(population::SinglelevelPopulation, 
     selection::AbstractSelection, Nmax, μ, mutationdist, tmax, nextID, rng::AbstractRNG;
     timefunc=exptime, t0=nothing)
 
@@ -255,8 +266,6 @@ All `wildtype` rates are increased by a factor of `(1 + selection)` (except for 
 which is unchanged).
 """
 function get_newsubclone_rates(wildtype, selectioncoefficient)
-    #TODO check whether this is how Francesco defines (i.e. should selection act on wildtype
-    #fitness or parent fitness?)
     return (
         birthrate = wildtype.birthrate * (1 + selectioncoefficient),
         deathrate = wildtype.deathrate,
@@ -265,162 +274,7 @@ function get_newsubclone_rates(wildtype, selectioncoefficient)
     )
 end
 
-function addmutations!(cell1::Cell, cell2::Cell, μ, mutID, rng, mutationdist=mutationdist, Δt=Δt)
-    if mutationdist == :poissontimedep || mutationdist == :fixedtimedep
-        #if mutations are time dependent we add the mutations accumulated by the parent cell
-        #to both children at division
-        numbermutations = numbernewmutations(rng, mutationdist, μ, Δt=Δt)
-        mutID = addnewmutations!(cell1, cell2, numbermutations, mutID)
-    else
-        numbermutations = numbernewmutations(rng, mutationdist, μ)
-        mutID = addnewmutations!(cell1, numbermutations, mutID)
-        numbermutations = numbernewmutations(rng, mutationdist, μ)
-        mutID = addnewmutations!(cell2, numbermutations, mutID)
-    end
-    return mutID
-end
-
-function addmutations!(cell::Cell, μ, mutID, rng, mutationdist=mutationdist, Δt=Δt)
-    if mutationdist == :poissontimedep || mutationdist == :fixedtimedep
-        #if mutations are time dependent we add the mutations accumulated by the parent cell
-        #child at division
-        numbermutations = numbernewmutations(rng, mutationdist, μ, Δt=Δt)
-        mutID = addnewmutations!(cell1, numbermutations, mutID)
-    else
-        numbermutations = numbernewmutations(rng, mutationdist, μ)
-        mutID = addnewmutations!(cell, numbermutations, mutID)
-    end
-    return mutID
-end
-
-function numbernewmutations(rng, mutationdist, μ; Δt=nothing)
-    if mutationdist == :fixed
-        return round(Int64, μ)
-    elseif mutationdist == :poisson
-        return rand(rng, Poisson(μ))
-    elseif mutationdist == :geometric
-        return rand(rng, Geometric(1/(1+μ)))
-    elseif mutationdist == :poissontimedep
-        return rand(rng, Poisson(μ*Δt))
-    elseif mutationdist == :fixedtimedep
-        return round(Int64, μ*Δt)
-    else
-        error("$mutationdist is not a valid mutation rule")
-    end
-end
-
-function addnewmutations!(cell::Cell, numbermutations, mutID)
-    #function to add new mutations to cells
-    newmutations = mutID:mutID + numbermutations - 1
-    append!(cell.mutations, newmutations)
-    mutID = mutID + numbermutations
-    return mutID
-end
-
-function addnewmutations!(cell1::Cell, cell2::Cell, numbermutations, mutID)
-    newmutations = mutID:mutID + numbermutations - 1
-    append!(cell1.mutations, newmutations)
-    append!(cell2.mutations, newmutations)
-    mutID = mutID + numbermutations
-    return mutID
-end
-
 updatetime!(abstractmodule, t) = abstractmodule.t = t
-
-function celldivision!(cellmodule::CellModule, subclones, parentcellid, t, mutID, μ, mutationdist, rng; nchildcells=2)
-    
-    Δt = t - cellmodule.cells[parentcellid].birthtime
-    cellmodule.cells[parentcellid].birthtime = t
-    if nchildcells == 2
-        push!(cellmodule.cells, copycell(cellmodule.cells[parentcellid])) #add new copy of parent cell to cells
-        cellmodule.cells[end].id = cellmodule.cells[end-1].id + 1
-        cellmodule.cells[end].parentid = cellmodule.cells[parentcellid].id
-        subclones[cellmodule.cells[parentcellid].clonetype].size += 1
-
-    end
-    #add new mutations to both new cells
-    if μ > 0.0 
-        if nchildcells == 2
-            mutID = addmutations!(cellmodule.cells[parentcellid], cellmodule.cells[end], μ, 
-                mutID, rng, mutationdist, Δt)
-        else
-            mutID = addmutations!(cellmodule.cells[parentcellid], μ, 
-                mutID, rng, mutationdist, Δt)
-        end
-    end
-    updatetime!(cellmodule, t)
-    return cellmodule, subclones, mutID
-end
-
-function cellmutation!(cellmodule, subclones, selectioncoefficient, mutatingcell, t)
-    
-    #add new clone
-    subcloneid = length(subclones) + 1
-    parentid = getclonetype(mutatingcell)
-    wildtype_rates = getwildtyperates(subclones)
-    birthrate, deathrate, moranrate, asymmetricrate = get_newsubclone_rates(wildtype_rates, selectioncoefficient)
-    newsubclone = Subclone(subcloneid, parentid, t, 1, birthrate, deathrate, moranrate, asymmetricrate)
-    push!(subclones, newsubclone)
-
-    #change clone type of new cell and update clone sizes
-    setclonetype(mutatingcell, subcloneid)
-    if parentid != 0
-        subclones[parentid].size -= 1
-    end
-    return cellmodule, subclones
-end
-
-function celldeath!(cellmodule::CellModule, subclones, deadcell::Int64, args...)
-    #frequency of cell type decreases
-    clonetype = cellmodule.cells[deadcell].clonetype 
-    subclones[clonetype].size -= 1
-    #remove deleted cell
-    deleteat!(cellmodule.cells, deadcell)
-
-    return cellmodule
-end
-
-function celldeath!(cellmodule::CellModule, subclones, deadcells::Vector{Int64}, args...)
-    for deadcell in deadcells
-        clonetype = cellmodule.cells[deadcell].clonetype 
-        subclones[clonetype].size -= 1
-    end
-    deleteat!(cellmodule.cells, sort(deadcells))
-
-    return cellmodule
-end
-
-getnextID(population::SinglelevelPopulation) = getnextID(population.singlemodule.cells)
-
-function getnextID(cells::CellVector)
-    if all(no_mutations.(cells))
-        return 1
-    else
-        allmutations = reduce(vcat, [cell.mutations for cell in cells])
-        return maximum(allmutations)
-    end
-end
-
-function getnextID(cells::AbstractTreeCellVector)
-    nextID = 1
-    for cellnode in cells
-        if isnothing(cellnode) continue end
-        if id(cellnode) + 1 > nextID
-            nextID = id(cellnode) + 1
-        end
-    end
-    return nextID
-end
-
-function copycell(cellold::Cell)
-    return Cell(
-        copy(cellold.mutations), 
-        cellold.clonetype, 
-        cellold.birthtime, 
-        cellold.id, 
-        cellold.parentid
-    )
-  end
 
 function discretetime(rng, λ=1)
     return 1/λ
@@ -443,5 +297,3 @@ age(population::Population) = maximum(map(age, population))
 age(population::SinglelevelPopulation) = age(population.singlemodule)
 age(simulation::Simulation) = age(simulation.output)
 age(multisim::MultiSimulation) = maximum(age(output) for output in multisim.output)
-
-create_modulestructure(WellMixed, N) = WellMixed()

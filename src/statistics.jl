@@ -189,7 +189,7 @@ function pairwise_fixed_differences(population::Population{T}, idx=nothing) wher
     return pairwise_fixed_differences(clonalmutids)
 end
 
-function pairwise_fixed_differences(muts::Vector{Vector{Int64}})
+function pairwise_fixed_differences(muts::Vector{Vector{T}}) where T <: Integer
     n = length(muts)
     pfd_vec = Int64[]
     for i in 1:n
@@ -338,7 +338,7 @@ end
 #     return pairwise_fixed_differences_matrix(muts, diagonals=diagonals)
 # end
 
-function pairwise_fixed_differences_matrix(muts::Vector{Vector{Int64}}; diagonals=false)
+function pairwise_fixed_differences_matrix(muts::Vector{Vector{T}}; diagonals=false) where T <: Integer
     n = length(muts)
     pfd = zeros(Int64, n, n)
     for i in 1:n
@@ -376,7 +376,7 @@ function pairwise_fixed_differences_statistics(simulation::Simulation, idx=nothi
     pairwise_fixed_differences_statistics(simulation.output, idx)
 end
 
-function pairwise_fixed_differences_statistics(simulation::Simulation, samplesize::Int64, rng)
+function pairwise_fixed_differences_statistics(simulation::Simulation, samplesize::Integer, rng)
     pairwise_fixed_differences_statistics(simulation.output, samplesize, rng)
 end
 
@@ -394,7 +394,7 @@ function pairwise_fixed_differences_statistics(population::Population{T}, idx=no
     return pairwise_fixed_differences_statistics(clonalmuts)
 end
 
-function pairwise_fixed_differences_statistics(clonalmuts::Vector{Vector{Int64}})
+function pairwise_fixed_differences_statistics(clonalmuts::Vector{Vector{T}}) where T <: Integer
     n = length(clonalmuts)
     pfd = Int64[]
     for i in 1:n
@@ -417,15 +417,6 @@ end
 function shared_fixed_mutations(population, idx=nothing)
     return countmap(filter!(x -> x > 0, getfixedallelefreq(population, idx)))
 end
-
-# function shared_fixed_mutations(clonalmuts::Vector{Vector{Int64}})
-#     clonalmuts_vec = reduce(union, clonalmuts)
-#     nclonalmuts = map(
-#         x -> number_modules_with_mutation(clonalmuts, x), clonalmuts_vec
-#     )
-#     return countmap(nclonalmuts)
-# end
-
 
 function number_modules_with_mutation(clonalmuts_by_module, mutationid)
     n = 0

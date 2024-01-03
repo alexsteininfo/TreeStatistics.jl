@@ -26,7 +26,7 @@ coefficients.
 
 # Fields
 - `mutant_selection::Vector{Float64}` -- selection coefficient for each fit mutant that 
-arises
+    arises
 - `mutant_selection::Vector{Int64}` -- time that each fit mutant arises
 """
 struct SelectionPredefined <: AbstractSelection

@@ -463,30 +463,16 @@ function removemodule!(population, dyingmoduleid; moduletype=:all)
     end
 end
 
-function move_module_to_homeostasis!(population, cellmoduleid::Int64)
+function move_module_to_homeostasis!(population, cellmoduleid::Integer)
     cellmodule = popat!(population.growing_modules, cellmoduleid)
     push!(population.homeostatic_modules, cellmodule)
     return population
 end
 
-function move_module_to_growing!(population, cellmoduleid::Int64)
+function move_module_to_growing!(population, cellmoduleid::Integer)
     cellmodule = popat!(population.homeostatic_modules, cellmoduleid)
     push!(population.growing_modules, cellmodule)
     return population
 end
 
 killallcells!(population::CellVector, args...) = nothing
-
-getnextID(population) = maximum(map(x->getnextID(x.cells), population))
-
-function getnextID(population::Population{T}) where T <: TreeModule
-    nextID = 1
-    for treemodule in population
-        for cellnode in treemodule.cells
-            if id(cellnode) + 1 > nextID
-                nextID = id(cellnode) + 1
-            end
-        end
-    end
-    return nextID
-end

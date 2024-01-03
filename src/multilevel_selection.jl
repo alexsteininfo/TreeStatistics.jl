@@ -574,13 +574,13 @@ function get_moduleid_cellid(modules, subclone, chosen_cell)
     i = 1
     for (moduleid, mod) in enumerate(modules)
         for (cellid, cell) in enumerate(mod.cells)
-            if cell.clonetype == subclone
+            if getclonetype(cell) == subclone
                 chosen_cell == i && return moduleid, cellid
                 i +=1
             end
         end
     end
-    error("cell number $chosen_cell of subclone: $subclone not found")
+    error("cell number $chosen_cell of subclone $subclone not found")
 end
 
 function allclonetypes(modules)
@@ -591,6 +591,6 @@ function get_module_cells_given_subclones(modules, subclone)
     return [(moduleid, cellid) 
         for (moduleid, mod) in enumerate(modules)
             for (cellid, cell) in enumerate(mod.cells)
-                if cell.clonetype == subclone
+                if getclonetype(cell) == subclone
     ]
 end

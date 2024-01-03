@@ -1,85 +1,12 @@
-popsize_exceeded(popsize, input::BranchingInput) = popsize > input.Nmax
-popsize_exceeded(popsize, input::SinglelevelInput) = false
 
 """
-    celldivision!(treemodule::TreeModule{T, S}, subclones, parentcellidx, t, nextID, μ, 
-    mutationdist, rng; nchildcells=2) where {T <: AbstractTreeCell, S}
-
-Remove parent cell from `alivecells` and add `nchildcells` new child cells (can be 1 or 2). 
-
-If mutations are time-dependent, e.g. `mutationdist == poissontimedep`, add mutations to the
-parent cell depending on the length of its lifetime. Otherwise assign mutations to each 
-child cell.
-"""
-function celldivision!(treemodule::TreeModule{T, S}, subclones, parentcellid, t, nextID, μ, 
-    mutationdist, rng; nchildcells=2) where {T <: AbstractTreeCell, S}
-
-    alivecells = treemodule.cells
-    parentcellnode = alivecells[parentcellid] #get parent cell node
-
-    #if mutations are time dependent assign mutations to parent cell and give new cells
-    #no initial mutations
-    if mutationdist == :fixedtimedep || mutationdist == :poissontimedep    
-        childcellmuts = zeros(Int64, nchildcells)
-        Δt = t - parentcellnode.data.birthtime
-        parentcellnode.data.mutations += numbernewmutations(rng, mutationdist, μ, Δt=Δt)
-    #if mutations are not time dependent assign new child cell mutations
-    else
-        childcellmuts = [numbernewmutations(rng, mutationdist, μ) for _ in 1:nchildcells]
-    end
-    #create new child cells and add them to alivecells list
-    childcell1 = T(
-            id=nextID,
-            birthtime=t, 
-            mutations=childcellmuts[1], 
-            clonetype=parentcellnode.data.clonetype
-    )
-    #one cell replaces the parent in alivecells
-    alivecells[parentcellid] = leftchild!(parentcellnode, childcell1)
-
-    if nchildcells == 2
-        childcell2 = T(
-            id=nextID + 1,
-            birthtime=t, 
-            mutations=childcellmuts[2], 
-            clonetype=parentcellnode.data.clonetype
-        )
-        #the other cell is added to the end of alivecells
-        push!(alivecells, rightchild!(parentcellnode, childcell2)) 
-        subclones[parentcellnode.data.clonetype].size += 1
-    end
-    #adjust subclone sizes
-    return treemodule, subclones, nextID + nchildcells
-end
-
-"""
-    celldeath!(alivecells::Vector{BinaryNode{T}}, deadcellidx[, t, μ, mutationdist, rng]) 
-        where T<: AbstractTreeCell
-
-Remove dead cell from `alivecells` and remove references to it from tree. Add time dependent mutations (if applicable) to dying cell.
-"""
-function celldeath!(treemodule::TreeModule, subclones::Vector{Subclone}, deadcellidx, t, 
-    μ=nothing, mutationdist=nothing, rng=nothing)
-
-    alivecells = treemodule.cells
-    deadcellclonetype = alivecells[deadcellidx].data.clonetype
-    #remove references to dead cell
-    killcell!(alivecells, deadcellidx, t, μ, mutationdist, rng)
-    #remove from alivecell vector
-    deleteat!(alivecells, deadcellidx)
-    #adjust subclone sizes
-    subclones[deadcellclonetype].size -= 1
-    return treemodule, subclones
-end
-
-"""
-    killcell!(alivecells::Vector{BinaryNode{TreeCell}}, deadcellidx::Int64, t, μ, mutationdist, rng)
+    killcell!(alivecells::Vector{BinaryNode{TreeCell}}, deadcellidx::Integer, t, μ, mutationdist, rng)
 
 Kill `TreeCell` at index `deadcellidx` in `alivecells` by adding a left child node with `alive=false`. If 
 `mutationdist ∈ [:poissontimedep, :fixedtimedep]` then add mutations to the dying cell.
 
 """
-function killcell!(alivecells::TreeCellVector, deadcellidx::Int64, t, μ, mutationdist, rng)
+function killcell!(alivecells::TreeCellVector, deadcellidx::Integer, t, μ, mutationdist, rng)
     deadcellnode = alivecells[deadcellidx]
     #if mutations are time dependent, add the number accumulated by the cell
     if mutationdist == :fixedtimedep || mutationdist == :poissontimedep
@@ -91,11 +18,11 @@ function killcell!(alivecells::TreeCellVector, deadcellidx::Int64, t, μ, mutati
 end
 
 """
-    killcell!(alivecells::Vector{BinaryNode{SimpleTreeCell}}, deadcellidx::Int64)
+    killcell!(alivecells::Vector{BinaryNode{SimpleTreeCell}}, deadcellidx::Integer)
 
 Kill `SimpleTreeCell` at index `deadcellidx` in `alivecells` by removing all references to it from the tree.
 """
-function killcell!(alivecells::SimpleTreeCellVector, deadcellidx::Int64, args...)
+function killcell!(alivecells::SimpleTreeCellVector, deadcellidx::Integer, args...)
     prune_tree!(alivecells[deadcellidx])
     return alivecells
 end
@@ -115,16 +42,6 @@ end
 function killallcells!(alivecells, args...)
     killcells!(alivecells, 1:lastindex(alivecells), args...)
     return alivecells
-end
-
-"""
-    cellremoval!(module, deadcells)
-
-Remove cells from module without killing them.
-"""
-function cellremoval!(cellmodule, deadcells)
-    deleteat!(cellmodule.cells, sort!(deadcells))
-    return cellmodule.cells
 end
 
     
@@ -302,5 +219,3 @@ function cell_subset_size(node, cells)
     root.parent = parent #reset node so that it is unchanged
     return count
 end
-
-getnextID(cells::TreeCellVector) = maximum(cellnode.data.id for cellnode in cells)

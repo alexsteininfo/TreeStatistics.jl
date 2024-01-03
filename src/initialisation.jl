@@ -81,6 +81,7 @@ getmaxmodulesize(input::MultilevelInput) = input.modulesize
 getmaxmodulesize(input::Union{MoranInput, BranchingMoranInput}) = input.N
 getmaxmodulesize(input::BranchingInput) = Inf
 
+create_modulestructure(WellMixed, N) = WellMixed()
 
 function newcell(::Type{Cell}, id, mutations)
     return Cell(
