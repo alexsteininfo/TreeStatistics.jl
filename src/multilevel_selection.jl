@@ -105,7 +105,6 @@ function transition_selection!(population, transitionrates, transition_type,
     transition_subcloneid, nsubclonescurrent, nsubclones, selection, modulesize, 
     branchinitsize, modulebranching, t, nextID, nextmoduleID, μ, mutationdist, maxmodules, 
     moranincludeself, branchrate, rng; moduleupdate=:branching)
-    
     if transition_type == 1
         population, transitionrates, nsubclonescurrent, nextID = moranupdate_selection!(
             population, 
@@ -224,7 +223,7 @@ function moranupdate_selection!(population, transitionrates, transition_subclone
         choose_moran_deadcell(modulesize, parentcellid, moranincludeself, rng)
 
     #implement cell division
-    homesotaticmodule, subclones, nextID = 
+    homeostaticmodule, subclones, nextID = 
         celldivision!(homeostaticmodule, population.subclones, parentcellid, t, nextID, 
             μ, mutationdist, rng)
     parentcell = homeostaticmodule[parentcellid]
@@ -239,9 +238,10 @@ function moranupdate_selection!(population, transitionrates, transition_subclone
 
     #check if ready for a new mutant subclone
     if newsubclone_ready(selection, nsubclonescurrent, nsubclones, t, rng)
+        mutatingcell = homeostaticmodule[parentcellid]
         population, homeostaticmodule, nsubclonescurrent, transitionrates = 
             update_cellmutation!(population, homeostaticmodule, nsubclonescurrent, nsubclones,
-                transitionrates, parentcell, selection, t, :homeostatic, rng)
+                transitionrates, mutatingcell, selection, t, :homeostatic, rng)
     end
     updatetime!(homeostaticmodule, t)
     return population, transitionrates, nsubclonescurrent, nextID
@@ -269,9 +269,10 @@ function asymmetricupdate_selection!(population, transitionrates, transition_sub
             mutationdist, rng; nchildcells=1)
     #check if ready for a new mutant subclone
     if newsubclone_ready(selection, nsubclonescurrent, nsubclones, t, rng)
+        mutatingcell = homeostaticmodule[parentcellid]
         population, homeostaticmodule, nsubclonescurrent, transitionrates = 
             update_cellmutation!(population, homeostaticmodule, nsubclonescurrent, nsubclones,
-                transitionrates, parentcell, selection, t, :homeostatic, rng)
+                transitionrates, mutatingcell, selection, t, :homeostatic, rng)
     end
     updatetime!(homeostaticmodule, t)
     return population, transitionrates, nsubclonescurrent, nextID
@@ -318,9 +319,10 @@ function birthupdate_selection!(population, transitionrates, transition_subclone
     #check if ready for a new mutant subclone
     if newsubclone_ready(selection, nsubclonescurrent, nsubclones, t, rng)
         moduletype = transitiontohomeostasis ? :homeostatic : :growing
+        mutatingcell = growingmodule[parentcellid]
         population, growingmodule, nsubclonescurrent, transitionrates = 
             update_cellmutation!(population, growingmodule, nsubclonescurrent, nsubclones,
-                transitionrates, parentcell, selection, t, moduletype, rng)
+                transitionrates, mutatingcell, selection, t, moduletype, rng)
     end
     return population, transitionrates, nsubclonescurrent, nextID
 end

@@ -102,37 +102,26 @@ function number_cells_in_subclone(modules, subcloneid)
 end
 
 function Base.show(io::IO, population::Population{T}) where T
-    maxsubclone = length(population.subclones)
-    if length(population.growing_modules) == 0
-        @printf(io, "Growing modules: none")
-    else
-        @printf(io, "Growing modules:\n\t")
-        printmodule(io, population.growing_modules[1]; maxsubclone)
-        if length(population.growing_modules) > 1
-            for growing_module in population.growing_modules[2:end]
-                @printf(", ")
-                printmodule(io, growing_module; maxsubclone)
-            end
-        end
-    end
-    if length(population.homeostatic_modules) == 0
-        @printf(io, "\n\nHomeostatic modules: none\n")
-    else
-        @printf(io, "\n\nHomeostatic modules:\n\t")
-        printmodule(io, population.homeostatic_modules[1]; maxsubclone)
-        if length(population.homeostatic_modules) > 1
-            for homeostatic_module in population.homeostatic_modules[2:end]
-                @printf(", ")
-                printmodule(io, homeostatic_module; maxsubclone)
-            end
-        end
-    end
+    Base.show(io, Population{T})
+    @printf(io, ": \n    %d growing modules", length(population.growing_modules))
+    @printf(io, "\n    %d homeostatic modules", length(population.homeostatic_modules))
+    @printf(io, "\n    %d subclones", length(filter(x -> x.size > 0, population.subclones)))
 end
 
-
-function Base.show(io::IO, mod::AbstractModule)
+function Base.show(io::IO, population::SinglelevelPopulation{T}) where T
+    Base.show(io, SinglelevelPopulation{T})
+    mod = population.singlemodule
+    @printf(io, ": \n    %d cells ", length(mod))
     printmodule(io, mod)
-    @printf(io, " t = %.2f", age(mod))
+    @printf(io, " (t = %.2f)", age(mod))
+end
+
+function Base.show(io::IO, mod::T) where T<:AbstractModule
+    Base.show(io, T)
+    @printf(io, ": \n    %d cells ", length(mod))
+    printmodule(io, mod)
+    @printf(io, " (t = %.2f)", age(mod))
+
 
 end
 
@@ -140,15 +129,35 @@ function printmodule(io::IO, mod::AbstractModule; maxsubclone=nothing)
     if length(mod) == 0
         @printf(io, "[]")
     else
-        subclonelist = [getclonetype(cell) for cell in mod]
-        maxsubclone = isnothing(maxsubclone) ? maximum(subclonelist) : maxsubclone
-        subclone_counts = counts(subclonelist, 1:maxsubclone)
-        @printf(io, "[%d", subclone_counts[1])
-        if length(subclone_counts) > 1
-            for c in subclone_counts[2:end]
-                @printf(io, ", %d", c)
+        subclonelist = sort!([getclonetype(cell) for cell in mod])
+        unique_subclones = unique(subclonelist)
+        @printf(io, "[")
+        if length(unique_subclones) == 1 
+            @printf(io, "%d (%d)", length(subclonelist), unique_subclones[1])
+        else
+            for subcloneid in unique_subclones[1:end-1]
+                @printf(io, "%d (%d), ", count(x->x==subcloneid, subclonelist), subcloneid)
             end
+            subcloneid = unique_subclones[end]
+            @printf(io, "%d (%d)", count(x->x==subcloneid, subclonelist), subcloneid)
         end
         @printf(io, "]")
     end
 end
+
+# function printmodule(io::IO, mod::AbstractModule; maxsubclone=nothing)
+#     if length(mod) == 0
+#         @printf(io, "[]")
+#     else
+#         subclonelist = [getclonetype(cell) for cell in mod]
+#         maxsubclone = isnothing(maxsubclone) ? maximum(subclonelist) : maxsubclone
+#         subclone_counts = counts(subclonelist, 1:maxsubclone)
+#         @printf(io, "[%d", subclone_counts[1])
+#         if length(subclone_counts) > 1
+#             for c in subclone_counts[2:end]
+#                 @printf(io, ", %d", c)
+#             end
+#         end
+#         @printf(io, "]")
+#     end
+# end

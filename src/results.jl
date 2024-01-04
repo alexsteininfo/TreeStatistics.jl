@@ -59,7 +59,9 @@ Print out summary of simulation.
 function Base.show(io::IO, simulation::SimulationResult)
     @printf(io, "===================================================================\n")
     show(io, simulation.input)
-    @printf(io, "\n")
+    # @printf(io, "\n")
+    @printf(io, "===================================================================\n")
     show(io, simulation.output)
+    @printf(io, "\n===================================================================")
 
 end
