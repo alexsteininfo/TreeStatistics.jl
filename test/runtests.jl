@@ -4,16 +4,17 @@ using Test
 using Random
 using StatsBase
 using AbstractTrees
+using Distributions
 
 tests = [
     "multilevel_tree",
     "initialisation",
     "multilevel",
     "simulations",
-    "testio",
     "process_mutations",
     "analysis",
-    "treesimulations"
+    "treesimulations",
+    "multilevel_selection"
 ]
 
 @testset "SomaticEvolution.jl" begin

@@ -8,9 +8,9 @@
     branchrate = 0.01
     tmax = 1000
     maxmodules = 5
-    mutationdist = :fixed
-    μ = 1
-    modulesplitting_replacement=false
+    mutationdist = [:fixed]
+    μ = [1]
+    modulebranching=:split
 
     input = MultilevelBranchingInput(;
         birthrate, 
@@ -28,37 +28,35 @@
 
     rng = MersenneTwister(1)
     moranincludeself=true
-    population = SomaticEvolution.initialize_population(TreeCell, WellMixed, input.clonalmutations, SomaticEvolution.getNinit(input); rng)
-    nextID = SomaticEvolution.getnextID(population) #get id of next cell
+    population = SomaticEvolution.initialize_population(
+        TreeCell, 
+        WellMixed, 
+        input; 
+        rng)
+
+    nextID = SomaticEvolution.getnextID(population)
     nextmoduleID = 2
     @test nextID == 2
     t = 0
     rng = MersenneTwister(1)
-
-    #check first update is correct
-    transitionrates = SomaticEvolution.get_transitionrates(
+    rates = (birthrate=input.birthrate, deathrate=input.deathrate, moranrate=input.moranrate, asymmetricrate=input.asymmetricrate)
+    @test SomaticEvolution.getwildtyperates(population) == rates
+    transitionrates = SomaticEvolution.get_neutral_transitionrates(
         population, 
-        birthrate, 
-        deathrate, 
-        moranrate, 
-        asymmetricrate,
-        branchrate, 
-        modulesize
+        input.branchrate,
+        4
     ) 
+    #check first update is correct
     #only tranisition with non-zero rate is birth which has rate birthrate=0.1
     @test transitionrates == [0.0, 0.0, 0.1, 0.0, 0.0] 
     population, t, nextID = 
-        SomaticEvolution.update_population!(
+        SomaticEvolution.update_population_neutral!(
             population, 
             transitionrates,
-            birthrate, 
-            deathrate, 
-            moranrate, 
-            asymmetricrate,
             branchrate, 
             modulesize, 
             branchinitsize,
-            modulesplitting_replacement,
+            modulebranching,
             t,
             nextID, 
             nextmoduleID,
@@ -162,10 +160,10 @@ node30 = rightchild!(root.left.right.left.left.right.left.left.left, cells[30])
 node23 = rightchild!(root.left.right.left.left.right.left.left, cells[23])
 
 structure = WellMixed()
-module1 = SomaticEvolution.TreeModule(Union{BinaryNode{SimpleTreeCell}, Nothing}[node19, node24, node25], 5.0, [0.0, 2.0], SomaticEvolution.CloneTracker[], 1, 0, structure)
-module2 = SomaticEvolution.TreeModule(Union{BinaryNode{SimpleTreeCell}, Nothing}[node26, node27, node28], 5.0, [2.0, 4.0], SomaticEvolution.CloneTracker[], 2, 1, structure)
-module3 = SomaticEvolution.TreeModule(Union{BinaryNode{SimpleTreeCell}, Nothing}[node29, node30, node23], 5.0, [4.0], SomaticEvolution.CloneTracker[], 3, 2, structure)
-population = [module1, module2, module3]
+module1 = SomaticEvolution.TreeModule(Union{BinaryNode{SimpleTreeCell}, Nothing}[node19, node24, node25], 5.0, [0.0, 2.0], 1, 0, structure)
+module2 = SomaticEvolution.TreeModule(Union{BinaryNode{SimpleTreeCell}, Nothing}[node26, node27, node28], 5.0, [2.0, 4.0], 2, 1, structure)
+module3 = SomaticEvolution.TreeModule(Union{BinaryNode{SimpleTreeCell}, Nothing}[node29, node30, node23], 5.0, [4.0], 3, 2, structure)
+population = Population([module1, module2, module3], typeof(module1)[], Subclone[Subclone()])
 #endregion
 
 @testset "pairwise differences" begin
@@ -199,8 +197,10 @@ end
 @testset "module splitting with replacement" begin
     rng = MersenneTwister(12)
     parentmodule = deepcopy(module1)
-    parentmodule, newmodule, nextID = SomaticEvolution.sample_new_module_with_replacement!(parentmodule, 2, 1, 
-        300, 26, 2, :fixed, rng)
+    subclones = Subclone[Subclone()]
+    parentmodule, newmodule, nextID = 
+        SomaticEvolution.sample_new_module_with_replacement!(parentmodule, subclones,  2, 1, 
+            300, 26, [2], [:fixed], rng)
     @test length(parentmodule) == 3
     @test length(newmodule) == 1
     @test nextID == 26+2

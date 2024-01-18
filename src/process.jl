@@ -2,7 +2,7 @@ function proccessresults!(treemodule::TreeModule, μ, clonalmutations, rng; muta
     return treemodule
 end
 
-function proccessresults!(population::Vector{TreeModule}, μ, clonalmutations, rng; mutationdist=:poisson)
+function proccessresults!(population::Population{TreeModule}, μ, clonalmutations, rng; mutationdist=:poisson)
     return population
 end
 
@@ -11,18 +11,18 @@ function processresults!(cellmodule::CellModule, μ, clonalmutations, rng::Abstr
 
     mutationlist = get_mutationlist(cellmodule)
     expandedmutationids = 
-        get_expandedmutationids(μ, mutationlist, clonalmutations, rng, mutationdist=mutationdist)
+        get_expandedmutationids(μ, mutationdist, mutationlist, clonalmutations, rng)
     expandmutations!(cellmodule, expandedmutationids, clonalmutations)
     
     return cellmodule
 end
 
-function processresults!(population::Vector{T}, μ, clonalmutations, 
-    rng::AbstractRNG; mutationdist=:poisson) where T
+function processresults!(population::Population{CellModule{T}}, μ, mutationdist, 
+    clonalmutations, rng::AbstractRNG) where T
     
     mutationlist = get_mutationlist(population)
     expandedmutationids = 
-        get_expandedmutationids(μ, mutationlist, clonalmutations, rng, mutationdist=mutationdist)
+        get_expandedmutationids(μ, mutationdist, mutationlist, clonalmutations, rng)
     
     for cellmodule in population
         expandmutations!(cellmodule, expandedmutationids, clonalmutations)
@@ -30,29 +30,60 @@ function processresults!(population::Vector{T}, μ, clonalmutations,
     return population
 end
 
-function final_timedep_mutations!(population::Vector{T}, μ, mutationdist, rng) where T
+function final_timedep_mutations!(population::Population{CellModule{T}}, μ, mutationdist, rng;
+    tend=age(population)) where T
+
     mutID = maximum(mutid 
         for cellmodule in population 
             for cell in cellmodule.cells
                 for mutid in cell.mutations
     )
-    tend = age(population)
+
     for cellmodule in population
-        mutID = final_timedep_mutations!(cellmodule, μ, mutationdist, tend, rng, mutID=mutID)
+        mutID = final_timedep_mutations!(cellmodule, μ, mutationdist, rng; mutID, tend)
     end
 end
 
-function final_timedep_mutations!(cellmodule, μ, mutationdist, rng; mutID=nothing)
-    tend = age(cellmodule)
+function final_timedep_mutations!(population::SinglelevelPopulation, μ, mutationdist, rng; 
+    tend = age(population))
+    final_timedep_mutations!(population.singlemodule, μ, mutationdist, rng; tend)
+end
+
+function final_timedep_mutations!(cellmodule::CellModule, μ, mutationdist, rng; 
+    mutID=nothing, tend=age(cellmodule))
+
     if isnothing(mutID)
         mutID = maximum(mutid for cell in cellmodule.cells for mutid in cell.mutations) + 1
     end
-    for cell in cellmodule.cells
-        Δt = tend - cell.birthtime
-        numbermutations = numbernewmutations(rng, mutationdist, μ, Δt=Δt)
-        mutID = addnewmutations!(cell, numbermutations, mutID)
+    for (μ0, mutationdist0) in zip(μ, mutationdist)
+        if mutationdist0 ∈ (:poissontimedep, :fixedtimedep)
+            for cell in cellmodule.cells
+                Δt = tend - cell.birthtime
+                numbermutations = numbernewmutations(rng, mutationdist0, μ0, Δt=Δt)
+                mutID = addnewmutations!(cell, numbermutations, mutID)
+            end
+        end
     end
     return mutID
+end
+
+function final_timedep_mutations!(population::Population{TreeModule{T, S}}, μ, 
+    mutationdist, rng; tend=age(population)) where {T <: AbstractTreeCell, S}
+    
+    for treemodule in population
+        final_timedep_mutations!(treemodule, μ, mutationdist, rng; tend)
+    end
+end
+
+function final_timedep_mutations!(treemodule::TreeModule, μ, mutationdist, rng; tend=age(treemodule))
+    for (μ0, mutationdist0) in zip(μ, mutationdist)
+        if mutationdist0 ∈ (:poissontimedep, :fixedtimedep)
+            for cell in treemodule.cells
+                Δt = tend - cell.data.birthtime
+                cell.data.mutations += numbernewmutations(rng, mutationdist0, μ0, Δt=Δt)
+            end
+        end
+    end
 end
 
 function expandmutations!(cellmodule, expandedmutationids, clonalmutations)
@@ -69,12 +100,6 @@ function expandmutations!(cellmodule, expandedmutationids, clonalmutations)
             cell.mutations = collect(1:clonalmutations)
         end
     end
-    #get list of mutations in each subclone
-    if length(expandedmutationids) > 0
-        for subclone in cellmodule.subclones
-            subclone.mutations = expandmutations(expandedmutationids, subclone.mutations)
-        end
-    end
     return cellmodule
 end
 
@@ -86,7 +111,7 @@ function expandmutations(expandedmutationids, originalmutations)
     )
 end
 
-function get_mutationlist(population::Vector{T}) where T
+function get_mutationlist(population::Population)
     #get list of all mutations assigned to each cell
     mutationlist = [mutation 
         for cellmodule in population
@@ -105,9 +130,12 @@ function get_mutationlist(cellmodule)
     return unique(mutationlist)
 end
 
-function get_expandedmutationids(μ, mutationlist, clonalmutations, rng; mutationdist=:poisson)
+function get_expandedmutationids(μ, mutationdist, mutationlist, clonalmutations, rng)
 
-    mutationsN = numberuniquemutations(rng, length(mutationlist), mutationdist, μ)
+    mutationsN = sum(
+        numberuniquemutations(rng, length(mutationlist), mutationdist0, μ0)
+            for (mutationdist0, μ0) in zip(mutationdist, μ)
+    )
     expandedmutationids = Dict{Int64, Vector{Int64}}()
     i = clonalmutations + 1
     for (mutkey, N) in zip(mutationlist, mutationsN)
@@ -126,6 +154,8 @@ function numberuniquemutations(rng, L, mutationdist, μ)
         return rand(rng, Poisson(μ), L) 
     elseif mutationdist == :geometric
         return rand(rng, Geometric(1/(1+μ)), L)
+    elseif (mutationdist == :poissontimedep) || (mutationdist == :fixedtimedep)
+        error("cannot add time-dependent mutations after the simulation")
     else
         error("$mutationdist is not a valid mutation rule")
     end

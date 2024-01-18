@@ -1,19 +1,47 @@
 """
-    initialize_population(::Type{T}, ::Type{S}, clonalmutations, N, Nmodules=1; rng=Random.GLOBAL_RNG) where {T<: AbstractCell, S<: ModuleStructure}
+    initialize_population(::Type{T}, ::Type{S}, input; rng=Random.GLOBAL_RNG) where {T<: AbstractCell, S<: ModuleStructure}
 
-Create a Vector{CellModule} or Vector{TreeModule} of length `Nmodules` each containing a 
-single cell at time `t=0`. 
+Create the initial `Population` or `SinglelevelPopulation`. 
 """
 function initialize_population(
     ::Type{T}, 
     ::Type{S}, 
-    clonalmutations, 
-    N,
-    Nmodules=1;
+    input::MultilevelInput;
     rng=Random.GLOBAL_RNG
 ) where {T<: AbstractCell, S<: ModuleStructure}
-    return moduletype(T,S)[initialize(T, S, clonalmutations, N; rng) for _ in 1:Nmodules]
+
+    N = getNinit(input)
+    modulesize = getmaxmodulesize(input)
+    Nmodules = getNmodules_init(input)
+    modules = moduletype(T,S)[initialize(T, S, input.clonalmutations, N; rng) for _ in 1:Nmodules]
+    homeostatic_modules, growing_modules = 
+        if N == modulesize
+            modules, moduletype(T,S)[]
+        else
+            moduletype(T,S)[], modules
+        end
+
+        return Population(
+            homeostatic_modules, 
+            growing_modules, 
+            input.birthrate, input.deathrate, input.moranrate, input.asymmetricrate
+        )
 end
+
+function initialize_population(
+    ::Type{T}, 
+    ::Type{S}, 
+    input::SinglelevelInput;
+    rng=Random.GLOBAL_RNG
+) where {T<: AbstractCell, S<: ModuleStructure}
+
+    N = getNinit(input)
+    singlemodule = initialize(T, S, input.clonalmutations, N; rng)
+    birthrate, deathrate, moranrate, asymmetricrate = getinputrates(input)
+
+    return SinglelevelPopulation(singlemodule, birthrate, deathrate, moranrate, asymmetricrate)
+end
+
 
 
 """
@@ -36,7 +64,6 @@ function initialize(
         cells,
         0.0,
         Float64[0.0],
-        CloneTracker[],
         1,
         0,
         modulestructure
@@ -47,7 +74,14 @@ getNinit(input::Union{BranchingInput, BranchingMoranInput}) = 1
 getNinit(input::MoranInput) = input.N
 getNinit(input::MultilevelInput) = 1
 
+getNmodules_init(input::MultilevelMoranInput) = input.maxmodules
+getNmodules_init(input::Union{MultilevelBranchingInput, MultilevelBranchingMoranInput}) = 1
 
+getmaxmodulesize(input::MultilevelInput) = input.modulesize
+getmaxmodulesize(input::Union{MoranInput, BranchingMoranInput}) = input.N
+getmaxmodulesize(input::BranchingInput) = Inf
+
+create_modulestructure(WellMixed, N) = WellMixed()
 
 function newcell(::Type{Cell}, id, mutations)
     return Cell(
@@ -82,12 +116,11 @@ function position_cells(cells, structure::Linear, rng)
     return [fill(nothing, pad1); cells; fill(nothing, pad2)]
 end
 
-function new_module_from_cells(cells::T, t, branchtimes, subclones, id, parentid, modulestructure::S) where {T, S}
+function new_module_from_cells(cells::T, t, branchtimes, id, parentid, modulestructure::S) where {T, S}
     cellmodule = moduletype(T, S)(
         cells,
         t,
         branchtimes,
-        subclones,
         id,
         parentid,
         modulestructure
