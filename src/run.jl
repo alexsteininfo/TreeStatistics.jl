@@ -124,7 +124,7 @@ function runsimulation_timeseries_returnfinalpop(
     selection, 
     timesteps, 
     func, 
-    rng::AbstractRNG=Random.GLOBAL_RNG,
+    rng::AbstractRNG=Random.GLOBAL_RNG;
     timefunc=exptime, 
     returnextinct=false
 ) where {T, S}
@@ -208,21 +208,11 @@ function runsimulation_timeseries(
     timesteps, 
     func, 
     rng::AbstractRNG=Random.GLOBAL_RNG;
-    timefunc=exptime, returnextinct=false
+    timefunc=exptime, 
+    returnextinct=false
 ) where {T, S}    
 return runsimulation_timeseries_returnfinalpop(T, S, input, selection, timesteps, func, rng; 
     timefunc, returnextinct)[1] 
-end
-
-function runsimulation_timeseries(
-    ::Type{T}, 
-    input::SimulationInput, 
-    selection,
-    timesteps, 
-    func, 
-    rng::AbstractRNG=Random.GLOBAL_RNG
-) where {T}
-    return runsimulation_timeseries(T, WellMixed, input, timesteps, func, rng)[1] 
 end
 
 getinputrates(input::BranchingInput) = input.birthrate, input.deathrate, 0.0, 0.0
