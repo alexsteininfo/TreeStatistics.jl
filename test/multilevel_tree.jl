@@ -8,8 +8,8 @@
     branchrate = 0.01
     tmax = 1000
     maxmodules = 5
-    mutationdist = :fixed
-    μ = 1
+    mutationdist = [:fixed]
+    μ = [1]
     modulebranching=:split
 
     input = MultilevelBranchingInput(;
@@ -200,7 +200,7 @@ end
     subclones = Subclone[Subclone()]
     parentmodule, newmodule, nextID = 
         SomaticEvolution.sample_new_module_with_replacement!(parentmodule, subclones,  2, 1, 
-            300, 26, 2, :fixed, rng)
+            300, 26, [2], [:fixed], rng)
     @test length(parentmodule) == 3
     @test length(newmodule) == 1
     @test nextID == 26+2

@@ -30,7 +30,7 @@
         branchrate = 0.01
         t = 300
         nextID = 30
-        μ, mutationdist = 1.0, :poisson
+        μ, mutationdist = [1.0], [:poisson]
         #[(subclone id, number cells), (subclone id, number cells), ...]
         #Homeostatic modules: [(1, 2), (2, 2)]
         #Growing modules: [(1, 3)], [(3, 1)]

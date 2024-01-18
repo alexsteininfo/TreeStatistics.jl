@@ -39,7 +39,7 @@ rng = MersenneTwister(12)
         treemodule = population.singlemodule
         subclones = population.subclones
         root = getsingleroot(treemodule.cells)
-        treemodule, subclones, nextID = SomaticEvolution.celldivision!(treemodule, subclones, 1, 1.1, 2, 10, :fixedtimedep, rng)
+        treemodule, subclones, nextID = SomaticEvolution.celldivision!(treemodule, subclones, 1, 1.1, 2, [10], [:fixedtimedep], rng)
         @test nextID == 4
         @test length(treemodule.cells) == 2 #check number of alivecells equals pop size
         @test !(root in treemodule.cells) #check divided cell has been removed from alivecells
@@ -55,13 +55,12 @@ rng = MersenneTwister(12)
         end
 
         #asymmetric division
-        treemodule, subclones, nextID = SomaticEvolution.celldivision!(treemodule, subclones, 2, 1.1, 3, 10, :fixedtimedep, rng; nchildcells=1)
+        treemodule, subclones, nextID = SomaticEvolution.celldivision!(treemodule, subclones, 2, 1.1, 3, [10], [:fixedtimedep], rng; nchildcells=1)
         @test length(treemodule.cells) == 2 #check number of alivecells equals pop size
         @test !(root in treemodule.cells) #check divided cell has been removed from alivecells
         @test treemodule.cells[end] == root.right.left
         @test isnothing(root.right.right) 
         @test treemodule.cells[end].data.id == 3
-
 
     end
 
@@ -73,9 +72,9 @@ rng = MersenneTwister(12)
         subclones = population.subclones
         alivecells = treemodule.cells
         root = getsingleroot(alivecells)
-        treemodule, subclones, nextID = SomaticEvolution.celldivision!(treemodule, subclones, 1, 1.1, 2, 10, :fixedtimedep, rng)
+        treemodule, subclones, nextID = SomaticEvolution.celldivision!(treemodule, subclones, 1, 1.1, 2, [10], [:fixedtimedep], rng)
         @test length(subclones[1]) == 2
-        SomaticEvolution.celldeath!(treemodule, subclones, 1, 1.5, 10, :fixedtimedep, rng)
+        SomaticEvolution.celldeath!(treemodule, subclones, 1, 1.5, [10], [:fixedtimedep], rng)
         @test length(subclones[1]) == 1
         @test length(alivecells) == 1
         @test !(root.left.left.data.alive) #check dead cell has correct properties
@@ -94,7 +93,7 @@ rng = MersenneTwister(12)
         treemodule = population.singlemodule
         alivecells = treemodule.cells
         root = getsingleroot(alivecells)
-        treemodule, subclones, nextID = SomaticEvolution.celldivision!(treemodule, subclones, 1, 1.1, 2, 10, :fixedtimedep, rng)
+        treemodule, subclones, nextID = SomaticEvolution.celldivision!(treemodule, subclones, 1, 1.1, 2, [10], [:fixedtimedep], rng)
         @test length(subclones[1]) == 2
         SomaticEvolution.cellmutation!(treemodule, subclones, 0.5, population.singlemodule.cells[1], 1.1)
         @test length(subclones) == 2
@@ -109,16 +108,46 @@ rng = MersenneTwister(12)
         @test subclones[2].moranrate == 0.0
         @test subclones[2].asymmetricrate == 0.0
 
-        SomaticEvolution.celldeath!(treemodule, subclones, 1, 1.5, 10, :fixedtimedep, rng)
+        SomaticEvolution.celldeath!(treemodule, subclones, 1, 1.5, [10], [:fixedtimedep], rng)
         @test length(alivecells) == 1
-        _, nextID = SomaticEvolution.celldivision!(treemodule, subclones, 1, 1.1, 2, 10, :fixedtimedep, rng)
+        _, nextID = SomaticEvolution.celldivision!(treemodule, subclones, 1, 1.1, 2, [10], [:fixedtimedep], rng)
         idx = 2
         deadcellnode = alivecells[idx]
-        SomaticEvolution.celldeath!(treemodule, subclones, idx, 2.0, 10, :fixedtimedep, rng)
+        SomaticEvolution.celldeath!(treemodule, subclones, idx, 2.0, [10], [:fixedtimedep], rng)
         @test !AbstractTrees.intree(deadcellnode, root) #check dead cell is not in tree
         @test !(deadcellnode in alivecells) #check dead cell is not in alivecells vector
     end
 
+    @testset "mutations" begin
+    input = BranchingInput(
+        clonalmutations=0, 
+        Nmax=1, 
+        birthrate=1, 
+        deathrate=0,
+        μ=[1, 3],
+        mutationdist=[:fixed, :fixedtimedep]
+    )
+    population = SomaticEvolution.initialize_population(SimpleTreeCell, WellMixed, input; rng)
+    treemodule = population.singlemodule
+    subclones = population.subclones
+    nextid = 2
+    @test treemodule.cells[1].data.mutations == 0
+    treemodule, subclones, nextID = SomaticEvolution.celldivision!(treemodule, subclones, 1, 1.0, 2, input.μ, input.mutationdist, rng)
+    @test treemodule.cells[1].data.mutations == 1
+    @test treemodule.cells[2].data.mutations == 1
+    @test treemodule.cells[1].parent.data.mutations == 3
+    treemodule, subclones, nextID = SomaticEvolution.celldivision!(treemodule, subclones, 1, 3.0, 4, input.μ, input.mutationdist, rng)
+    @test treemodule.cells[1].data.mutations == 1
+    @test treemodule.cells[2].data.mutations == 1
+    @test treemodule.cells[3].data.mutations == 1
+    @test treemodule.cells[1].parent.data.mutations == 7
+    SomaticEvolution.final_timedep_mutations!(population, input.μ, input.mutationdist, rng; tend=4.0)
+    @test treemodule.cells[1].data.mutations == 4
+    @test treemodule.cells[2].data.mutations == 10
+    @test treemodule.cells[3].data.mutations == 4
+
+
+    end
 end
 
 
@@ -242,7 +271,7 @@ mt1 = SomaticEvolution.TreeModule(
     population = SinglelevelPopulation(
         mt1, Subclone[Subclone(1, 0, 0.0, 2, 1.0, 0.1, 1.0, 0.1)]
     )
-    SomaticEvolution.celldivision!(population.singlemodule, population.subclones, 1, 3.5, 2, 1, :fixed, rng)  
+    SomaticEvolution.celldivision!(population.singlemodule, population.subclones, 1, 3.5, 2, [1], [:fixed], rng)  
     @test length(population) == 3
     @test getsubclonesizes(population) == [3]
     SomaticEvolution.cellmutation!(population.singlemodule, population.subclones, 0.5, population.singlemodule[1], 3.5)
@@ -258,7 +287,7 @@ mt1 = SomaticEvolution.TreeModule(
         population, selection,
         SomaticEvolution.getmoranrates(population.subclones),
         maximum(SomaticEvolution.getmoranrates(population.subclones)),
-        4, 7, 2, 2, 4.0, 1, :fixed, false, rng
+        4, 7, 2, 2, 4.0, [1], [:fixed], false, rng
     )
     @test length(population) == 3
 end

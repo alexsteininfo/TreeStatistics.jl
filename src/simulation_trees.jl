@@ -9,9 +9,13 @@ Kill `TreeCell` at index `deadcellidx` in `alivecells` by adding a left child no
 function killcell!(alivecells::TreeCellVector, deadcellidx::Integer, t, μ, mutationdist, rng)
     deadcellnode = alivecells[deadcellidx]
     #if mutations are time dependent, add the number accumulated by the cell
-    if mutationdist == :fixedtimedep || mutationdist == :poissontimedep
-        Δt = t - deadcellnode.data.birthtime
-        deadcellnode.data.mutations += numbernewmutations(rng, mutationdist, μ, Δt=Δt)
+    if !isnothing(mutationdist)
+        for (μ0, mutationdist0) in zip(μ, mutationdist)
+            if mutationdist0 == :fixedtimedep || mutationdist0 == :poissontimedep
+                Δt = t - deadcellnode.data.birthtime
+                deadcellnode.data.mutations += numbernewmutations(rng, mutationdist0, μ0, Δt=Δt)
+            end
+        end
     end
     #add leftchild node containing a dead cell
     leftchild!(deadcellnode, TreeCell(deadcellnode.data.id, false, t, 0, deadcellnode.data.clonetype))

@@ -79,6 +79,7 @@ subclonefreq,
 #other statistics (work for Cell and (Simple)TreeCell simulations)
 pairwisedistance,
 pairwisedistances,
+pairwise_differences,
 pairwise_fixed_differences,
 pairwise_fixed_differences_matrix,
 pairwise_fixed_differences_statistics,

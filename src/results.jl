@@ -12,11 +12,6 @@ end
 
 const MultiSimulation = Simulation{S, T} where {S<:MultilevelInput, T<:Population}
 
-# struct MultiSimulation{S<:SimulationInput, T<:AbstractModule} <: SimulationResult
-#     input::S
-#     output::Vector{T}
-# end
-
 Base.length(multisim::MultiSimulation) = length(multisim.output)
 Base.iterate(multisim::MultiSimulation) = iterate(multisim.output)
 Base.iterate(multisim::MultiSimulation, state) = iterate(multisim.output, state)
@@ -32,7 +27,6 @@ struct VAFResult{T<:SimulationInput} <: AbstractVAFResult
     read_depth::Float64
     cellularity::Float64
     detectionlimit::Float64
-    input::T
     trueVAF::Vector{Float64}
     sampledVAF::Vector{Float64}
     subclonefreq::Vector{Float64}
@@ -43,7 +37,6 @@ struct VAFResultMulti{T<:MultilevelInput} <: AbstractVAFResult
     read_depth::Float64
     cellularity::Float64
     detectionlimit::Float64
-    input::T
     trueVAFs::Vector{Vector{Float64}}
     sampledVAFs::Vector{Vector{Float64}}
     subclonefreqs::Vector{Vector{Float64}}
@@ -63,5 +56,4 @@ function Base.show(io::IO, simulation::SimulationResult)
     @printf(io, "===================================================================\n")
     show(io, simulation.output)
     @printf(io, "\n===================================================================")
-
 end

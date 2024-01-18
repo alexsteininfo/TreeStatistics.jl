@@ -257,10 +257,33 @@ function _pairwise_fixed_differences_clonal(population::Population{T}, idx=nothi
     return pfd_vec, clonalmuts
 end
 
+function pairwise_differences(simulation::Simulation; idx=nothing)
+    return pairwise_differences(simulation.output)
+end
 
-# function pairwise_fixed_differences(module1::TreeModule, module2::TreeModule)
-#     return pairwisedistance(findMRCA(module1), findMRCA(module2))
-# end
+function pairwise_differences(population::SinglelevelPopulation{T}, idx=nothing) where T <: CellModule
+    cells = population.singlemodule.cells
+    if !isnothing(idx)
+        cells = cells[idx]
+    end
+    mutation_vector = Vector{Int64}[cell.mutations for cell in cells]
+    return pairwise_fixed_differences(mutation_vector)
+end
+
+function pairwise_differences(population::SinglelevelPopulation{T}, idx=nothing) where T <: TreeModule
+    cells = population.singlemodule.cells
+    if !isnothing(idx)
+        cells = cells[idx]
+    end    
+    n = length(cells)
+    pfd_vec = Int64[]
+    for i in 1:n
+        for j in i+1:n 
+            push!(pfd_vec, pairwisedistance(cells[i], cells[j]))
+        end
+    end
+    return countmap(pfd_vec)
+end
 
 function pairwisedistances(root::BinaryNode{T}, idx=nothing) where T <: AbstractTreeCell
     pfd = Int64[]
@@ -274,17 +297,6 @@ function pairwisedistances(root::BinaryNode{T}, idx=nothing) where T <: Abstract
     end
     return countmap(pfd)
 end
-
-# function pairwise_fixed_differences(sampledcells::Vector{BinaryNode{T}}) where T <: AbstractTreeCell
-#     pfd = Int64[]
-#     while length(sampledcells) > 1
-#         cellnode1 = popfirst!(sampledcells)
-#         for cellnode2 in sampledcells
-#             push!(pfd, pairwisedistance(cellnode1, cellnode2))
-#         end
-#     end
-#     return countmap(pfd)
-# end
 
 function pairwisedistance(cellnode1::BinaryNode, cellnode2::BinaryNode)
     cellnode1 == cellnode2 && return 0

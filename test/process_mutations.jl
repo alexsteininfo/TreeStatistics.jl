@@ -42,10 +42,10 @@ rng = MersenneTwister(12)
     mutationlist = SomaticEvolution.get_mutationlist(population)
 
     #check mean is approx correct for poisson distributed mutations
-    expandedmutationids = SomaticEvolution.get_expandedmutationids(3, collect(1:100000), clonalmutations, rng, mutationdist=:poisson)
+    expandedmutationids = SomaticEvolution.get_expandedmutationids([3], [:poisson], collect(1:100000), clonalmutations, rng)
     @test  mean(reduce(vcat,map(length,values(expandedmutationids)))) ≈ 3 atol=0.01
     #check mean is approx correct for geometric distributed mutations
-    expandedmutationids = SomaticEvolution.get_expandedmutationids(3, collect(1:100000), clonalmutations, rng, mutationdist=:geometric)
+    expandedmutationids = SomaticEvolution.get_expandedmutationids([3], [:geometric], collect(1:100000), clonalmutations, rng)
     @test  mean(reduce(vcat,map(length,values(expandedmutationids)))) ≈ 3 atol=0.01
 
     module1 = deepcopy(population.growing_modules[1])
@@ -56,10 +56,10 @@ rng = MersenneTwister(12)
     @test sort(module1.cells[2].mutations) == [1, 2, 3, 4, 8, 9, 10, 11]
     @test sort(module1.cells[3].mutations) == [1, 2, 3, 4, 8, 9, 10, 11, 15, 16]
 
-    expandedmutationids = SomaticEvolution.get_expandedmutationids(μ, mutationlist, clonalmutations, rng, mutationdist=:fixed)
+    expandedmutationids = SomaticEvolution.get_expandedmutationids([μ], [:fixed], mutationlist, clonalmutations, rng)
     @test Set(mutationlist) == keys(expandedmutationids)
     @test all(reduce(vcat,map(length,values(expandedmutationids))) .== 2)
-    SomaticEvolution.processresults!(population, μ, clonalmutations, rng, mutationdist=:fixed)
+    SomaticEvolution.processresults!(population, [μ], [:fixed], clonalmutations, rng)
     @test clonal_mutations(population.homeostatic_modules[1]) == 2 * 1 + 3
     @test length(population.homeostatic_modules[1].cells[1].mutations) == 2 * 1 + 3 + 2 * 3
     @test length(population.homeostatic_modules[1].cells[2].mutations) == 2 * 1 + 3 + 2 * 1

@@ -1,28 +1,34 @@
 
-function addmutations!(cell1::Cell, cell2::Cell, μ, mutID, rng, mutationdist=mutationdist, Δt=Δt)
-    if mutationdist == :poissontimedep || mutationdist == :fixedtimedep
-        #if mutations are time dependent we add the mutations accumulated by the parent cell
-        #to both children at division
-        numbermutations = numbernewmutations(rng, mutationdist, μ, Δt=Δt)
-        mutID = addnewmutations!(cell1, cell2, numbermutations, mutID)
-    else
-        numbermutations = numbernewmutations(rng, mutationdist, μ)
-        mutID = addnewmutations!(cell1, numbermutations, mutID)
-        numbermutations = numbernewmutations(rng, mutationdist, μ)
-        mutID = addnewmutations!(cell2, numbermutations, mutID)
+function addmutations!(cell1::Cell, cell2::Cell, μ, mutID, rng, mutationdist, Δt=Δt)
+    for (μ0, mutationdist0) in zip(μ, mutationdist)
+        if mutationdist0 == :poissontimedep || mutationdist0 == :fixedtimedep
+        #for mutations that are time dependent we add the mutations that were accumulated by 
+        #the parent during its lifetime to the child cells at division
+            numbermutations = numbernewmutations(rng, mutationdist0, μ0, Δt=Δt)
+            mutID = addnewmutations!(cell1, cell2, numbermutations, mutID)
+        else
+        #non-time dependent mutations are added to child cells at division
+            numbermutations = numbernewmutations(rng, mutationdist0, μ0)
+            mutID = addnewmutations!(cell1, numbermutations, mutID)
+            numbermutations = numbernewmutations(rng, mutationdist0, μ0)
+            mutID = addnewmutations!(cell2, numbermutations, mutID)
+        end
     end
     return mutID
 end
 
-function addmutations!(cell::Cell, μ, mutID, rng, mutationdist=mutationdist, Δt=Δt)
-    if mutationdist == :poissontimedep || mutationdist == :fixedtimedep
-        #if mutations are time dependent we add the mutations accumulated by the parent cell
-        #child at division
-        numbermutations = numbernewmutations(rng, mutationdist, μ, Δt=Δt)
-        mutID = addnewmutations!(cell1, numbermutations, mutID)
-    else
-        numbermutations = numbernewmutations(rng, mutationdist, μ)
-        mutID = addnewmutations!(cell, numbermutations, mutID)
+function addmutations!(cell::Cell, μ, mutID, rng, mutationdist, Δt=Δt)
+    for (μ0, mutationdist0) in zip(μ, mutationdist)
+        if mutationdist0 == :poissontimedep || mutationdist0 == :fixedtimedep
+        #for mutations that are time dependent we add the mutations that were accumulated by 
+        #the parent during its lifetime to the child cells at division
+            numbermutations = numbernewmutations(rng, mutationdist0, μ0, Δt=Δt)
+            mutID = addnewmutations!(cell1, numbermutations, mutID)
+        else
+            #non-time dependent mutations are added to child cells at division
+            numbermutations = numbernewmutations(rng, mutationdist0, μ0)
+            mutID = addnewmutations!(cell, numbermutations, mutID)
+        end
     end
     return mutID
 end
@@ -79,15 +85,18 @@ function celldivision!(treemodule::TreeModule{T, S}, subclones, parentcellid, t,
     alivecells = treemodule.cells
     parentcellnode = alivecells[parentcellid] #get parent cell node
 
-    #if mutations are time dependent assign mutations to parent cell and give new cells
-    #no initial mutations
-    if mutationdist == :fixedtimedep || mutationdist == :poissontimedep    
-        childcellmuts = zeros(Int64, nchildcells)
-        Δt = t - parentcellnode.data.birthtime
-        parentcellnode.data.mutations += numbernewmutations(rng, mutationdist, μ, Δt=Δt)
-    #if mutations are not time dependent assign new child cell mutations
-    else
-        childcellmuts = [numbernewmutations(rng, mutationdist, μ) for _ in 1:nchildcells]
+    #assign mutations: mutations that accumulate with time are assigned to parent cell,
+    #   mutations that occur at division are assigned to child cells
+    childcellmuts = zeros(Int64, nchildcells)
+    for (μ0, mutationdist0) in zip(μ, mutationdist)
+        if mutationdist0 == :fixedtimedep || mutationdist0 == :poissontimedep    
+            Δt = t - parentcellnode.data.birthtime
+            parentcellnode.data.mutations += numbernewmutations(rng, mutationdist0, μ0, Δt=Δt)
+        else
+            for i in 1:nchildcells
+                childcellmuts[i] += numbernewmutations(rng, mutationdist0, μ0)
+            end
+        end
     end
     #create new child cells and add them to alivecells list
     childcell1 = T(
@@ -127,7 +136,7 @@ function celldivision!(cellmodule::CellModule, subclones, parentcellid, t, mutID
 
     end
     #add new mutations to both new cells
-    if μ > 0.0 
+    if sum(μ) > 0.0 
         if nchildcells == 2
             mutID = addmutations!(cellmodule.cells[parentcellid], cellmodule.cells[end], μ, 
                 mutID, rng, mutationdist, Δt)

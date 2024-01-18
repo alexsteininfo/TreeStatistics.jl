@@ -52,7 +52,7 @@ function runsimulation(
     reset_mutation = reset_mutationargs(T, input)
     input_original = input
     if reset_mutation
-        input = newinput(input, μ=1, clonalmutations=0, mutationdist=:fixed)
+        input = newinput(input, μ=[1], clonalmutations=0, mutationdist=[:fixed])
     end
     population = initialize_population(T, S, input; rng)
     #if the population dies out we start a new simulation (unless returnextinct=true)
@@ -71,9 +71,7 @@ function runsimulation(
         population = processresults!(population, input.μ, input.clonalmutations, rng)
     end
     #if mutation accumulation is time dependent, add the final mutations.
-    if input.mutationdist ∈ (:poissontimedep, :fixedtimedep)
-        final_timedep_mutations!(population, input.μ, input.mutationdist, rng)
-    end
+    final_timedep_mutations!(population, input.μ, input.mutationdist, rng; tend=input.tmax)
     return Simulation(input, population)
 end
 
@@ -83,6 +81,8 @@ end
         [::Type{S},] 
         input::SimulationInput, 
         selection::AbstractSelection = NeutralSelection(),
+        timesteps,
+        func,
         rng::AbstractRNG = Random.GLOBAL_RNG
     )
 
@@ -125,16 +125,10 @@ function runsimulation_timeseries_returnfinalpop(
     timesteps, 
     func, 
     rng::AbstractRNG=Random.GLOBAL_RNG,
-    timefunc=exptime, returnextinct=false
+    timefunc=exptime, 
+    returnextinct=false
 ) where {T, S}
 
-    #If T==Cell: Initially set clonalmutations = 0 and μ = 1. These are expanded later. 
-    #UNLESS input.mutationdist==(:poissontimedep or :fixedtimedep) or μ <=1
-    reset_mutation = reset_mutationargs(T, input)
-    input_original = input
-    if reset_mutation
-        input = newinput(input, μ=1, clonalmutations=0, mutationdist=:fixed)
-    end
     population = initialize_population(T, S, input; rng)
     data = []
     moduleupdate = getmoduleupdate(input)
@@ -157,25 +151,21 @@ function runsimulation_timeseries_returnfinalpop(
             data = []
         end
     end
-    #if we set μ=1 earlier expand now
-    if reset_mutation
-        input = input_original
-        population = processresults!(population, input.μ, input.clonalmutations, rng)
-    end
+
     #if mutation accumulation is time dependent, add the final mutations.
-    if input.mutationdist ∈ (:poissontimedep, :fixedtimedep)
-        final_timedep_mutations!(population, input.μ, input.mutationdist, rng)
-    end
+    final_timedep_mutations!(population, input.μ, input.mutationdist, rng)
     return data, population
 end
 
 
 """
-    runsimulation_timeseries_returnfinalpop(
+    runsimulation_timeseries(
         [::Type{T},] 
         [::Type{S},] 
         input::SimulationInput, 
         selection::AbstractSelection = NeutralSelection(),
+        timesteps,
+        func,
         rng::AbstractRNG = Random.GLOBAL_RNG
     )
 
@@ -243,8 +233,10 @@ initialize_counters(population::Population) = (getnextID(population), length(pop
 initialize_counters(population::SinglelevelPopulation) = getnextID(population)
 
 
-function reset_mutationargs(::Type{Cell}, input) 
-    return !(input.mutationdist ∈ (:poissontimedep, :fixedtimedep) || (input.μ <= 1))
+function reset_mutationargs(::Type{Cell}, input)
+    return (!(
+        (:poissontimedep in input.mutationdist) || (:fixedtimedep in input.mutationdist)
+             || (sum(input.μ) <= 1)))
 end
 
 function reset_mutationargs(::Type{T}, input) where T <: AbstractTreeCell

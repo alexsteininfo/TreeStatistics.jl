@@ -50,7 +50,7 @@ mt1 = SomaticEvolution.CellModule(
     population = SinglelevelPopulation(
         deepcopy(mt1), Subclone[Subclone(1, 0, 0.0, 3, 1.0, 0.1, 1.0, 0.1)]
     )
-    SomaticEvolution.celldivision!(population.singlemodule, population.subclones, 1, 0.5, 5, 1, :fixed, rng)  
+    SomaticEvolution.celldivision!(population.singlemodule, population.subclones, 1, 0.5, 5, [1], [:fixed], rng)  
     @test length(population) == 4
     @test getsubclonesizes(population) == [4]
     SomaticEvolution.cellmutation!(population.singlemodule, population.subclones, 0.5, population.singlemodule.cells[1], 0.5)
@@ -66,7 +66,7 @@ mt1 = SomaticEvolution.CellModule(
         SelectionPredefined(Float64[0.5], Float64[0.5]),
         SomaticEvolution.getmoranrates(population.subclones),
         maximum(SomaticEvolution.getmoranrates(population.subclones)),
-        4, 7, 2, 2, 0.51, 1, :fixed, false, rng
+        4, 7, 2, 2, 0.51, [1], [:fixed], false, rng
     )
     @test length(population) == 4
 end
@@ -129,3 +129,31 @@ end
     @test simulation.output.subclones[2].mutationtime ≈ 0.1 atol=0.1
     @test simulation.output.subclones[3].mutationtime ≈ 7.0 atol=1
 end 
+
+
+@testset "mutations" begin
+    input = BranchingInput(
+        clonalmutations=0, 
+        Nmax=1, 
+        birthrate=1, 
+        deathrate=0,
+        μ=[1, 3],
+        mutationdist=[:fixed, :fixedtimedep]
+    )
+    population = SomaticEvolution.initialize_population(Cell, WellMixed, input; rng)
+    treemodule = population.singlemodule
+    subclones = population.subclones
+    nextID = 1
+    @test treemodule.cells[1].mutations == Int64[]
+    treemodule, subclones, nextID = SomaticEvolution.celldivision!(treemodule, subclones, 1, 1.0, nextID, input.μ, input.mutationdist, rng)
+    @test treemodule.cells[1].mutations == Int64[1,3,4,5]
+    @test treemodule.cells[2].mutations == Int64[2,3,4,5]
+    treemodule, subclones, nextID = SomaticEvolution.celldivision!(treemodule, subclones, 1, 3.0, nextID, input.μ, input.mutationdist, rng)
+    @test treemodule.cells[1].mutations == Int64[1,3,4,5,6,8,9,10,11,12,13]
+    @test treemodule.cells[2].mutations == Int64[2,3,4,5]
+    @test treemodule.cells[3].mutations == Int64[1,3,4,5,7,8,9,10,11,12,13]
+    SomaticEvolution.final_timedep_mutations!(population, input.μ, input.mutationdist, rng; tend=4.0)
+    @test treemodule.cells[1].mutations == Int64[1,3,4,5,6,8,9,10,11,12,13,14,15,16]
+    @test treemodule.cells[2].mutations == Int64[2,3,4,5,17,18,19,20,21,22,23,24,25]
+    @test treemodule.cells[3].mutations == Int64[1,3,4,5,7,8,9,10,11,12,13,26,27,28]
+end

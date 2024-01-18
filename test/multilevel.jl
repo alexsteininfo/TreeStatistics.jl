@@ -76,11 +76,11 @@ end
 
     #moran update population size stays the same
     @test sum(map(x -> length(x.cells), population)) == 5
-    SomaticEvolution.moranupdate!(population, 4, 1.0, 3, 1, :fixed, rng)
+    SomaticEvolution.moranupdate!(population, 4, 1.0, 3, [1], [:fixed], rng)
     @test sum(map(x -> length(x.cells), population)) == 5
 
     #kills only cell in module mt3 => population size goes to 1
-    SomaticEvolution.deathupdate!(population, 1.0, 1, :fixed, rng)
+    SomaticEvolution.deathupdate!(population, 1.0, [1], [:fixed], rng)
     @test length(population) == 1
 
     #one module splits into two modules of length two
@@ -90,7 +90,7 @@ end
     @test sum(map(x -> length(x), population)) == 4
 
     #birth update one module gets an extra cell
-    SomaticEvolution.birthupdate!(population, 4, 1.0, 2, 1, :fixed, rng)
+    SomaticEvolution.birthupdate!(population, 4, 1.0, 2, [1], [:fixed], rng)
     @test sum(map(x -> length(x.cells), population)) == 5
     @test sum(map(x -> length(x), population)) == 5
 
@@ -118,7 +118,7 @@ mt3 = SomaticEvolution.CellModule(
     parentmodule = deepcopy(mt1)
     subclones = Subclone[Subclone()]
     parentmodule, newmodule, nextID = SomaticEvolution.sample_new_module_with_replacement!(parentmodule, subclones, 2, 1, 
-        300, 25, 2, :fixed, rng)
+        300, 25, [2], [:fixed], rng)
     @test length(parentmodule) == 4
     @test length(newmodule) == 1
     @test nextID == 25+4
@@ -129,7 +129,7 @@ end
     subclones = Subclone[Subclone()]
     parentmodule, newmodule, nextID = 
         SomaticEvolution.sample_new_module_without_replacement!(
-            parentmodule, subclones, 2, 2, 300, 25, 2, :fixed, rng
+            parentmodule, subclones, 2, 2, 300, 25, [2], [:fixed], rng
         )
     @test length(parentmodule) == 4
     @test length(newmodule) == 2
@@ -144,7 +144,7 @@ end
     subclones = Subclone[Subclone()]
     parentmodule, newmodule, nextID = 
         SomaticEvolution.newmoduleformation!(parentmodule, subclones, 5, 2, 2, rng; 
-            modulebranching=:withoutreplacement_nomutations, nextID=25, μ=1, mutationdist=:poisson)
+            modulebranching=:withoutreplacement_nomutations, nextID=25, μ=[1], mutationdist=[:poisson])
     @test length(parentmodule) == 4
     @test length(newmodule) == 2
     @test newmodule.cells[1] != newmodule.cells[2]
@@ -169,10 +169,10 @@ end
     ) 
     @test transitionrates == [0.8, 4.0, 4.0, 2.0, 10.0]
     
-    population, = SomaticEvolution.moranupdate!(population, 4, 1, 30, 1, :poisson, rng; moranincludeself=false)
+    population, = SomaticEvolution.moranupdate!(population, 4, 1, 30, [1], [:poisson], rng; moranincludeself=false)
     @test length(mt1) == 4
 
-    population, = SomaticEvolution.asymmetricupdate!(population, 4, 2, 32, 1, :poisson, rng)
+    population, = SomaticEvolution.asymmetricupdate!(population, 4, 2, 32, [1], [:poisson], rng)
     @test length(mt1) == 4
 
     SomaticEvolution.modulemoranupdate!(population, 4, 2, 5, rng)
@@ -190,7 +190,7 @@ end
     for i in 1:10
         chosenmoduleid, dividecellid, deadcellid = SomaticEvolution.choose_homeostaticmodule_cells(population, rng; twocells=true, moranincludeself=false)
         @test dividecellid != deadcellid
-        population, nextID = SomaticEvolution.moranupdate!(population, 2, 1, nextID, 1, :fixed, rng; moranincludeself=false)
+        population, nextID = SomaticEvolution.moranupdate!(population, 2, 1, nextID, [1], [:fixed], rng; moranincludeself=false)
         @test population[1].cells[1].mutations[1:end-1] == population[1].cells[2].mutations[1:end-1]
     end
 
@@ -214,7 +214,7 @@ end
     for i in 1:10
         chosenmoduleid, dividecellid, deadcellid = SomaticEvolution.choose_homeostaticmodule_cells(population, rng; twocells=true, moranincludeself=false)
         @test dividecellid != deadcellid
-        population, nextID = SomaticEvolution.moranupdate!(population, 2, 1, nextID, 1, :fixed, rng; moranincludeself=false)
+        population, nextID = SomaticEvolution.moranupdate!(population, 2, 1, nextID, [1], [:fixed], rng; moranincludeself=false)
         @test population[1].cells[1].data.birthtime == population[1].cells[2].data.birthtime
     end
 
