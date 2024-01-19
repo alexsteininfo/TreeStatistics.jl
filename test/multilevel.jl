@@ -237,7 +237,8 @@ end
             maxmodules=5,
             branchrate=3/365, 
             branchinitsize=1, 
-            μ=1
+            μ=1,
+            modulebranching=:withoutreplacement_nomutations
     )
     population = runsimulation(input, rng)
     @test sort(moduleid.(population)) == sort(unique(moduleid.(population)))
