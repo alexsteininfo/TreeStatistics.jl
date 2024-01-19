@@ -1,7 +1,7 @@
 name = "SomaticEvolution"
 uuid = "7b855ee6-6887-412f-a571-26d20a5a92d7"
 authors = ["Jessie Renton <jsr.renton@gmail.com> and contributors"]
-version = "0.1.2"
+version = "0.2.1"
 
 [deps]
 AbstractTrees = "1520ce14-60c1-5f80-bbc7-55ef81b5835c"
@@ -27,4 +27,4 @@ GLM = "1"
 JSON = "0.21"
 Revise = "3"
 StatsBase = "0.33, 0.34"
-julia = "1.6, 1.9"
+julia = "1.9"
