@@ -234,16 +234,16 @@ function newmoduleformation!(parentmodule, subclones, nextmoduleID, branchinitsi
         modulebranching=:split, nextID=nothing, μ=nothing, mutationdist=nothing)
     if modulebranching == :withreplacement
         return sample_new_module_with_replacement!(parentmodule, subclones, nextmoduleID, 
-            branchinitsize, t, nextID, μ, mutationdist, rng)
+            branchinitsize, t, nextID, μ, mutationdist, rng; timedepmutationsonly=false)
     elseif modulebranching == :withoutreplacement
         return sample_new_module_without_replacement!(parentmodule, subclones, nextmoduleID, 
-            branchinitsize, t, nextID, μ, mutationdist, rng)
+            branchinitsize, t, nextID, μ, mutationdist, rng; timedepmutationsonly=false)
     elseif modulebranching == :withreplacement_nomutations
                 return sample_new_module_with_replacement!(parentmodule, subclones, nextmoduleID, 
-                    branchinitsize, t, nextID, [0], [:fixed], rng)
+                    branchinitsize, t, nextID, μ, mutationdist, rng; timedepmutationsonly=true)
     elseif modulebranching == :withoutreplacement_nomutations
         return sample_new_module_without_replacement!(parentmodule, subclones, nextmoduleID, 
-            branchinitsize, t, nextID, [0], [:fixed], rng)
+            branchinitsize, t, nextID, μ, mutationdist, rng; timedepmutationsonly=true)
     elseif modulebranching == :split
         cellmodule, newcellmodule =
             sample_new_module_split!(parentmodule, nextmoduleID, 
@@ -266,14 +266,15 @@ The number of cells is given by `branchinitsize` and the newmodule is given init
 
 """
 function sample_new_module_with_replacement!(cellmodule, subclones, nextmoduleID, branchinitsize, 
-    branchtime, nextID, μ, mutationdist, rng::AbstractRNG)
+    branchtime, nextID, μ, mutationdist, rng::AbstractRNG; timedepmutationsonly=false)
 
     ncells = length(cellmodule.cells)
     newcells = eltype(cellmodule.cells)[]
     for i in 1:branchinitsize
         randcellid = rand(rng, 1:ncells)
         cellmodule, subclones, nextID = 
-            celldivision!(cellmodule, subclones, randcellid, branchtime, nextID, μ, mutationdist, rng)
+            celldivision!(cellmodule, subclones, randcellid, branchtime, nextID, μ, mutationdist, rng;
+                timedepmutationsonly)
         newcell = pop!(cellmodule.cells)
         push!(newcells, newcell)
     end        
@@ -299,13 +300,14 @@ The number of cells is given by `branchinitsize` and the newmodule is given init
 
 """
 function sample_new_module_without_replacement!(cellmodule, subclones, nextmoduleID, branchinitsize, 
-    branchtime, nextID, μ, mutationdist, rng::AbstractRNG)
+    branchtime, nextID, μ, mutationdist, rng::AbstractRNG; timedepmutationsonly=false)
 
     sampleids = sample(rng, 1:length(cellmodule.cells), branchinitsize, replace=false)
     newcells = eltype(cellmodule.cells)[]
     for cellid in sampleids
         cellmodule, subclones, nextID = 
-            celldivision!(cellmodule, subclones, cellid, branchtime, nextID, μ, mutationdist, rng)
+            celldivision!(cellmodule, subclones, cellid, branchtime, nextID, μ, mutationdist, rng;
+                timedepmutationsonly)
         newcell = pop!(cellmodule.cells)
         push!(newcells, newcell)
     end        

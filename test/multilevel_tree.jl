@@ -200,10 +200,44 @@ end
     subclones = Subclone[Subclone()]
     parentmodule, newmodule, nextID = 
         SomaticEvolution.sample_new_module_with_replacement!(parentmodule, subclones,  2, 1, 
-            300, 26, [2], [:fixed], rng)
+            300, 26, [2], [:fixed], rng; timedepmutationsonly=false)
     @test length(parentmodule) == 3
     @test length(newmodule) == 1
     @test nextID == 26+2
+end
+
+@testset "module splitting without replacement" begin
+    #time-dep mutations only
+    rng = MersenneTwister(12)
+    parentmodule = deepcopy(module1)
+    expectedmutations = sort!([round(Int64, 6 * (300 - cell.data.birthtime) + cell.data.mutations) for cell in parentmodule.cells])
+    subclones = Subclone[Subclone()]
+    parentmodule, newmodule, nextID = 
+        SomaticEvolution.sample_new_module_without_replacement!(parentmodule, subclones,  2, 3, 
+            300, 26, [2, 6], [:fixed, :fixedtimedep], rng; timedepmutationsonly=true)
+    @test length(parentmodule) == 3
+    @test length(newmodule) == 3
+    @test nextID == 26+6
+    @test sort!([cell.parent.data.mutations for cell in parentmodule.cells]) == expectedmutations
+    @test sort!([cell.parent.data.mutations for cell in newmodule.cells]) == expectedmutations
+    @test [cell.data.mutations for cell in parentmodule.cells] == [0,0,0]
+    @test [cell.data.mutations for cell in newmodule.cells] == [0,0,0]
+
+    #all mutations
+    rng = MersenneTwister(12)
+    parentmodule = deepcopy(module1)
+    expectedmutations = sort!([round(Int64, 6 * (300 - cell.data.birthtime) + cell.data.mutations) for cell in parentmodule.cells])
+    subclones = Subclone[Subclone()]
+    parentmodule, newmodule, nextID = 
+        SomaticEvolution.sample_new_module_without_replacement!(parentmodule, subclones,  2, 3, 
+            300, 26, [2, 6], [:fixed, :fixedtimedep], rng; timedepmutationsonly=false)
+    @test length(parentmodule) == 3
+    @test length(newmodule) == 3
+    @test nextID == 26+6
+    @test sort!([cell.parent.data.mutations for cell in parentmodule.cells]) == expectedmutations
+    @test sort!([cell.parent.data.mutations for cell in newmodule.cells]) == expectedmutations
+    @test [cell.data.mutations for cell in parentmodule.cells] == [2,2,2]
+    @test [cell.data.mutations for cell in newmodule.cells] == [2,2,2]
 end
 
 @testset "simulate module moran" begin

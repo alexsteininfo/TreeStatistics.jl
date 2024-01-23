@@ -118,7 +118,7 @@ mt3 = SomaticEvolution.CellModule(
     parentmodule = deepcopy(mt1)
     subclones = Subclone[Subclone()]
     parentmodule, newmodule, nextID = SomaticEvolution.sample_new_module_with_replacement!(parentmodule, subclones, 2, 1, 
-        300, 25, [2], [:fixed], rng)
+        300, 25, [2], [:fixed], rng; timedepmutationsonly=false)
     @test length(parentmodule) == 4
     @test length(newmodule) == 1
     @test nextID == 25+4
@@ -129,13 +129,25 @@ end
     subclones = Subclone[Subclone()]
     parentmodule, newmodule, nextID = 
         SomaticEvolution.sample_new_module_without_replacement!(
-            parentmodule, subclones, 2, 2, 300, 25, [2], [:fixed], rng
-        )
+            parentmodule, subclones, 2, 2, 300, 25, [2], [:fixed], rng; timedepmutationsonly=false)
     @test length(parentmodule) == 4
     @test length(newmodule) == 2
     @test length(newmodule.cells) == 2 
     @test newmodule.cells[1] != newmodule.cells[2]
     @test nextID == 25+8
+
+    rng = MersenneTwister(12)
+    parentmodule = deepcopy(mt1)
+    subclones = Subclone[Subclone()]
+    expectedtimedepmutations = sum([round(Int64, 0.01 * (300 - cell.birthtime)) for cell in parentmodule.cells])
+    parentmodule, newmodule, nextID = 
+        SomaticEvolution.sample_new_module_without_replacement!(
+            parentmodule, subclones, 2, 4, 300, 25, [2, 0.01], [:fixed, :fixedtimedep], rng; timedepmutationsonly=true)
+    @test length(parentmodule) == 4
+    @test length(newmodule) == 4
+    @test length(newmodule.cells) == 4 
+    @test newmodule.cells[1] != newmodule.cells[2]
+    @test nextID == 25+expectedtimedepmutations
 end
 
 @testset "module splitting without replacement no mutations" begin
