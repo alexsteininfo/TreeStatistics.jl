@@ -224,9 +224,10 @@ end
 Get the next usable mutation ID (for Cell type) or cell ID (for AbstractTreeCell type).
 """
 getnextID(population::SinglelevelPopulation) = getnextID(population.singlemodule.cells)
-getnextID(population::Population) = maximum(map(x->getnextID(x.cells), population))
+getnextID(population::Union{Population, PopulationWithQuiescence}) = 
+    maximum(map(x->getnextID(x.cells), population))
 
-function getnextID(population::Population{T}) where T <: TreeModule
+function getnextID(population::Union{Population{T}, PopulationWithQuiescence{T}}) where T <: TreeModule
     nextID = 1
     for treemodule in population
         for cellnode in treemodule.cells

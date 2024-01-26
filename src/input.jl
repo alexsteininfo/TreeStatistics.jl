@@ -182,6 +182,53 @@ function BranchingMoranInput(;
 end
 #endregion
 
+
+abstract type AbstractQuiescence end
+abstract type AbstractDeterministicQuiescence <: AbstractQuiescence end
+
+
+struct NoQuiescence <: AbstractDeterministicQuiescence end
+
+"""
+    SeasonalQuiescence <: AbstractDeterministicQuiescence
+
+Defines a type of module quiescence where all homeostatic modules cyclically reduce branch
+and cell division rates during a winter season.
+
+# Keyword arguments:
+- 
+"""
+struct SeasonalQuiescence <: AbstractDeterministicQuiescence
+    branchfactor::Float64
+    divisionfactor::Float64
+    winterduration::Float64
+    summerduration::Float64
+end
+
+function SeasonalQuiescence(;factor=0.5, duration=0.5)
+    SeasonalQuiescence(factor, factor, duration, duration)
+end
+
+"""
+    StochasticQuiescence <: AbstractDeterministicQuiescence
+
+Defines a type of module quiescence where modules randomly move into a quiescent state
+with rate `ratein` and out with rate `rateout`
+
+# Keyword arguments:
+- 
+"""
+struct StochasticQuiescence <: AbstractDeterministicQuiescence
+    branchfactor::Float64
+    divisionfactor::Float64
+    onrate::Float64
+    offrate::Float64
+end
+
+function StochasticQuiescence(;factor=0.5, rate=0.5, onrate=rate, offrate=rate)
+    StochasticQuiescence(factor, factor, onrate, offrate)
+end
+
 #region Multi-level simulation inputs
 abstract type MultilevelInput <: SimulationInput end
 
@@ -223,7 +270,7 @@ modules branch at rate `branchrate`) with no death.
     match `length(μ)`.
 - `ploidy::Int64 = 2`
 """
-struct MultilevelBranchingInput <: MultilevelInput
+struct MultilevelBranchingInput{T<:AbstractQuiescence} <: MultilevelInput
     modulesize::Int64
     maxmodules::Int64
     tmax::Float64
@@ -235,6 +282,7 @@ struct MultilevelBranchingInput <: MultilevelInput
     branchrate::Float64
     branchinitsize::Int64
     modulebranching::Symbol
+    quiescence::T
     clonalmutations::Int64
     μ::Vector{Float64}
     mutationdist::Vector{Symbol}
@@ -253,18 +301,20 @@ function MultilevelBranchingInput(;
     branchrate  = 5.0,
     branchinitsize = 1,
     modulebranching = :split,
+    quiescence::T = NoQuiescence(),
     clonalmutations = 0,
     μ = [1.0],
     mutationdist = fill(:poisson, length(μ)),
     ploidy = 2
-)   
+) where T <: AbstractQuiescence
+
     μ = tovector(μ)
     mutationdist = tovector(mutationdist)
     @assert length(μ) == length(mutationdist) "μ and mutationdist are not same length"
 
-    return MultilevelBranchingInput(
+    return MultilevelBranchingInput{T}(
         modulesize, maxmodules, tmax, moranrate, moranincludeself, asymmetricrate, 
-            birthrate, deathrate, branchrate, branchinitsize, modulebranching,
+            birthrate, deathrate, branchrate, branchinitsize, modulebranching, quiescence,
             clonalmutations, μ, mutationdist, ploidy
     )
 end
@@ -313,7 +363,7 @@ switches to a Moran process. Module level dynamics follows a Moran process at ra
 """
 
 
-struct MultilevelMoranInput <: MultilevelInput
+struct MultilevelMoranInput{T<:AbstractQuiescence} <: MultilevelInput
     modulesize::Int64
     maxmodules::Int64
     tmax::Float64
@@ -325,6 +375,7 @@ struct MultilevelMoranInput <: MultilevelInput
     branchrate::Float64
     branchinitsize::Int64
     modulebranching::Symbol
+    quiescence::T
     clonalmutations::Int64
     μ::Vector{Float64}
     mutationdist::Vector{Symbol}
@@ -343,18 +394,19 @@ function MultilevelMoranInput(;
     branchrate  = 5.0,
     branchinitsize = 1,
     modulebranching = :split,
+    quiescence::T = NoQuiescence(),
     clonalmutations = 0,
     μ = [1.0],
     mutationdist = fill(:poisson, length(μ)),
     ploidy = 2
-)   
+) where T <: AbstractQuiescence
     μ = tovector(μ)
     mutationdist = tovector(mutationdist)
     @assert length(μ) == length(mutationdist) "μ and mutationdist are not same length"
 
-    return MultilevelMoranInput(
+    return MultilevelMoranInput{T}(
         modulesize, maxmodules, tmax, moranrate, moranincludeself, asymmetricrate, 
-            birthrate, deathrate, branchrate, branchinitsize, modulebranching,
+            birthrate, deathrate, branchrate, branchinitsize, modulebranching, quiescence,
             clonalmutations, μ, mutationdist, ploidy
     )
 end
@@ -401,7 +453,7 @@ modules branch at rate `branchrate`) with no death. Once module population reach
     `withoutreplacement_nomutations` (as previous but dividing cells get no new mutations).
 """
 
-struct MultilevelBranchingMoranInput <: MultilevelInput
+struct MultilevelBranchingMoranInput{T<:AbstractQuiescence} <: MultilevelInput
     modulesize::Int64
     maxmodules::Int64
     tmax::Float64
@@ -413,6 +465,7 @@ struct MultilevelBranchingMoranInput <: MultilevelInput
     branchrate::Float64
     branchinitsize::Int64
     modulebranching::Symbol
+    quiescence::T
     clonalmutations::Int64
     μ::Vector{Float64}
     mutationdist::Vector{Symbol}
@@ -431,25 +484,29 @@ function MultilevelBranchingMoranInput(;
     branchrate  = 5.0,
     branchinitsize = 1,
     modulebranching = :split,
+    quiescence::T = NoQuiescence(),
     clonalmutations = 0,
     μ = [1.0],
     mutationdist = fill(:poisson, length(μ)),
     ploidy = 2
-)   
+) where T <: AbstractQuiescence
     μ = tovector(μ)
     mutationdist = tovector(mutationdist)
     @assert length(μ) == length(mutationdist) "μ and mutationdist are not same length"
 
-    return MultilevelBranchingMoranInput(
+    return MultilevelBranchingMoranInput{T}(
         modulesize, maxmodules, tmax, moranrate, moranincludeself, asymmetricrate, 
-            birthrate, deathrate, branchrate, branchinitsize, modulebranching,
+            birthrate, deathrate, branchrate, branchinitsize, modulebranching, quiescence,
             clonalmutations, μ, mutationdist, ploidy
     )
 end
-
-
 #endregion
 
+const MultilevelStochasticQuiescentInput = Union{
+    MultilevelBranchingMoranInput{StochasticQuiescence}, 
+    MultilevelBranchingInput{StochasticQuiescence},
+    MultilevelMoranInput{StochasticQuiescence}
+}
 
 """
     newinput(::Type{InputType}; kwargs) where InputType <: SimulationInput

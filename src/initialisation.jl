@@ -8,7 +8,7 @@ function initialize_population(
     ::Type{S}, 
     input::MultilevelInput;
     rng=Random.GLOBAL_RNG
-) where {T<: AbstractCell, S<: ModuleStructure}
+) where {T <: AbstractCell, S <: ModuleStructure}
 
     N = getNinit(input)
     modulesize = getmaxmodulesize(input)
@@ -23,6 +23,32 @@ function initialize_population(
 
         return Population(
             homeostatic_modules, 
+            growing_modules, 
+            input.birthrate, input.deathrate, input.moranrate, input.asymmetricrate
+        )
+end
+
+function initialize_population(
+    ::Type{T}, 
+    ::Type{S}, 
+    input::MultilevelStochasticQuiescentInput;
+    rng=Random.GLOBAL_RNG
+) where {T <: AbstractCell, S <: ModuleStructure}
+
+    N = getNinit(input)
+    modulesize = getmaxmodulesize(input)
+    Nmodules = getNmodules_init(input)
+    modules = moduletype(T,S)[initialize(T, S, input.clonalmutations, N; rng) for _ in 1:Nmodules]
+    homeostatic_modules, growing_modules = 
+        if N == modulesize
+            modules, moduletype(T,S)[]
+        else
+            moduletype(T,S)[], modules
+        end
+    quiescent_modules = moduletype(T,S)[]
+        return PopulationWithQuiescence(
+            homeostatic_modules, 
+            quiescent_modules,
             growing_modules, 
             input.birthrate, input.deathrate, input.moranrate, input.asymmetricrate
         )

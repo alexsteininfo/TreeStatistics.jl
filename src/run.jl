@@ -219,7 +219,7 @@ getinputrates(input::BranchingInput) = input.birthrate, input.deathrate, 0.0, 0.
 getinputrates(input::MoranInput) = 0.0, 0.0, input.moranrate, 0.0
 getinputrates(input::BranchingMoranInput) = input.birthrate, input.deathrate, input.moranrate, 0.0
 
-initialize_counters(population::Population) = (getnextID(population), length(population) + 1)
+initialize_counters(population::MultilevelPopulation) = (getnextID(population), length(population) + 1)
 initialize_counters(population::SinglelevelPopulation) = getnextID(population)
 
 

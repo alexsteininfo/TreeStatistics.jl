@@ -17,7 +17,7 @@ function processresults!(cellmodule::CellModule, μ, clonalmutations, rng::Abstr
     return cellmodule
 end
 
-function processresults!(population::Population{CellModule{T}}, μ, mutationdist, 
+function processresults!(population::Union{Population{CellModule{T}}, Population{CellModule{T}}}, μ, mutationdist, 
     clonalmutations, rng::AbstractRNG) where T
     
     mutationlist = get_mutationlist(population)
@@ -30,8 +30,13 @@ function processresults!(population::Population{CellModule{T}}, μ, mutationdist
     return population
 end
 
-function final_timedep_mutations!(population::Population{CellModule{T}}, μ, mutationdist, rng;
-    tend=age(population)) where T
+function final_timedep_mutations!(
+    population::Union{Population{CellModule{T}}, PopulationWithQuiescence{CellModule{T}}}, 
+    μ, 
+    mutationdist, 
+    rng;
+    tend=age(population)
+) where T
 
     mutID = maximum(mutid 
         for cellmodule in population 
@@ -67,8 +72,8 @@ function final_timedep_mutations!(cellmodule::CellModule, μ, mutationdist, rng;
     return mutID
 end
 
-function final_timedep_mutations!(population::Population{TreeModule{T, S}}, μ, 
-    mutationdist, rng; tend=age(population)) where {T <: AbstractTreeCell, S}
+function final_timedep_mutations!(population::Union{Population{TreeModule{S, T}}, PopulationWithQuiescence{TreeModule{S, T}}}, μ, 
+    mutationdist, rng; tend=age(population)) where {S, T}
     
     for treemodule in population
         final_timedep_mutations!(treemodule, μ, mutationdist, rng; tend)

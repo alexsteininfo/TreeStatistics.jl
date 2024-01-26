@@ -57,6 +57,8 @@
             modulesize, 
             branchinitsize,
             modulebranching,
+            SomaticEvolution.NoQuiescence(),
+            nothing,
             t,
             nextID, 
             nextmoduleID,
@@ -269,6 +271,80 @@ end
 end
 
 
+@testset "simulate seasonal quiescence" begin
+
+    #check runsimulation function
+    rng = MersenneTwister(12)
+    quiescence=SeasonalQuiescence(factor=0.5, duration=0.5)
+    input = MultilevelBranchingMoranInput(;
+            modulesize=4, 
+            mutationdist=:fixed, 
+            birthrate=100, 
+            deathrate=0.0,
+            moranrate=100, 
+            clonalmutations=0, 
+            tmax=4.3, 
+            maxmodules=5,
+            branchrate=5, 
+            branchinitsize=1, 
+            μ=1,
+            modulebranching=:withoutreplacement_nomutations,
+            quiescence
+    )
+    population = runsimulation(SimpleTreeCell, input, rng)
+    @test sort(moduleid.(population)) == sort(unique(moduleid.(population)))
+    @test length(population) == 5
+    # quiescence=SeasonalQuiescence(factor=0.5, duration=0.5)
+    # seasonalstate = SomaticEvolution.initializeseason(quiescence)
+    # population = Population([mt1], [mt2], 100, 0.0, 100, 20)
+    # branchrate = 5
+    # @test !seasonalstate.winter
+    # @test seasonalstate.nextswitchtime == 0.5
+    # transitionrates = SomaticEvolution.get_neutral_transitionrates(population, branchrate, 4, quiescence, seasonalstate)
+    # @test transitionrates == Float64[400, 80, 300, 0, 5]
+    # t = 0.55
+    # seasonswitch, seasonalstate = SomaticEvolution.switchseasons(t, quiescence, seasonalstate)
+    # @test seasonswitch
+    # @test seasonalstate.winter
+    # @test seasonalstate.nextswitchtime == 1.0
+    # transitionrates = SomaticEvolution.update_neutral_transitionrates!(transitionrates, population, branchrate, 4, quiescence, seasonalstate)
+    # @test transitionrates == Float64[200, 40, 150, 0, 2.5]
+end
+
+
+@testset "simulate stochastic quiescence" begin
+
+    #check runsimulation function
+    rng = MersenneTwister(12)
+    quiescence=StochasticQuiescence(factor=0.4, onrate=2, offrate=4)
+    input = MultilevelBranchingMoranInput(;
+            modulesize=4, 
+            mutationdist=:fixed, 
+            birthrate=100, 
+            deathrate=0.0,
+            moranrate=100, 
+            clonalmutations=0, 
+            tmax=4.3, 
+            maxmodules=5,
+            branchrate=5, 
+            branchinitsize=1, 
+            μ=1,
+            modulebranching=:withoutreplacement_nomutations,
+            quiescence
+        )
+    population = runsimulation(SimpleTreeCell, input, rng).output
+    @test sort(moduleid.(population)) == sort(unique(moduleid.(population)))
+    @test length(population) == 5
+
+    # population = PopulationWithQuiescence([mt1], CellModule{WellMixed}[], [mt2], 100, 0.0, 100, 0.0)
+    # transitionrates = SomaticEvolution.get_neutral_transitionrates(population, 5, 4, quiescence)
+    # @test transitionrates == Float64[400, 0, 0, 0, 300, 0, 5, 0, 2, 0]
+    # SomaticEvolution.quiescenceonupdate!(population, rng) 
+    # @test length(population.homeostatic_modules) == 0
+    # @test length(population.quiescent_modules) == 1
+    # SomaticEvolution.update_neutral_transitionrates!(transitionrates, population, 5, 4, quiescence)
+    # @test transitionrates == Float64[0, 160, 0, 0, 300, 0, 0, 2, 0, 4]
+end
 
 
 

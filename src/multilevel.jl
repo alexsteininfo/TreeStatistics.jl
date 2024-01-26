@@ -13,7 +13,8 @@ function simulate!(population, input::MultilevelInput, ::NeutralSelection, count
     tmax = minimum((input.tmax, tmax))
     nextID, nextmoduleID = counters
     t = isnothing(t0) ? age(population) : t0
-    transitionrates = get_neutral_transitionrates(population, input.branchrate, input.modulesize)
+    seasonalstate = initializeseason(input.quiescence)
+    transitionrates = get_neutral_transitionrates(population, input.branchrate, input.modulesize, input.quiescence, seasonalstate)
     moduleupdate = getmoduleupdate(input)
 
     while t < tmax && (moduleupdate==:moran || length(population) < input.maxmodules)
@@ -25,6 +26,8 @@ function simulate!(population, input::MultilevelInput, ::NeutralSelection, count
                 input.modulesize, 
                 input.branchinitsize, 
                 input.modulebranching, 
+                input.quiescence,
+                seasonalstate,
                 t, 
                 nextID, 
                 nextmoduleID, 
@@ -62,7 +65,7 @@ selects from these transitions with probability proportional to rate. Time is in
 """
 
 function update_population_neutral!(population, transitionrates, branchrate, modulesize, 
-    branchinitsize, modulebranching, t, nextID, nextmoduleID, μ, mutationdist, tmax, 
+    branchinitsize, modulebranching, quiescence, seasonalstate, t, nextID, nextmoduleID, μ, mutationdist, tmax, 
     maxmodules, moranincludeself, rng; moduleupdate=:branching, timefunc=exptime)
 
     t += timefunc(rng, sum(transitionrates))
@@ -71,7 +74,7 @@ function update_population_neutral!(population, transitionrates, branchrate, mod
         #choose transition type: 1=moran, 2=asymmetric, 3=birth, 4=death, 5=branch
         transitionid = sample(
             rng, 
-            1:5, 
+            1:length(transitionrates), 
             ProbabilityWeights(transitionrates ./ sum(transitionrates))
         )
         population, nextID, nextmoduleID = transition!(
@@ -79,7 +82,8 @@ function update_population_neutral!(population, transitionrates, branchrate, mod
             transitionid, 
             modulesize, 
             branchinitsize, 
-            modulebranching, 
+            modulebranching,
+            quiescence,
             t, 
             nextID,
             nextmoduleID,
@@ -90,23 +94,53 @@ function update_population_neutral!(population, transitionrates, branchrate, mod
             rng;
             moduleupdate
         )
-        if transitionid in 3:5
-            update_neutral_transitionrates!(transitionrates, population, branchrate, modulesize)
+        seasonswitch, seasonalstate = switchseasons(t, quiescence, seasonalstate)
+        if transitionupdaterequired(transitionid, quiescence, seasonswitch)
+            update_neutral_transitionrates!(transitionrates, population, branchrate, modulesize, quiescence, seasonalstate)
         end
     end
     return population, transitionrates, t, nextID, nextmoduleID
 end
 
+initializeseason(::Any) = nothing
+initializeseason(quiescence::SeasonalQuiescence) = (winter = false, nextswitchtime = quiescence.summerduration)
+
+switchseasons(t, ::NoQuiescence, ::Any) = (false, nothing)
+switchseasons(t, ::StochasticQuiescence, ::Any) = (false, nothing)
+function switchseasons(t, quiescence::SeasonalQuiescence, seasonalstate)
+    if t > seasonalstate.nextswitchtime
+        seasonalstate = 
+            if seasonalstate.winter
+                (
+                    winter = false, 
+                    nextswitchtime = seasonalstate.nextswitchtime + quiescence.summerduration
+                )
+            else
+                (
+                    winter = true, 
+                    nextswitchtime = seasonalstate.nextswitchtime + quiescence.winterduration
+                )
+            end
+        return (true, seasonalstate)
+    else
+        return (false, seasonalstate)
+    end
+end
+
+transitionupdaterequired(transitionid, ::NoQuiescence, ::Any) = transitionid > 2
+transitionupdaterequired(transitionid, ::SeasonalQuiescence, seasonswitch) = transitionid > 2 || seasonswitch
+transitionupdaterequired(transitionid, ::StochasticQuiescence, ::Any) = transitionid > 4
+
 """
     transition!(population, transitionid, modulesize, branchinitsize, 
-    modulebranching, t, nextID, nextmoduleID, μ, mutationdist, maxmodules, 
+    modulebranching, quiescence, t, nextID, nextmoduleID, μ, mutationdist, maxmodules, 
     moranincludeself, rng; moduleupdate=:branching)
         μ, rng)
     
 Perform a single transition step on `population`, determined by `transitionid`.
 """
 function transition!(population, transitionid, modulesize, branchinitsize, 
-    modulebranching, t, nextID, nextmoduleID, μ, mutationdist, maxmodules, 
+    modulebranching, ::AbstractDeterministicQuiescence, t, nextID, nextmoduleID, μ, mutationdist, maxmodules, 
     moranincludeself, rng; moduleupdate=:branching)
     
     if transitionid == 1
@@ -133,6 +167,54 @@ function transition!(population, transitionid, modulesize, branchinitsize,
     return population, nextID, nextmoduleID
 end
 
+function transition!(population::PopulationWithQuiescence, transitionid, modulesize, branchinitsize, 
+    modulebranching, ::StochasticQuiescence, t, nextID, nextmoduleID, μ, mutationdist, maxmodules, 
+    moranincludeself, rng; moduleupdate=:branching)
+    
+    if transitionid == 1
+        _, nextID = moranupdate!(population, modulesize, t, nextID, μ, mutationdist, rng; moranincludeself)
+    elseif transitionid == 2
+        _, nextID = moranupdate_quiescent!(population, modulesize, t, nextID, μ, mutationdist, rng; moranincludeself)
+    elseif transitionid == 3
+        _, nextID = asymmetricupdate!(population, modulesize, t, nextID, μ, mutationdist, rng)
+    elseif transitionid == 4
+        _, nextID = asymmetricupdate_quiescent!(population, modulesize, t, nextID, μ, mutationdist, rng)
+    elseif transitionid == 5
+        _, nextID = birthupdate!(population, modulesize, t, nextID, μ, mutationdist, rng)
+    elseif transitionid == 6
+        deathupdate!(population, t, μ, mutationdist, rng)
+    elseif transitionid == 7
+        if moduleupdate == :branching || length(population) < maxmodules
+            _, nextmoduleID, nextID = modulebranchingupdate!(
+                population, nextmoduleID, branchinitsize, t, rng; 
+                modulebranching, nextID, μ, mutationdist
+            )
+        elseif moduleupdate == :moran
+            _, nextmoduleID, nextID = modulemoranupdate!(
+                population, nextmoduleID, branchinitsize, t, rng; 
+                modulebranching, nextID, μ, mutationdist
+            )
+        end
+    elseif transitionid == 8
+        if moduleupdate == :branching || length(population) < maxmodules
+            _, nextmoduleID, nextID = modulebranchingupdate_quiescent!(
+                population, nextmoduleID, branchinitsize, t, rng; 
+                modulebranching, nextID, μ, mutationdist
+            )
+        elseif moduleupdate == :moran
+            _, nextmoduleID, nextID = modulemoranupdate_quiescent!(
+                population, nextmoduleID, branchinitsize, t, rng; 
+                modulebranching, nextID, μ, mutationdist
+            )
+        end
+    elseif transitionid == 9
+        quiescenceonupdate!(population, rng)
+    elseif transitionid == 10
+        quiescenceoffupdate!(population, rng)
+    end
+    return population, nextID, nextmoduleID
+end
+
 """
     moranupdate!(population, modulesize, t, nextID, μ, mutationdist, rng; moranincludeself=false)
 
@@ -143,10 +225,25 @@ function moranupdate!(population, modulesize, t, nextID, μ, mutationdist, rng; 
     homeostaticmoduleid, parentcellid, deadcellid = 
         choose_homeostaticmodule_cells(population, rng; moranincludeself, maxmodulesize=modulesize)
     homeostaticmodule = population.homeostatic_modules[homeostaticmoduleid]
-        _, _, nextID = celldivision!(homeostaticmodule, population.subclones, parentcellid, t, nextID, μ, mutationdist, rng)
-    celldeath!(homeostaticmodule, population.subclones, deadcellid, t, μ, mutationdist, rng)
-    updatetime!(homeostaticmodule, t)
+    nextID = _moranupdate!(homeostaticmodule, population.subclones, parentcellid, deadcellid, t, nextID, μ, mutationdist, rng)
+
     return population, nextID
+end
+
+function moranupdate_quiescent!(population, modulesize, t, nextID, μ, mutationdist, rng; moranincludeself=true)
+    quiescentmoduleid, parentcellid, deadcellid = 
+        choose_quiescentmodule_cells(population, rng; moranincludeself, maxmodulesize=modulesize)
+    quiescentmodule = population.quiescent_modules[quiescentmoduleid]
+    nextID = _moranupdate!(quiescentmodule, population.subclones, parentcellid, deadcellid, t, nextID, μ, mutationdist, rng)
+
+    return population, nextID
+end
+
+function _moranupdate!(chosenmodule, subclones, parentcellid, deadcellid, t, nextID, μ, mutationdist, rng)
+    _, _, nextID = celldivision!(chosenmodule, subclones, parentcellid, t, nextID, μ, mutationdist, rng)
+    celldeath!(chosenmodule, subclones, deadcellid, t, μ, mutationdist, rng)
+    updatetime!(chosenmodule, t)
+    return nextID
 end
 
 """
@@ -159,11 +256,23 @@ function asymmetricupdate!(population, modulesize, t, nextID, μ, mutationdist, 
     homeostaticmoduleid, parentcellid =
         choose_homeostaticmodule_cells(population, rng; twocells=false, maxmodulesize=modulesize)
     homeostaticmodule = population.homeostatic_modules[homeostaticmoduleid]
-    _, _, nextID = celldivision!(homeostaticmodule, population.subclones, parentcellid, t, nextID, μ, mutationdist, rng; nchildcells=1)
-    updatetime!(homeostaticmodule, t)
+    nextID = _asymmetricupdate!(homeostaticmodule, population.subclones, parentcellid, t, nextID, μ, mutationdist, rng)
     return population, nextID
 end
 
+function asymmetricupdate_quiescent!(population, modulesize, t, nextID, μ, mutationdist, rng)
+    quiescentmoduleid, parentcellid =
+        choose_quiescentmodule_cells(population, rng; twocells=false, maxmodulesize=modulesize)
+    quiescentmodule = population.quiescent_modules[quiescentmoduleid]
+    nextID = _asymmetricupdate!(quiescentmodule, population.subclones, parentcellid, t, nextID, μ, mutationdist, rng)
+    return population, nextID
+end
+
+function _asymmetricupdate!(chosenmodule, subclones, parentcellid, t, nextID, μ, mutationdist, rng)
+    _, _, nextID = celldivision!(chosenmodule, subclones, parentcellid, t, nextID, μ, mutationdist, rng; nchildcells=1)
+    updatetime!(chosenmodule, t)
+    return nextID
+end
 
 """
     birthupdate!(population, maxmodulesize, t, nextID, μ, mutationdist, rng)
@@ -209,26 +318,68 @@ function modulebranchingupdate!(population, nextmoduleID, branchinitsize, t, rng
     modulebranching=:split, nextID=nothing, μ=nothing, mutationdist=nothing)
     
     parentmoduleid = choose_homeostaticmodule(population, rng)
-    parentmodule = population.homeostatic_modules[parentmoduleid]
+    nextID = 
+        _modulebranchingupdate!(parentmoduleid, population.homeostatic_modules, population, nextmoduleID, 
+            branchinitsize, t, rng, modulebranching, nextID, μ, mutationdist)
+    return population, nextmoduleID + 1, nextID
+end
+
+function modulebranchingupdate_quiescent!(population, nextmoduleID, branchinitsize, t, rng; 
+    modulebranching=:split, nextID=nothing, μ=nothing, mutationdist=nothing)
+    
+    parentmoduleid = choose_quiescentmodule(population, rng)
+    nextID = 
+        _modulebranchingupdate!(parentmoduleid, population.quiescent_modules, population, nextmoduleID, 
+            branchinitsize, t, rng, modulebranching, nextID, μ, mutationdist)
+    return population, nextmoduleID + 1, nextID
+end
+
+function _modulebranchingupdate!(parentmoduleid, modulelist, population, nextmoduleID, branchinitsize, t, rng,
+    modulebranching, nextID, μ, mutationdist)
+
+    parentmodule = modulelist[parentmoduleid]
     parentmodule, newmodule, nextID = 
         newmoduleformation!(parentmodule, population.subclones, nextmoduleID, branchinitsize, t, rng; 
             modulebranching, nextID, μ, mutationdist)
     push!(population.growing_modules, newmodule)
     if modulebranching == :split
-        move_module_to_growing!(population, parentmoduleid)
+        move_module_a_to_b!(modulelist, population.growing_modules, parentmoduleid)
     end
-    return population, nextmoduleID + 1, nextID
+    return nextID
 end
 
 function modulemoranupdate!(population, nextmoduleID, branchinitsize, t, rng; 
     modulebranching=:split, nextID=nothing, μ=nothing, mutationdist=nothing)
 
-    population, = modulebranchingupdate!(population, nextmoduleID, branchinitsize, t, rng; 
+    _, _, nextID = modulebranchingupdate!(population, nextmoduleID, branchinitsize, t, rng; 
         modulebranching, nextID, μ, mutationdist)
     deadmoduleid = choose_any_module(population, rng)
     moduledeath!(population, deadmoduleid, t, μ, mutationdist, rng)
     return population, nextmoduleID + 1, nextID
 end
+
+function modulemoranupdate_quiescent!(population, nextmoduleID, branchinitsize, t, rng; 
+    modulebranching=:split, nextID=nothing, μ=nothing, mutationdist=nothing)
+
+    _, _, nextID = modulebranchingupdate_quiescent!(population, nextmoduleID, branchinitsize, t, rng; 
+        modulebranching, nextID, μ, mutationdist)
+    deadmoduleid = choose_any_module(population, rng)
+    moduledeath!(population, deadmoduleid, t, μ, mutationdist, rng)
+    return population, nextmoduleID + 1, nextID
+end
+
+function quiescenceonupdate!(population, rng)
+    homeostaticmoduleid = choose_homeostaticmodule(population, rng)
+    move_module_a_to_b!(population.homeostatic_modules, population.quiescent_modules, homeostaticmoduleid)
+    return population
+end
+
+function quiescenceoffupdate!(population, rng)
+    quiescentmoduleid = choose_quiescentmodule(population, rng)
+    move_module_a_to_b!(population.quiescent_modules, population.homeostatic_modules, quiescentmoduleid)
+    return population
+end
+
 
 function newmoduleformation!(parentmodule, subclones, nextmoduleID, branchinitsize::Int, t, rng; 
         modulebranching=:split, nextID=nothing, μ=nothing, mutationdist=nothing)
@@ -357,6 +508,15 @@ function choose_homeostaticmodule(population, rng::AbstractRNG)
 end
 
 """
+    choose_quiescentmodule(population, rng::AbstractRNG)
+Select a homeostatic module, i.e. module of size `maxmodulesize`, uniformly at random.
+"""
+function choose_quiescentmodule(population, rng::AbstractRNG)
+    quiescentmoduleid = rand(rng, 1:length(population.quiescent_modules))
+    return quiescentmoduleid
+end
+
+"""
     choose_any_module(population, rng::AbstractRNG)
 Select a module uniformly at random from all modules. Returns `moduleid` and the vector it
 is in (either `growing_modules` or `homeostatic_modules`.)
@@ -385,6 +545,24 @@ function choose_homeostaticmodule_cells(population, rng::AbstractRNG; twocells=t
 end
 
 """
+    choose_quiescentmodule_cells(population, maxmodulesize, rng::AbstractRNG)
+Select a homeostatic module and the ids of two cells from the module, uniformly at random.
+"""
+function choose_quiescentmodule_cells(population, rng::AbstractRNG; twocells=true, 
+    moranincludeself=true, maxmodulesize=length(first(population.quiescent_modules)))
+
+    chosenmoduleid = choose_quiescentmodule(population, rng)
+    dividecellid = rand(rng, 1:maxmodulesize) 
+    deadcellid = 
+        if !twocells
+            nothing
+        else 
+            choose_moran_deadcell(maxmodulesize, dividecellid, moranincludeself, rng)
+        end
+    return chosenmoduleid, dividecellid, deadcellid
+end
+
+"""
     choose_growingmodule_cell(population, rng::AbstractRNG)
 Select a cell uniformly at random from all cells in growing (non-homeostatic) modules, and
 return the module and cell id.
@@ -396,7 +574,7 @@ function choose_growingmodule_cell(population, rng::AbstractRNG)
         1:length(growingmodulesizes), 
         ProbabilityWeights(growingmodulesizes ./ sum(growingmodulesizes))
     )
-    chosencellid = rand(rng, 1:growingmodulesizes[chosenmoduleid])
+    chosencellid = rand(rng, 1:growingmodulesizes[chosenmoduleid])  
     return chosenmoduleid, chosencellid
 end
 
@@ -405,22 +583,78 @@ end
     Compute the rates for moran update, asymmetric update, birth update, death update and
         module branching.
 """
-function get_neutral_transitionrates(population, branchrate, modulesize)
-    rates = zeros(Float64, 5)
-    return update_neutral_transitionrates!(rates, population, branchrate, modulesize)
+function get_neutral_transitionrates(population, branchrate, modulesize, quiescence=NoQuiescence(), seasonalstate=nothing)
+    rates = zeros(Float64, number_neutral_transitions(quiescence))
+    return update_neutral_transitionrates!(rates, population, branchrate, modulesize, quiescence, seasonalstate)
 end
 
-function update_neutral_transitionrates!(rates, population, branchrate, modulesize)
-    birthrate, deathrate, moranrate, asymmetricrate = getwildtyperates(population)
+number_neutral_transitions(::AbstractDeterministicQuiescence) = 5
+number_neutral_transitions(::StochasticQuiescence) = 10
+
+function update_neutral_transitionrates!(rates, population, branchrate, modulesize, 
+    quiescence=NoQuiescence(), seasonalstate=nothing)
+    
+    cellrates = getwildtyperates(population)
+    current_cellrates = getcurrentcellrates(cellrates, quiescence, seasonalstate)
+    current_branchrate = getcurrentbranchrate(branchrate, quiescence, seasonalstate)
     number_homeostatic_modules = length(population.homeostatic_modules)
     number_cells_in_growing_modules = sum(length.(population.growing_modules))
-    rates[1] = number_homeostatic_modules * moranrate * modulesize
-    rates[2] = number_homeostatic_modules * asymmetricrate * modulesize
-    rates[3] = number_cells_in_growing_modules * birthrate
-    rates[4] = number_cells_in_growing_modules * deathrate
-    rates[5] = number_homeostatic_modules * branchrate
+    rates[1] = number_homeostatic_modules * current_cellrates.moranrate * modulesize
+    rates[2] = number_homeostatic_modules * current_cellrates.asymmetricrate * modulesize
+    rates[3] = number_cells_in_growing_modules * current_cellrates.birthrate
+    rates[4] = number_cells_in_growing_modules * current_cellrates.deathrate
+    rates[5] = number_homeostatic_modules * current_branchrate
     return rates
 end
+
+function update_neutral_transitionrates!(rates, population::PopulationWithQuiescence,
+    branchrate, modulesize, quiescence::StochasticQuiescence, ::Any)
+    
+    cellrates = getwildtyperates(population)
+    number_homeostatic_modules = length(population.homeostatic_modules)
+    number_quiescent_modules = length(population.quiescent_modules)
+    number_cells_in_growing_modules = sum(length.(population.growing_modules))
+    rates[1] = number_homeostatic_modules * cellrates.moranrate * modulesize
+    rates[2] = number_quiescent_modules * cellrates.moranrate * quiescence.divisionfactor * modulesize
+    rates[3] = number_homeostatic_modules * cellrates.asymmetricrate * modulesize
+    rates[4] = number_quiescent_modules * cellrates.asymmetricrate * quiescence.divisionfactor * modulesize
+    rates[5] = number_cells_in_growing_modules * cellrates.birthrate
+    rates[6] = number_cells_in_growing_modules * cellrates.deathrate
+    rates[7] = number_homeostatic_modules * branchrate
+    rates[8] = number_quiescent_modules * branchrate * quiescence.branchfactor
+    rates[9] = number_homeostatic_modules * quiescence.onrate
+    rates[10] = number_quiescent_modules * quiescence.offrate
+    return rates
+end
+
+getcurrentbranchrate(branchrate, ::NoQuiescence, ::Any) = branchrate
+
+function getcurrentbranchrate(branchrate, quiescence::SeasonalQuiescence, seasonalstate)
+    if seasonalstate.winter
+        return branchrate * quiescence.branchfactor 
+    else 
+        return branchrate 
+    end
+end
+
+getcurrentcellrates(cellrates, ::NoQuiescence, ::Any) = cellrates
+
+function getcurrentcellrates(cellrates, quiescence::SeasonalQuiescence, seasonalstate)
+    if seasonalstate.winter
+        return (
+            birthrate = cellrates.birthrate * quiescence.divisionfactor,
+            deathrate = cellrates.deathrate * quiescence.divisionfactor,
+            moranrate = cellrates.moranrate * quiescence.divisionfactor,
+            asymmetricrate = cellrates.asymmetricrate * quiescence.divisionfactor
+        )    
+    else 
+        return cellrates
+    end
+end
+
+# function addquiescencerates!(rates, quiescence::StochasticQuiescence)
+
+# end
 
 """
     moduledeath!(population, cellmodule)
@@ -441,7 +675,7 @@ function moduledeath!(population, dyingmoduleid; moduletype=:all)
     return population
 end
 
-function removemodule!(population, dyingmoduleid; moduletype=:all)
+function removemodule!(population::Population, dyingmoduleid; moduletype=:all)
     if moduletype == :homeostatic 
         dyingmodule = population.homeostatic_modules[dyingmoduleid]
         deleteat!(population.homeostatic_modules, dyingmoduleid)
@@ -465,16 +699,56 @@ function removemodule!(population, dyingmoduleid; moduletype=:all)
     end
 end
 
+
+function removemodule!(population::PopulationWithQuiescence, dyingmoduleid; moduletype=:all)
+    if moduletype == :homeostatic 
+        dyingmodule = population.homeostatic_modules[dyingmoduleid]
+        deleteat!(population.homeostatic_modules, dyingmoduleid)
+        return population, dyingmodule
+    elseif moduletype == :quiescent
+        dyingmodule = population.quiescent_modules[dyingmoduleid]
+        deleteat!(population.quiescent_modules, dyingmoduleid)
+        return population, dyingmodule
+    elseif moduletype == :growing
+        dyingmodule = population.growing_modules[dyingmoduleid]
+        deleteat!(population.growing_modules, dyingmoduleid)
+        return population, dyingmodule
+    elseif moduletype == :all
+        Nhom = length(population.homeostatic_modules)
+        Nqui = length(population.quiescent_modules)
+        if dyingmoduleid <= Nhom
+            dyingmodule = population.homeostatic_modules[dyingmoduleid]
+            deleteat!(population.homeostatic_modules, dyingmoduleid)
+            return population, dyingmodule
+        elseif dyingmoduleid <= Nqui + Nhom
+            dyingmodule = population.quiescent_modules[dyingmoduleid - Nhom]
+            deleteat!(population.quiescent_modules, dyingmoduleid - Nhom)
+            return population, dyingmodule
+        else
+            dyingmodule = population.growing_modules[dyingmoduleid - Nhom - Nqui]
+            deleteat!(population.growing_modules, dyingmoduleid - Nhom - Nqui)
+            return population, dyingmodule
+        end
+    else error("$moduletype not an allowed `moduletype` option")
+    end
+end
+
 function move_module_to_homeostasis!(population, cellmoduleid::Integer)
-    cellmodule = popat!(population.growing_modules, cellmoduleid)
-    push!(population.homeostatic_modules, cellmodule)
-    return population
+    return move_module_a_to_b!(
+        population.growing_modules, population.homeostatic_modules, cellmoduleid
+    )
 end
 
 function move_module_to_growing!(population, cellmoduleid::Integer)
-    cellmodule = popat!(population.homeostatic_modules, cellmoduleid)
-    push!(population.growing_modules, cellmodule)
-    return population
+    return move_module_a_to_b!(
+        population.homeostatic_modules, population.growing_modules, cellmoduleid
+    )
+end
+
+function move_module_a_to_b!(modules_a, modules_b, cellmoduleid::Integer)
+    cellmodule = popat!(modules_a, cellmoduleid)
+    push!(modules_b, cellmodule)
+    return modules_a, modules_b
 end
 
 killallcells!(population::CellVector, args...) = nothing

@@ -1,7 +1,15 @@
 abstract type AbstractPopulation end
+abstract type MultilevelPopulation <: AbstractPopulation end 
 
-struct Population{T<:AbstractModule} <: AbstractPopulation
+struct Population{T<:AbstractModule} <: MultilevelPopulation
     homeostatic_modules::Vector{T}
+    growing_modules::Vector{T}
+    subclones::Vector{Subclone}
+end
+
+struct PopulationWithQuiescence{T<:AbstractModule} <: MultilevelPopulation
+    homeostatic_modules::Vector{T}
+    quiescent_modules::Vector{T}
     growing_modules::Vector{T}
     subclones::Vector{Subclone}
 end
@@ -11,10 +19,19 @@ struct SinglelevelPopulation{T<:AbstractModule} <: AbstractPopulation
     subclones::Vector{Subclone}
 end
 
+Base.size(population::SinglelevelPopulation) = (length(population),)
+Base.size(population::Population) = (length(population.homeostatic_modules), length(population.growing_modules))
+Base.size(population::PopulationWithQuiescence) = 
+    (length(population.homeostatic_modules), length(population.quiescent_modules), length(population.growing_modules))
+
+
 Base.length(population::SinglelevelPopulation) = length(population.singlemodule)
 Base.length(population::Population) = length(population.homeostatic_modules) + length(population.growing_modules)
+Base.length(population::PopulationWithQuiescence) = length(population.homeostatic_modules) + length(population.quiescent_modules) + length(population.growing_modules)
 Base.iterate(population::Population) = iterate(Base.Iterators.flatten((population.homeostatic_modules, population.growing_modules)))
 Base.iterate(population::Population, state) = iterate(Base.Iterators.flatten((population.homeostatic_modules, population.growing_modules)), state)
+Base.iterate(population::PopulationWithQuiescence) = iterate(Base.Iterators.flatten((population.homeostatic_modules, population.quiescent_modules, population.growing_modules)))
+Base.iterate(population::PopulationWithQuiescence, state) = iterate(Base.Iterators.flatten((population.homeostatic_modules, population.quiescent_modules, population.growing_modules)), state)
 
 function Base.getindex(population::Population, i)
     Nhom = length(population.homeostatic_modules)
@@ -25,7 +42,20 @@ function Base.getindex(population::Population, i)
     end
 end
 
+function Base.getindex(population::PopulationWithQuiescence, i)
+    Nhom = length(population.homeostatic_modules)
+    Nqui = length(population.quiescent_modules)
+    if i <= Nhom 
+        return Base.getindex(population.homeostatic_modules, i)
+    elseif i <= Nhom + Nqui
+        return Base.getindex(population.quiescent_modules, i - Nhom)
+    else
+        return Base.getindex(population.growing_modules, i - Nhom - Nqui)
+    end
+end
+
 Base.getindex(population::Population, a::Vector{Int64}) = map(i -> getindex(population, i), a)
+Base.getindex(population::PopulationWithQuiescence, a::Vector{Int64}) = map(i -> getindex(population, i), a)
 
 function Base.setindex(population::Population, v, i)
     Nhom = length(population.homeostatic_modules)
@@ -36,9 +66,31 @@ function Base.setindex(population::Population, v, i)
     end
 end
 
+function Base.setindex(population::PopulationWithQuiescence, v, i)
+    Nhom = length(population.homeostatic_modules)
+    Nqui = length(population.quiescent_modules)
+    if i <= Nhom 
+        return Base.setindex(population.homeostatic_modules, v, i)
+    elseif i <= Nhom + Nqui
+        return Base.setindex(population.quiescent_modules, v, i - Nhom)
+    else
+        return Base.setindex(population.growing_modules, v, i - Nhom - Nqui)
+    end
+end
+
 function Base.firstindex(population::Population)
     if length(population.homeostatic_modules) != 0 
         return firstindex(population.homeostatic_modules)
+    else
+        return firstindex(population.growing_modules)
+    end
+end
+
+function Base.firstindex(population::PopulationWithQuiescence)
+    if length(population.homeostatic_modules) != 0 
+        return firstindex(population.homeostatic_modules)
+    elseif length(population.quiescent_modules) != 0 
+        return firstindex(population.quiescent_modules)
     else
         return firstindex(population.growing_modules)
     end
@@ -52,9 +104,37 @@ function Base.lastindex(population::Population)
     end
 end
 
+function Base.lastindex(population::PopulationWithQuiescence)
+    if length(population.growing_modules) != 0 
+        return lastindex(population.growing_modules)
+    elseif length(population.quiescent_modules) != 0 
+        return lastindex(population.quiescent_modules)
+    else
+        return lastindex(population.homeostatic_modules)
+    end
+end
+
 function Population(homeostatic_modules::Vector{T}, growing_modules::Vector{T}, birthrate, deathrate, moranrate, asymmetricrate) where T
     return Population{T}(
         homeostatic_modules, 
+        growing_modules,
+    Subclone[Subclone(
+        1,
+        0,
+        0.0,
+        sum(length.(homeostatic_modules)) + sum(length.(growing_modules)),
+        birthrate,
+        deathrate,
+        moranrate,
+        asymmetricrate
+    )]
+    )
+end
+
+function PopulationWithQuiescence(homeostatic_modules::Vector{T}, quiescent_modules::Vector{T}, growing_modules::Vector{T}, birthrate, deathrate, moranrate, asymmetricrate) where T
+    return PopulationWithQuiescence{T}(
+        homeostatic_modules, 
+        quiescent_modules,
         growing_modules,
     Subclone[Subclone(
         1,
@@ -105,6 +185,14 @@ function Base.show(io::IO, population::Population{T}) where T
     Base.show(io, Population{T})
     @printf(io, ": \n    %d growing modules", length(population.growing_modules))
     @printf(io, "\n    %d homeostatic modules", length(population.homeostatic_modules))
+    @printf(io, "\n    %d subclones", length(filter(x -> x.size > 0, population.subclones)))
+end
+
+function Base.show(io::IO, population::PopulationWithQuiescence{T}) where T
+    Base.show(io, Population{T})
+    @printf(io, ": \n    %d growing modules", length(population.growing_modules))
+    @printf(io, "\n    %d homeostatic modules", length(population.homeostatic_modules))
+    @printf(io, "\n    %d quiescent modules", length(population.quiescent_modules))
     @printf(io, "\n    %d subclones", length(filter(x -> x.size > 0, population.subclones)))
 end
 

@@ -293,7 +293,7 @@ function no_mutations(cell)
 end
 
 age(abstractmodule::AbstractModule) = abstractmodule.t
-age(population::Population) = maximum(map(age, population))
+age(population::MultilevelPopulation) = maximum(map(age, population))
 age(population::SinglelevelPopulation) = age(population.singlemodule)
 age(simulation::Simulation) = age(simulation.output)
 age(multisim::MultiSimulation) = maximum(age(output) for output in multisim.output)

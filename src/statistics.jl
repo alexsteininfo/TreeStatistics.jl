@@ -121,7 +121,7 @@ function clonal_mutations(simulation::Simulation)
     return clonal_mutations(simulation.output)
 end
 
-function clonal_mutations(population::Population)
+function clonal_mutations(population::MultilevelPopulation)
     return map(clonal_mutations, population)
 end
 
@@ -184,7 +184,7 @@ function pairwise_fixed_differences(simulation::Simulation, idx=nothing)
     return pairwise_fixed_differences(simulation.output, idx)
 end
 
-function pairwise_fixed_differences(population::Population{T}, idx=nothing) where T <: CellModule
+function pairwise_fixed_differences(population::Union{Population{T}, PopulationWithQuiescence{T}}, idx=nothing) where T <: CellModule
     clonalmutids = clonal_mutation_ids(population, idx)
     return pairwise_fixed_differences(clonalmutids)
 end
@@ -200,12 +200,12 @@ function pairwise_fixed_differences(muts::Vector{Vector{T}}) where T <: Integer
     return countmap(pfd_vec)
 end
 
-function pairwise_fixed_differences(population::Population{T}, idx=nothing) where T <: TreeModule
+function pairwise_fixed_differences(population::Union{Population{T}, PopulationWithQuiescence{T}}, idx=nothing) where T <: TreeModule
     pfdvec = _pairwise_fixed_differences(population, idx)
     return countmap(pfdvec)
 end
 
-function _pairwise_fixed_differences(population::Population{T}, idx=nothing) where T <: TreeModule
+function _pairwise_fixed_differences(population::Union{Population{T}, PopulationWithQuiescence{T}}, idx=nothing) where T <: TreeModule
 
     pfd_vec = Int64[]
     MRCA_vec = isnothing(idx) ? map(findMRCA, population) : map(findMRCA, population[idx])
@@ -232,17 +232,17 @@ function pairwise_fixed_differences_clonal(simulation::Simulation, idx=nothing)
     return pairwise_fixed_differences_clonal(simulation.output, idx)
 end
 
-function pairwise_fixed_differences_clonal(population::Population{T}, idx=nothing) where T <: CellModule
+function pairwise_fixed_differences_clonal(population::Union{Population{T}, PopulationWithQuiescence{T}}, idx=nothing) where T <: CellModule
     clonalmutids = clonal_mutation_ids(population, idx)
     return pairwise_fixed_differences(clonalmutids), countmap(map(length, clonalmutids))
 end
 
-function pairwise_fixed_differences_clonal(population::Population{T}, idx=nothing) where T <: TreeModule
+function pairwise_fixed_differences_clonal(population::Union{Population{T}, PopulationWithQuiescence{T}}, idx=nothing) where T <: TreeModule
     pfdvec, clonalmutsvec = _pairwise_fixed_differences_clonal(population, idx)
     return countmap(pfdvec), countmap(clonalmutsvec)
 end
 
-function _pairwise_fixed_differences_clonal(population::Population{T}, idx=nothing) where T <: TreeModule
+function _pairwise_fixed_differences_clonal(population::Union{Population{T}, PopulationWithQuiescence{T}}, idx=nothing) where T <: TreeModule
 
     pfd_vec = Int64[]
     MRCA_vec = isnothing(idx) ? map(findMRCA, population) : map(findMRCA, population[idx])
@@ -340,7 +340,7 @@ function pairwise_fixed_differences_matrix(simulation::Simulation, idx=nothing; 
     return pairwise_fixed_differences_matrix(simulation.output, idx; diagonals)
 end
 
-function pairwise_fixed_differences_matrix(population::Population{T}, idx=nothing; diagonals=false) where T<:CellModule
+function pairwise_fixed_differences_matrix(population::Union{Population{T}, PopulationWithQuiescence{T}}, idx=nothing; diagonals=false) where T<:CellModule
     clonalmuts = clonal_mutation_ids(population, idx)
     return pairwise_fixed_differences_matrix(clonalmuts; diagonals)
 end
@@ -362,7 +362,7 @@ function pairwise_fixed_differences_matrix(muts::Vector{Vector{T}}; diagonals=fa
     return pfd
 end
 
-function pairwise_fixed_differences_matrix(population::Population{T}, idx=nothing) where T <: TreeModule
+function pairwise_fixed_differences_matrix(population::Union{Population{T}, PopulationWithQuiescence{T}}, idx=nothing) where T <: TreeModule
     MRCA_vec = isnothing(idx) ? map(findMRCA, population) : map(findMRCA, population[idx])
     n = length(MRCA_vec)
     pfd = zeros(Int64, n, n)
