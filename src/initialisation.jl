@@ -114,6 +114,7 @@ function newcell(::Type{Cell}, id, mutations)
         collect(1:mutations), 
         1,  #clonetype (wild-type)
         0,  #birthtime
+        0,  #latest update time
         id, #unique cell id
         0   #parent id
     )

@@ -128,7 +128,7 @@ end
 #                                       | -- 23
 
 #region Define tree structured population
-cells = [SimpleTreeCell(i, i*0.1, i, 1) for i in 1:30]
+cells = [SimpleTreeCell(i, i*0.1, i*0.1, i, 1) for i in 1:30]
 root = BinaryNode(cells[1])
 leftchild!(root, cells[2])
 leftchild!(root.left, cells[3])

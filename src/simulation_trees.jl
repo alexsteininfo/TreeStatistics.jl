@@ -18,7 +18,7 @@ function killcell!(alivecells::TreeCellVector, deadcellidx::Integer, t, μ, muta
         end
     end
     #add leftchild node containing a dead cell
-    leftchild!(deadcellnode, TreeCell(deadcellnode.data.id, false, t, 0, deadcellnode.data.clonetype))
+    leftchild!(deadcellnode, TreeCell(deadcellnode.data.id, false, t, t, 0, deadcellnode.data.clonetype))
 end
 
 """

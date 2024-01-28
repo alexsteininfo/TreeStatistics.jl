@@ -35,23 +35,25 @@ function final_timedep_mutations!(
     μ, 
     mutationdist, 
     rng;
-    tend=age(population)
+    tend=age(population),
+    mutID=nothing
 ) where T
 
-    mutID = maximum(mutid 
-        for cellmodule in population 
-            for cell in cellmodule.cells
-                for mutid in cell.mutations
-    )
-
+    if isnothing(mutID)
+        mutID = maximum(mutid 
+            for cellmodule in population 
+                for cell in cellmodule.cells
+                    for mutid in cell.mutations
+        )
+    end
     for cellmodule in population
         mutID = final_timedep_mutations!(cellmodule, μ, mutationdist, rng; mutID, tend)
     end
 end
 
 function final_timedep_mutations!(population::SinglelevelPopulation, μ, mutationdist, rng; 
-    tend = age(population))
-    final_timedep_mutations!(population.singlemodule, μ, mutationdist, rng; tend)
+    tend = age(population), mutID=nothing)
+    final_timedep_mutations!(population.singlemodule, μ, mutationdist, rng; tend, mutID)
 end
 
 function final_timedep_mutations!(cellmodule::CellModule, μ, mutationdist, rng; 
@@ -63,9 +65,10 @@ function final_timedep_mutations!(cellmodule::CellModule, μ, mutationdist, rng;
     for (μ0, mutationdist0) in zip(μ, mutationdist)
         if mutationdist0 ∈ (:poissontimedep, :fixedtimedep)
             for cell in cellmodule.cells
-                Δt = tend - cell.birthtime
+                Δt = tend - cell.latestupdatetime
                 numbermutations = numbernewmutations(rng, mutationdist0, μ0, Δt=Δt)
                 mutID = addnewmutations!(cell, numbermutations, mutID)
+                cell.latestupdatetime = tend
             end
         end
     end
@@ -73,7 +76,7 @@ function final_timedep_mutations!(cellmodule::CellModule, μ, mutationdist, rng;
 end
 
 function final_timedep_mutations!(population::Union{Population{TreeModule{S, T}}, PopulationWithQuiescence{TreeModule{S, T}}}, μ, 
-    mutationdist, rng; tend=age(population)) where {S, T}
+    mutationdist, rng; tend=age(population), mutID=nothing) where {S, T}
     
     for treemodule in population
         final_timedep_mutations!(treemodule, μ, mutationdist, rng; tend)
@@ -84,8 +87,10 @@ function final_timedep_mutations!(treemodule::TreeModule, μ, mutationdist, rng;
     for (μ0, mutationdist0) in zip(μ, mutationdist)
         if mutationdist0 ∈ (:poissontimedep, :fixedtimedep)
             for cell in treemodule.cells
-                Δt = tend - cell.data.birthtime
+                Δt = tend - cell.data.latestupdatetime
                 cell.data.mutations += numbernewmutations(rng, mutationdist0, μ0, Δt=Δt)
+                cell.data.latestupdatetime = tend
+
             end
         end
     end

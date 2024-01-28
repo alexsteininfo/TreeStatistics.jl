@@ -38,6 +38,8 @@ function simulate!(population::SinglelevelPopulation, input::BranchingMoranInput
         t0,
         moranincludeself=input.moranincludeself
     )
+    #add final time-dependent mutations
+    final_timedep_mutations!(population, input.μ, input.mutationdist, rng; tend=input.tmax)
 
     return population, nextID
 end
@@ -58,6 +60,8 @@ function simulate!(population::SinglelevelPopulation, input::BranchingInput,
         timefunc,
         t0
     )
+    #add final time-dependent mutations
+    final_timedep_mutations!(population, input.μ, input.mutationdist, rng; tend=input.tmax)
     
     return population, nextID
 end
@@ -78,7 +82,8 @@ function simulate!(population::SinglelevelPopulation, input::MoranInput,
         t0,
         moranincludeself=input.moranincludeself
     )
-
+    #add final time-dependent mutations
+    final_timedep_mutations!(population, input.μ, input.mutationdist, rng; tend=input.tmax)
     return population, nextID
 end
 

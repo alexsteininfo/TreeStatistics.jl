@@ -25,8 +25,8 @@ end
 
 @testset "module sampling" begin
         cells = Cell[]
-        push!(cells, Cell([1,2,3,4], 1, 0.2, 1, 0))
-        push!(cells, Cell([1,2,3], 1, 0.2, 2, 1))
+        push!(cells, Cell([1,2,3,4], 1, 0.2, 0.2, 1, 0))
+        push!(cells, Cell([1,2,3], 1, 0.2, 0.2, 2, 1))
         id = 1
         parentid = 0
         inittime = 5

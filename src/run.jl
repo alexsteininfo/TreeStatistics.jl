@@ -70,8 +70,6 @@ function runsimulation(
         input = input_original
         population = processresults!(population, input.μ, input.clonalmutations, rng)
     end
-    #if mutation accumulation is time dependent, add the final mutations.
-    final_timedep_mutations!(population, input.μ, input.mutationdist, rng; tend=input.tmax)
     return Simulation(input, population)
 end
 
@@ -151,9 +149,6 @@ function runsimulation_timeseries_returnfinalpop(
             data = []
         end
     end
-
-    #if mutation accumulation is time dependent, add the final mutations.
-    final_timedep_mutations!(population, input.μ, input.mutationdist, rng)
     return data, population
 end
 

@@ -16,7 +16,6 @@ function simulate!(population, input::MultilevelInput, ::NeutralSelection, count
     seasonalstate = initializeseason(input.quiescence)
     transitionrates = get_neutral_transitionrates(population, input.branchrate, input.modulesize, input.quiescence, seasonalstate)
     moduleupdate = getmoduleupdate(input)
-
     while t < tmax && (moduleupdate==:moran || length(population) < input.maxmodules)
         population, transitionrates, t, nextID, nextmoduleID = 
             update_population_neutral!(
@@ -45,6 +44,8 @@ function simulate!(population, input::MultilevelInput, ::NeutralSelection, count
             return population, nextID, nextmoduleID
         end
     end
+    #add final time-dependent mutations
+    final_timedep_mutations!(population, input.μ, input.mutationdist, rng; tend=tmax, mutID=nextID)
     return population, nextID, nextmoduleID
 end
 

@@ -90,8 +90,9 @@ function celldivision!(treemodule::TreeModule{T, S}, subclones, parentcellid, t,
     childcellmuts = zeros(Int64, nchildcells)
     for (μ0, mutationdist0) in zip(μ, mutationdist)
         if mutationdist0 == :fixedtimedep || mutationdist0 == :poissontimedep    
-            Δt = t - parentcellnode.data.birthtime
+            Δt = t - parentcellnode.data.latestupdatetime
             parentcellnode.data.mutations += numbernewmutations(rng, mutationdist0, μ0, Δt=Δt)
+            parentcellnode.data.latestupdatetime = t
         elseif !timedepmutationsonly
             for i in 1:nchildcells
                 childcellmuts[i] += numbernewmutations(rng, mutationdist0, μ0)
@@ -125,7 +126,6 @@ end
 
 function celldivision!(cellmodule::CellModule, subclones, parentcellid, t, mutID, μ, 
     mutationdist, rng; nchildcells=2, timedepmutationsonly=false)
-    
     cellmodule, subclones, Δt = add_new_cells!(cellmodule, subclones, parentcellid, t, nchildcells)
     #add new mutations to both new cells
     if sum(μ) > 0.0 
@@ -142,8 +142,10 @@ function celldivision!(cellmodule::CellModule, subclones, parentcellid, t, mutID
 end
 
 function add_new_cells!(cellmodule::CellModule, subclones, parentcellid, t, nchildcells)
-    Δt = t - cellmodule.cells[parentcellid].birthtime
+    Δt = t - cellmodule.cells[parentcellid].latestupdatetime
     cellmodule.cells[parentcellid].birthtime = t
+    cellmodule.cells[parentcellid].latestupdatetime = t
+
     if nchildcells == 2
         push!(cellmodule.cells, deepcopy(cellmodule.cells[parentcellid]))
         cellmodule.cells[end].id = cellmodule.cells[end-1].id + 1
