@@ -83,7 +83,7 @@ function final_timedep_mutations!(population::Union{Population{TreeModule{S, T}}
     end
 end
 
-function final_timedep_mutations!(treemodule::TreeModule, μ, mutationdist, rng; tend=age(treemodule))
+function final_timedep_mutations!(treemodule::TreeModule, μ, mutationdist, rng; tend=age(treemodule), mutID=nothing)
     for (μ0, mutationdist0) in zip(μ, mutationdist)
         if mutationdist0 ∈ (:poissontimedep, :fixedtimedep)
             for cell in treemodule.cells
