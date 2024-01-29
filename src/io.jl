@@ -1,6 +1,10 @@
-typedict(x) = Dict(fn=>getfield(x, fn) for fn in fieldnames(typeof(x)))
+typedict(x) = Dict{Symbol, Any}(fn=>fieldtosave(getfield(x, fn)) for fn in fieldnames(typeof(x)))
 
 inputdict(x) = push!(typedict(x), :type => string(typeof(x)))
+
+fieldtosave(x) = x
+fieldtosave(quiescence::AbstractQuiescence) = inputdict(quiescence)
+
 
 function saveinput(input, filename)
     filename = filename[end-4:end] == ".json" ? filename : filename * ".json"
@@ -10,32 +14,34 @@ function saveinput(input, filename)
     end
 end
 
-function loadinput(::Type{T}, filename) where T
-    inputdict = JSON.parsefile(filename, dicttype=Dict{Symbol, Any})
-    loadinput(T, inputdict::Dict)
-end
+# function loadinput(::Type{T}, filename) where T
+#     inputdict = JSON.parsefile(filename, dicttype=Dict{Symbol, Any})
+#     loadinput(T, inputdict::Dict)
+# end
 
-function loadinput(filename)
-    inputdict = JSON.parsefile(filename, dicttype=Dict{Symbol, Any})
-    loadinput(inputdict::Dict)
-end
+# function loadinput(filename)
+#     inputdict = JSON.parsefile(filename, dicttype=Dict{Symbol, Any})
+#     loadinput(inputdict::Dict)
+# end
 
-function loadinput(inputdict::Dict)
-    T = eval(Symbol(pop!(inputdict, :type)))
-    return loadinput(T, inputdict)
-end
+# function loadinput(inputdict::Dict)
+#     T = eval(Symbol(pop!(inputdict, :type)))
+#     return loadinput(T, inputdict)
+# end
 
-function loadinput(::Type{T}, inputdict::Dict) where T
-    if isnothing(inputdict[:tmax]) 
-        inputdict[:tmax] = Inf
-    end
-    for (key, value) in pairs(inputdict)
-        if typeof(value) == String
-            inputdict[key] = Symbol(value)
-        end
-    end
-    return T(;inputdict...)
-end
+# function loadinput(::Type{T}, inputdict::Dict) where T
+#     if isnothing(inputdict[:tmax]) 
+#         inputdict[:tmax] = Inf
+#     end
+#     for (key, value) in pairs(inputdict)
+#         if key == :quiescence
+#             eval(pop!(value, :type))(; value...)
+#         elseif typeof(value) == String
+#             inputdict[key] = Symbol(value)
+#         end
+#     end
+#     return T(;inputdict...)
+# end
 
 
 function saveoutput(population, output, outputdir, seed, id, rng::AbstractRNG=Random.GLOBAL_RNG)
