@@ -10,7 +10,7 @@ struct Simulation{S<:SimulationInput, T<:AbstractPopulation} <: SimulationResult
     output::T
 end
 
-const MultiSimulation = Simulation{S, T} where {S<:MultilevelInput, T<:Population}
+const MultiSimulation = Simulation{S, T} where {S<:MultilevelInput, T<:Union{Population, PopulationWithQuiescence}}
 
 Base.length(multisim::MultiSimulation) = length(multisim.output)
 Base.iterate(multisim::MultiSimulation) = iterate(multisim.output)

@@ -149,7 +149,7 @@ function runsimulation_timeseries_returnfinalpop(
             data = []
         end
     end
-    return data, population
+    return data, Simulation(input, population)
 end
 
 
@@ -209,6 +209,39 @@ function runsimulation_timeseries(
 return runsimulation_timeseries_returnfinalpop(T, S, input, selection, timesteps, func, rng; 
     timefunc, returnextinct)[1] 
 end
+
+function runsimulation_condfixtime(input::MultilevelInput, rng; timefunc=exptime, returnextinct=false)
+    return runsimulation_condfixtime(Cell, WellMixed, input, NeutralSelection(), rng; timefunc, returnextinct) 
+end
+
+
+function runsimulation_condfixtime(
+    ::Type{Cell}, 
+    ::Type{S}, 
+    input::MultilevelInput, 
+    selection::NeutralSelection, 
+    rng::AbstractRNG=Random.GLOBAL_RNG;
+    timefunc=exptime, 
+    returnextinct=false
+) where S <: ModuleStructure
+
+    #if the population dies out we start a new simulation
+    population = initialize_population(Cell, S, input; rng)
+    condfixtimes = (homeostatic=Vector{Float64}[[]], growing=Vector{Float64}[[]])
+    while true 
+        counters = initialize_counters(population)
+        population, condfixtimes = simulate_condfixtime!(population, input, selection, counters, rng; timefunc)
+        if length(population) != 0 || returnextinct
+            break
+        else
+            population = initialize_population(T, S, input; rng)
+        end
+    end
+    if length(population) != 0
+        return condfixtimes, Simulation(input, population)
+    end
+end
+
 
 getinputrates(input::BranchingInput) = input.birthrate, input.deathrate, 0.0, 0.0
 getinputrates(input::MoranInput) = 0.0, 0.0, input.moranrate, 0.0

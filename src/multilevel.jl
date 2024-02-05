@@ -143,7 +143,6 @@ Perform a single transition step on `population`, determined by `transitionid`.
 function transition!(population, transitionid, modulesize, branchinitsize, 
     modulebranching, ::AbstractDeterministicQuiescence, t, nextID, nextmoduleID, μ, mutationdist, maxmodules, 
     moranincludeself, rng; moduleupdate=:branching)
-    
     if transitionid == 1
         _, nextID = moranupdate!(population, modulesize, t, nextID, μ, mutationdist, rng; moranincludeself)
     elseif transitionid == 2
@@ -610,7 +609,6 @@ end
 
 function update_neutral_transitionrates!(rates, population::PopulationWithQuiescence,
     branchrate, modulesize, quiescence::StochasticQuiescence, ::Any)
-    
     cellrates = getwildtyperates(population)
     number_homeostatic_modules = length(population.homeostatic_modules)
     number_quiescent_modules = length(population.quiescent_modules)

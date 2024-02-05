@@ -88,8 +88,8 @@ end
 calculate the mean number of mutations in whole population (and variance if variance is true)
 """
 function average_mutations(population, variance=false)
-    mutations = (length(cell.mutations) 
-        for cellmodule in population for cell in cellmodule.cells)
+    mutations = (m
+        for cellmodule in population for m in average_mutations(cellmodule))
     if variance
         return mean(mutations), var(mutations)
     else

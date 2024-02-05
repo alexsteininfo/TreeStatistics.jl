@@ -195,8 +195,11 @@ struct NoQuiescence <: AbstractDeterministicQuiescence end
 Defines a type of module quiescence where all homeostatic modules cyclically reduce branch
 and cell division rates during a winter season.
 
-# Keyword arguments:
-- 
+# Fields:
+- `branchfactor::Float64`
+- `divisionfactor::Float64`
+- `winterduration::Float64`
+- `summerduration::Float64`
 """
 struct SeasonalQuiescence <: AbstractDeterministicQuiescence
     branchfactor::Float64
@@ -215,8 +218,11 @@ end
 Defines a type of module quiescence where modules randomly move into a quiescent state
 with rate `ratein` and out with rate `rateout`
 
-# Keyword arguments:
-- 
+# Fields:
+- `branchfactor::Float64`
+- `divisionfactor::Float64`
+- `onrate::Float64`
+- `offrate::Float64`
 """
 struct StochasticQuiescence <: AbstractDeterministicQuiescence
     branchfactor::Float64

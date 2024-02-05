@@ -359,4 +359,7 @@ end
     @test length(population.quiescent_modules) == 1
     SomaticEvolution.update_neutral_transitionrates!(transitionrates, population, 5, 4, quiescence)
     @test transitionrates == Float64[0, 160, 0, 0, 300, 0, 0, 2, 0, 4]
+    SomaticEvolution.transition!(population, 10, 4, 1, :split, quiescence, 300, 1, 1, input.μ, input.mutationdist, input.maxmodules, 
+        input.moranincludeself, rng; moduleupdate=:branching)
+    @test size(population) == (1, 0, 1)
 end
