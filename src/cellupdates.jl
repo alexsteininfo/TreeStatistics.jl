@@ -279,7 +279,7 @@ function cellmutation!(cellmodule, subclones, selectioncoefficient, mutatingcell
     )
     push!(subclones, newsubclone)
     #change clone type of new cell and update clone sizes
-    setclonetype(mutatingcell, subcloneid)
+    setclonetype!(mutatingcell, subcloneid)
     if parentid != 0
         subclones[parentid].size -= 1
     end

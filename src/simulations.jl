@@ -217,7 +217,7 @@ function branchingupdate!(
                 cellmodule,
                 population.subclones,
                 newmutant_selectioncoeff,
-                randcell,
+                cellmodule[randcellid],
                 t
             )
             nsubclonescurrent += 1
@@ -338,7 +338,7 @@ function moranupdate!(
                     cellmodule,
                     population.subclones,
                     newmutant_selectioncoeff,
-                    dividecell,
+                    population.singlemodule.cells[dividecellid],
                     t
                 )
             nsubclonescurrent += 1

@@ -192,8 +192,8 @@ end
 
 getclonetype(cell::Cell) = cell.clonetype
 getclonetype(cellnode::BinaryNode) = cellnode.data.clonetype
-setclonetype(cell::Cell, newclonetype) = (cell.clonetype = newclonetype)
-setclonetype(cellnode::BinaryNode, newclonetype) = (cellnode.data.clonetype = newclonetype)
+setclonetype!(cell::Cell, newclonetype) = (cell.clonetype = newclonetype)
+setclonetype!(cellnode::BinaryNode, newclonetype) = (cellnode.data.clonetype = newclonetype)
 #endregion
 
 """
