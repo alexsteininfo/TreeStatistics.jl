@@ -1,8 +1,30 @@
 
-function addmutations!(cell1::Cell, cell2::Cell, μ, mutID, rng, mutationdist, Δt=Δt; timedepmutationsonly=false)
+"""
+    addmutations!(cell::Cell[, cell2::Cell], μ, mutID, rng, mutationdist, Δt=Δt;
+        timedepmutationsonly=false)
+
+Add new mutations to `cell` and `cell2` (if it is given) for each mutational process listed
+in `mutationdist` (e.g. :poisson, :fixed, :poissontimedep etc) with mean number of mutations
+(per division or per unit time) for each process given in vector `μ`.
+
+Time dependent mutations are assigned to both cells, as if the parent had accumulated them
+throughout its lifetime (duration `Δt`). Non-time dependent mutations are assigned to each
+cell individually. If `timedepmutationsonly` then non-time dependent mutations are not
+assigned.
+"""
+function addmutations! end
+
+function addmutations!(
+    cell1::Cell,
+    cell2::Cell,
+    μ, mutID,
+    rng, mutationdist,
+    Δt=Δt;
+    timedepmutationsonly=false
+)
     for (μ0, mutationdist0) in zip(μ, mutationdist)
         if mutationdist0 == :poissontimedep || mutationdist0 == :fixedtimedep
-        #for mutations that are time dependent we add the mutations that were accumulated by 
+        #for mutations that are time dependent we add the mutations that were accumulated by
         #the parent during its lifetime to the child cells at division
             numbermutations = numbernewmutations(rng, mutationdist0, μ0, Δt=Δt)
             mutID = addnewmutations!(cell1, cell2, numbermutations, mutID)
@@ -17,10 +39,18 @@ function addmutations!(cell1::Cell, cell2::Cell, μ, mutID, rng, mutationdist, �
     return mutID
 end
 
-function addmutations!(cell::Cell, μ, mutID, rng, mutationdist, Δt=Δt; timedepmutationsonly=false)
+function addmutations!(
+    cell::Cell,
+    μ,
+    mutID,
+    rng,
+    mutationdist,
+    Δt=Δt;
+    timedepmutationsonly=false
+)
     for (μ0, mutationdist0) in zip(μ, mutationdist)
         if mutationdist0 == :poissontimedep || mutationdist0 == :fixedtimedep
-        #for mutations that are time dependent we add the mutations that were accumulated by 
+        #for mutations that are time dependent we add the mutations that were accumulated by
         #the parent during its lifetime to the child cells at division
             numbermutations = numbernewmutations(rng, mutationdist0, μ0, Δt=Δt)
             mutID = addnewmutations!(cell1, numbermutations, mutID)
@@ -33,6 +63,13 @@ function addmutations!(cell::Cell, μ, mutID, rng, mutationdist, Δt=Δt; timede
     return mutID
 end
 
+"""
+    numbernewmutations(rng, mutationdist, μ; Δt=nothing)
+
+Generate the number of new mutations for a given mutational process `mutationdist`
+    with mean `μ` (non-time independent, e.g. :fixed, :poisson) or `μΔt` (time dependent,
+    e.g. :poissontimedep).
+"""
 function numbernewmutations(rng, mutationdist, μ; Δt=nothing)
     if mutationdist == :fixed
         return round(Int64, μ)
@@ -48,6 +85,15 @@ function numbernewmutations(rng, mutationdist, μ; Δt=nothing)
         error("$mutationdist is not a valid mutation rule")
     end
 end
+
+"""
+    addnewmutations!(cell::Cell[, cell2::Cell], numbermutations, mutID)
+
+Add `numbermutations` new mutations to `cell` (and identical mutations to `cell2` if given)
+starting with id `mutID`. Return `mutID + numbermutations` which will be the next unique
+mutation id.
+"""
+function addnewmutations! end
 
 function addnewmutations!(cell::Cell, numbermutations, mutID)
     #function to add new mutations to cells
@@ -66,32 +112,47 @@ function addnewmutations!(cell1::Cell, cell2::Cell, numbermutations, mutID)
 end
 
 """
-    celldivision!(module, subclones, parentcellid, t, nextID, μ, mutationdist, rng; 
+    celldivision!(module, subclones, parentcellid, t, nextID, μ, mutationdist, rng;
         nchildcells=2)
 
 Cell at `module.cells[parentcellid]` divides. If `nchildcells == 1` it is replaced by a
 single child cell. If `nchildcells == 2` a second child cell is appended to the end of
 `module.cells`. Cell frequencies are update in `subclones`.
 
-If mutations are time-dependent, e.g. `mutationdist == poissontimedep`, add mutations to the
-parent cell depending on the length of its lifetime. Otherwise assign mutations to each 
-child cell.
+Add new mutations according to each mutational process listed in `mutationdist`.
+Time-dependent mutations, e.g. `:poissontimedep`, are calculated for the dividing cell,
+proportional to its lifetime. Non-time dependent mutations, e.g. `:poisson` are assigned
+to the child cell(s) at division.
 """
 function celldivision! end
 
-function celldivision!(treemodule::TreeModule{T, S}, subclones, parentcellid, t, nextID, μ, 
-    mutationdist, rng; nchildcells=2, timedepmutationsonly=false) where {T <: AbstractTreeCell, S}
-
+function celldivision!(
+    treemodule::TreeModule{T, S},
+    subclones,
+    parentcellid,
+    t,
+    nextID,
+    μ,
+    mutationdist,
+    rng;
+    nchildcells=2,
+    timedepmutationsonly=false
+) where {T <: AbstractTreeCell, S}
     alivecells = treemodule.cells
     parentcellnode = alivecells[parentcellid] #get parent cell node
-
-    #assign mutations: mutations that accumulate with time are assigned to parent cell,
-    #   mutations that occur at division are assigned to child cells
+    # assign mutations:
+    #    mutations that accumulate with time are assigned to parent cell,
+    #    mutations that occur at division are assigned to child cells
     childcellmuts = zeros(Int64, nchildcells)
     for (μ0, mutationdist0) in zip(μ, mutationdist)
-        if mutationdist0 == :fixedtimedep || mutationdist0 == :poissontimedep    
+        if mutationdist0 == :fixedtimedep || mutationdist0 == :poissontimedep
             Δt = t - parentcellnode.data.latestupdatetime
-            parentcellnode.data.mutations += numbernewmutations(rng, mutationdist0, μ0, Δt=Δt)
+            parentcellnode.data.mutations += numbernewmutations(
+                rng,
+                mutationdist0,
+                μ0,
+                Δt=Δt
+            )
             parentcellnode.data.latestupdatetime = t
         elseif !timedepmutationsonly
             for i in 1:nchildcells
@@ -102,50 +163,85 @@ function celldivision!(treemodule::TreeModule{T, S}, subclones, parentcellid, t,
     #create new child cells and add them to alivecells list
     childcell1 = T(
             id=nextID,
-            birthtime=t, 
-            mutations=childcellmuts[1], 
+            birthtime=t,
+            mutations=childcellmuts[1],
             clonetype=parentcellnode.data.clonetype
     )
     #one cell replaces the parent in alivecells
     alivecells[parentcellid] = leftchild!(parentcellnode, childcell1)
-
     if nchildcells == 2
         childcell2 = T(
             id=nextID + 1,
-            birthtime=t, 
-            mutations=childcellmuts[2], 
+            birthtime=t,
+            mutations=childcellmuts[2],
             clonetype=parentcellnode.data.clonetype
         )
         #the other cell is added to the end of alivecells
-        push!(alivecells, rightchild!(parentcellnode, childcell2)) 
+        push!(alivecells, rightchild!(parentcellnode, childcell2))
         subclones[parentcellnode.data.clonetype].size += 1
     end
     #adjust subclone sizes
     return treemodule, subclones, nextID + nchildcells
 end
 
-function celldivision!(cellmodule::CellModule, subclones, parentcellid, t, mutID, μ, 
-    mutationdist, rng; nchildcells=2, timedepmutationsonly=false)
-    cellmodule, subclones, Δt = add_new_cells!(cellmodule, subclones, parentcellid, t, nchildcells)
+function celldivision!(
+    cellmodule::CellModule,
+    subclones,
+    parentcellid,
+    t,
+    mutID,
+    μ,
+    mutationdist,
+    rng;
+    nchildcells=2,
+    timedepmutationsonly=false
+)
+    cellmodule, subclones, Δt = add_new_cells!(
+        cellmodule,
+        subclones,
+        parentcellid,
+        t,
+        nchildcells
+    )
     #add new mutations to both new cells
-    if sum(μ) > 0.0 
+    if sum(μ) > 0.0
         if nchildcells == 2
-            mutID = addmutations!(cellmodule.cells[parentcellid], cellmodule.cells[end], μ, 
-                mutID, rng, mutationdist, Δt; timedepmutationsonly)
+            mutID = addmutations!(
+                cellmodule.cells[parentcellid],
+                cellmodule.cells[end],
+                μ,
+                mutID,
+                rng,
+                mutationdist,
+                Δt;
+                timedepmutationsonly
+            )
         else
-            mutID = addmutations!(cellmodule.cells[parentcellid], μ, 
-                mutID, rng, mutationdist, Δt; timedepmutationsonly)
+            mutID = addmutations!(
+                cellmodule.cells[parentcellid],
+                μ,
+                mutID,
+                rng,
+                mutationdist,
+                Δt;
+                timedepmutationsonly
+            )
         end
     end
     updatetime!(cellmodule, t)
     return cellmodule, subclones, mutID
 end
 
-function add_new_cells!(cellmodule::CellModule, subclones, parentcellid, t, nchildcells)
+function add_new_cells!(
+    cellmodule::CellModule,
+    subclones,
+    parentcellid,
+    t,
+    nchildcells
+)
     Δt = t - cellmodule.cells[parentcellid].latestupdatetime
     cellmodule.cells[parentcellid].birthtime = t
     cellmodule.cells[parentcellid].latestupdatetime = t
-
     if nchildcells == 2
         push!(cellmodule.cells, deepcopy(cellmodule.cells[parentcellid]))
         cellmodule.cells[end].id = cellmodule.cells[end-1].id + 1
@@ -155,16 +251,33 @@ function add_new_cells!(cellmodule::CellModule, subclones, parentcellid, t, nchi
     return cellmodule, subclones, Δt
 end
 
+"""
+    cellmutation!(cellmodule, subclones, selectioncoefficient, mutatingcell, t)
+
+Cell mutation occurs in `mutatingcell` to produce a new non-neutral subclone with fitness equal to
+`f = 1 + selectioncoefficient`. Implemented so that birth, moran and asymmetric rates are increased
+by a factor `f` from the wild-type rates, but death rate remains the same.
+"""
 function cellmutation!(cellmodule, subclones, selectioncoefficient, mutatingcell, t)
-    
     #add new clone
     subcloneid = length(subclones) + 1
     parentid = getclonetype(mutatingcell)
     wildtype_rates = getwildtyperates(subclones)
-    birthrate, deathrate, moranrate, asymmetricrate = get_newsubclone_rates(wildtype_rates, selectioncoefficient)
-    newsubclone = Subclone(subcloneid, parentid, t, 1, birthrate, deathrate, moranrate, asymmetricrate)
+    birthrate, deathrate, moranrate, asymmetricrate = get_newsubclone_rates(
+        wildtype_rates,
+        selectioncoefficient
+    )
+    newsubclone = Subclone(
+        subcloneid,
+        parentid,
+        t,
+        1,
+        birthrate,
+        deathrate,
+        moranrate,
+        asymmetricrate
+    )
     push!(subclones, newsubclone)
-
     #change clone type of new cell and update clone sizes
     setclonetype(mutatingcell, subcloneid)
     if parentid != 0
@@ -173,18 +286,40 @@ function cellmutation!(cellmodule, subclones, selectioncoefficient, mutatingcell
     return cellmodule, subclones
 end
 
+"""
+    get_newsubclone_rates(wildtype, selectioncoefficient)
+Compute new birth, death, moran and asymmetric rates for a new subclone.
+
+All `wildtype` rates are increased by a factor of `(1 + selectioncoefficient)` (except for death rate
+which is unchanged).
+"""
+function get_newsubclone_rates(wildtype, selectioncoefficient)
+    return (
+        birthrate = wildtype.birthrate * (1 + selectioncoefficient),
+        deathrate = wildtype.deathrate,
+        moranrate = wildtype.moranrate * (1 + selectioncoefficient),
+        asymmetricrate =  wildtype.asymmetricrate * (1 + selectioncoefficient)
+    )
+end
 
 """
-    celldeath!(module, subclones, deadcellid, [t, μ, mutationdist, rng]) 
+    celldeath!(module, subclones, deadcellid, [t, μ, mutationdist, rng])
 
-Cell at `module.cells[deadcellid]` dies and is removed. Cell frequencies are update in 
-    `subclones`.If applicable, time-dependent mutations are added to dying cell.
+Cell at `module.cells[deadcellid]` dies and is removed. Cell frequencies are update in
+`subclones`. If `module::TreeModule{TreeCell, S}` time-dependent mutations are added
+to the dying cell.
 """
 function celldeath! end
 
-function celldeath!(treemodule::TreeModule, subclones::Vector{Subclone}, deadcellid, t, 
-    μ=nothing, mutationdist=nothing, rng=nothing)
-
+function celldeath!(
+    treemodule::TreeModule,
+    subclones::Vector{Subclone},
+    deadcellid,
+    t,
+    μ=nothing,
+    mutationdist=nothing,
+    rng=nothing
+)
     alivecells = treemodule.cells
     deadcellclonetype = alivecells[deadcellid].data.clonetype
     #remove references to dead cell
@@ -196,14 +331,12 @@ function celldeath!(treemodule::TreeModule, subclones::Vector{Subclone}, deadcel
     return treemodule, subclones
 end
 
-
 function celldeath!(cellmodule::CellModule, subclones, deadcell::Integer, args...)
     #frequency of cell type decreases
-    clonetype = cellmodule.cells[deadcell].clonetype 
+    clonetype = cellmodule.cells[deadcell].clonetype
     subclones[clonetype].size -= 1
     #remove deleted cell
     deleteat!(cellmodule.cells, deadcell)
-
     return cellmodule
 end
 
@@ -226,10 +359,12 @@ end
 Get the next usable mutation ID (for Cell type) or cell ID (for AbstractTreeCell type).
 """
 getnextID(population::SinglelevelPopulation) = getnextID(population.singlemodule.cells)
-getnextID(population::Union{Population, PopulationWithQuiescence}) = 
+getnextID(population::Union{Population, PopulationWithQuiescence}) =
     maximum(map(x->getnextID(x.cells), population))
 
-function getnextID(population::Union{Population{T}, PopulationWithQuiescence{T}}) where T <: TreeModule
+function getnextID(
+    population::Union{Population{T}, PopulationWithQuiescence{T}}
+) where T <: TreeModule
     nextID = 1
     for treemodule in population
         for cellnode in treemodule.cells

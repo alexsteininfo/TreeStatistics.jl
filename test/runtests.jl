@@ -12,7 +12,6 @@ tests = [
     "multilevel",
     "simulations",
     "process_mutations",
-    "analysis",
     "treesimulations",
     "multilevel_selection"
 ]

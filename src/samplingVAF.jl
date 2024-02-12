@@ -1,90 +1,91 @@
-function getVAFresult(simulation, rng::AbstractRNG=Random.GLOBAL_RNG; read_depth=100.0, 
-    detectionlimit=5/read_depth, cellularity=1.0)
+function getVAFresult(
+    simulation,
+    rng::AbstractRNG=Random.GLOBAL_RNG;
+    read_depth=100.0,
+    detectionlimit=5/read_depth,
+    cellularity=1.0
+)
     trueVAF = getallelefreq(simulation)
-    sampledVAF = sampledallelefreq(trueVAF, rng, read_depth=read_depth, 
-        detectionlimit=detectionlimit, cellularity=cellularity)
-    freq, freqp = subclonefreq(simulation.output.subclones)
+    sampledVAF = sampledallelefreq(
+        trueVAF,
+        rng,
+        read_depth=read_depth,
+        detectionlimit=detectionlimit,
+        cellularity=cellularity
+    )
+    subclonefreq = subclone_allelefreq(simulation)
 
     return VAFResult(
         read_depth,
         cellularity,
         detectionlimit,
-        simulation.input,
         trueVAF,
         sampledVAF,
-        freq,
-        freqp
+        subclonefreq
     )
 end
 
-function getVAFresult(multisimulation::MultiSimulation, moduleid, rng::AbstractRNG=Random.GLOBAL_RNG; read_depth=100.0, 
+function getVAFresult(multisimulation::MultiSimulation, moduleid, rng::AbstractRNG=Random.GLOBAL_RNG; read_depth=100.0,
     detectionlimit=5/read_depth, cellularity=1.0)
 
     trueVAF = getallelefreq(multisimulation, moduleid)
-    sampledVAF = sampledallelefreq(trueVAF, rng, read_depth=read_depth, 
+    sampledVAF = sampledallelefreq(trueVAF, rng, read_depth=read_depth,
         detectionlimit=detectionlimit, cellularity=cellularity)
-    freq, freqp = subclonefreq(multisimulation[moduleid], length(multisimulation.output.subclones))
-
+    subclonefreq = subclone_allelefreq(
+        multisimulation[moduleid],
+        length(multisimulation.output.subclones)
+    )
     return VAFResult(
         read_depth,
         cellularity,
         detectionlimit,
-        multisimulation.input,
         trueVAF,
         sampledVAF,
-        freq,
-        freqp
+        subclonefreq
     )
 end
 
-function getVAFresult(multisimulation::MultiSimulation, rng::AbstractRNG=Random.GLOBAL_RNG; read_depth=100.0, 
+function getVAFresult(multisimulation::MultiSimulation, rng::AbstractRNG=Random.GLOBAL_RNG; read_depth=100.0,
     detectionlimit=5/read_depth, cellularity=1.0)
 
     trueVAF = getallelefreq(multisimulation)
-    sampledVAF = sampledallelefreq(trueVAF, rng, read_depth=read_depth, 
+    sampledVAF = sampledallelefreq(trueVAF, rng, read_depth=read_depth,
         detectionlimit=detectionlimit, cellularity=cellularity)
-    freq, freqp = Float64[0.0], Float64[0.0] #TODO not implemented properly
-
+    subclonefreq = subclone_allelefreq(multisimulation)
     return VAFResult(
         read_depth,
         cellularity,
         detectionlimit,
-        multisimulation.input,
         trueVAF,
         sampledVAF,
-        freq,
-        freqp
+        subclonefreq
     )
 end
 
-function getVAFresultmulti(multisim::MultiSimulation, rng::AbstractRNG=Random.GLOBAL_RNG; read_depth=100.0, 
+function getVAFresultmulti(multisim::MultiSimulation, rng::AbstractRNG=Random.GLOBAL_RNG; read_depth=100.0,
     detectionlimit=5/read_depth, cellularity=1.0, ploidy=2)
 
     trueVAFs = Vector{Float64}[]
     sampledVAFs = Vector{Float64}[]
-    freqs = Vector{Float64}[]
-    freqps = Vector{Float64}[]
-    
+    subclonefreqs = Vector{Float64}[]
+    nsubclones = length(multisim.output.subclones)
     for cellmodule in multisim
         trueVAF = getallelefreq(cellmodule, multisim.input.ploidy)
-        sampledVAF = sampledallelefreq(trueVAF, rng, read_depth=read_depth, 
+        sampledVAF = sampledallelefreq(trueVAF, rng, read_depth=read_depth,
             detectionlimit=detectionlimit, cellularity=cellularity)
-        freq, freqp = subclonefreq(cellmodule)
+        subclonefreq = subclone_allelefreq(cellmodule, nsubclones)
         push!(trueVAFs, trueVAF)
         push!(sampledVAFs, sampledVAF)
-        push!(freqs, freq)
-        push!(freqps, freqp)
+        push!(subclonefreqs, subclonefreq)
     end
 
     return VAFResultMulti(
         read_depth,
         cellularity,
         detectionlimit,
-        multisim.input,
         trueVAFs,
         sampledVAFs,
-        freqs,
-        freqps
+        subclonefreqs
     )
 end
 
@@ -101,7 +102,7 @@ end
 """
     getallelefreq(simulation::MultiSimulation, moduleid)
 
-Calculate allele frequency for each mutation in the module (or vector of modules) specified 
+Calculate allele frequency for each mutation in the module (or vector of modules) specified
     by `moduleid`.
 """
 function getallelefreq(simulation::Simulation, moduleid)
@@ -141,7 +142,7 @@ function getallelefreq(cells::AbstractTreeCellVector, ploidy)
     node_freqs = Float64[cell_subset_size(node, cells) / (ploidy*N) for node in nodes]
     while true
         #get next node and freq
-        node = popfirst!(nodes) 
+        node = popfirst!(nodes)
         node_freq = popfirst!(node_freqs)
         for i in 1:node.data.mutations
             push!(allelefreqs, node_freq)
@@ -170,7 +171,7 @@ function getallelefreq(cells::AbstractTreeCellVector, ploidy)
                 push!(node_freqs, node_freq) #if only one child freq is same as for parent
             else
                 #if no new nodes have been added check whether any nodes are left
-                length(nodes) == 0 && break 
+                length(nodes) == 0 && break
             end
         end
     end
@@ -187,7 +188,7 @@ function getallelefreq(population::Population, ploidy)
 end
 
 function getfixedallelefreq(mutations::Vector{Int64})
-    return counts(mutations)    
+    return counts(mutations)
 end
 
 getfixedallelefreq(simulation, idx=nothing) = getfixedallelefreq(simulation.output, idx)
@@ -213,19 +214,19 @@ function cellsconvert(cells)
 end
 
 """
-    sampledallelefreq(trueVAF::Vector{Float64}, rng::AbstractRNG; 
+    sampledallelefreq(trueVAF::Vector{Float64}, rng::AbstractRNG;
     read_depth=100.0, detectionlimit=5/read_depth, cellularity=1.0)
 
-Create synthetic experimental data by smapling from the true VAF distribution 
-according to experimental constraints. 
+Create synthetic experimental data by smapling from the true VAF distribution
+according to experimental constraints.
 
 ### Keyword arguments
 - `detectionlimit = 5/read_depth`: minimum VAF which can be detected
 - `read_depth = 100`: expected number of reads for each allele
-- `cellularity = 1.0`: 
+- `cellularity = 1.0`:
 
 """
-function sampledallelefreq(trueVAF::Vector{Float64}, rng::AbstractRNG; 
+function sampledallelefreq(trueVAF::Vector{Float64}, rng::AbstractRNG;
     read_depth=100.0, detectionlimit=5/read_depth, cellularity=1.0)
 
     VAF = trueVAF * cellularity
@@ -244,8 +245,8 @@ end
 Fit VAF data into bins `fmin`:`fstep`:`fmax` and return DataFrame with columns
 :VAF, :freq [= ``m(f)``], :cumfreq [= ``M(f)``].
 
-Note ``M(f)`` is the cummulative number of mutations with frequency ``f``, i.e. the 
-number of mutations with frequency in ``(f, 1)``, while ``m(f)`` is the number of mutations with 
+Note ``M(f)`` is the cummulative number of mutations with frequency ``f``, i.e. the
+number of mutations with frequency in ``(f, 1)``, while ``m(f)`` is the number of mutations with
 frequency in ``(f - fstep, f)``.
 
 """
@@ -267,24 +268,26 @@ function addcumfreq!(df,colname)
 end
 
 
-function subclonefreq(cellmodule, nsubclones)
-    #get proportion of cells in each subclone
-    clonesize = getsubclonesizes(cellmodule, nsubclones)
-    clonefreqp = clonesize[2:end]/sum(clonesize)
-    clonefreq = copy(clonefreqp)
-    if length(clonefreqp) > 1
-        clonefreq, subclonalmutations = 
-            calculateclonefreq!(clonefreq, subclonalmutations, cellmodule.subclones)
-    end
-    return clonefreq, clonefreqp
+"""
+    subclone_allelefreq(cellmodule, nsubclones)
+
+Return the allele frequency of each subclone (sum to 0.5) within the given `cellmodule`. The
+total number of subclones `nsubclones` must be given.
+"""
+function subclone_allelefreq(cellmodule, nsubclones)
+    sizes =  getsubclonesizes(cellmodule, nsubclones)
+    return sizes ./ (2 * sum(sizes))
 end
 
-function subclonefreq(population::Vector)
-    #TODO need to implement this
-    Float64[], Float64[]
+"""
+    subcloneallelefreq(population)
+    subcloneallelefreq(simulation::Simulation)
+
+Return the allele frequency of each subclone (sum to 0.5).
+"""
+function subclone_allelefreq(population)
+    subclonesize = length.(population.subclones)
+    return subclonesize ./ (2 * sum(subclonesize))
 end
 
-function subclonefreq(treemodule::TreeModule)
-    #selection not implemented for tree type
-    return Float64[], Float64[]
-end
+subclone_allelefreq(simulation::Simulation) = subclone_allelefreq(simulation.output)

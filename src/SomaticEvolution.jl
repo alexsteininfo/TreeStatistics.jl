@@ -13,7 +13,7 @@ using DelimitedFiles
 using AbstractTrees
 using MakieCore
 
-export 
+export
 Cell,
 TreeCell,
 SimpleTreeCell,
@@ -29,6 +29,7 @@ MoranInput,
 MultilevelBranchingInput,
 MultilevelMoranInput,
 MultilevelBranchingMoranInput,
+MultilevelInput,
 NoQuiescence,
 SeasonalQuiescence,
 StochasticQuiescence,
@@ -56,7 +57,7 @@ runsimulation_condfixtime,
 runsimulation_condfixtime_to_nfixed,
 runsimulation_timeseries,
 runsimulation_timeseries_returnfinalpop,
-run1simulation, 
+run1simulation,
 multilevel_simulation,
 multilevel_simulation_timeseries,
 run_multilevel_from_file,
@@ -68,10 +69,6 @@ getallelefreq,
 sampledallelefreq,
 fitinverse,
 gethist,
-plotvaf,
-plotvaf!,
-plotinversevaf,
-plotinversevaf!,
 getVAFresult,
 getVAFresultmulti,
 
@@ -135,7 +132,6 @@ include("multilevel_condfixtime.jl")
 include("run.jl")
 include("process.jl")
 include("samplingVAF.jl")
-include("analyseVAF.jl")
 include("util.jl")
 include("statistics.jl")
 include("io.jl")

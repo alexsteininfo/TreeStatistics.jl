@@ -1,42 +1,61 @@
+###
+### Replicates many functions in multilevel.jl but saves information on
+### mosaic mutations so that the time to fixation can be computed.
+### ONLY NEUTRAL SIMULATIONS.
+###
+
+
 """
-    simulate_condfixtime!(population, tmax, maxmodules, birthrate, deathrate, moranrate, branchrate, 
-        modulesize, branchinitsize, rng; moduleupdate=:branching[, t0])
+    simulate_condfixtime!(population, tmax, maxmodules, birthrate, deathrate, moranrate,
+        branchrate, modulesize, branchinitsize, rng; moduleupdate=:branching[, t0])
 
-Run a single multilevel simulation using the Gillespie algorithm, with the 
-`population` giving the initial state. Simulation runs until the module population 
-size reaches `maxmodules` or the age of the population reaches `tmax`. 
-
+Similar to [`simulate!`](@ref) but returns `population` and a vector of conditional fixation
+times`condfixtimes` for each module.
 """
-function simulate_condfixtime!(population, input, ::NeutralSelection, counters, rng; timefunc)
-
+function simulate_condfixtime!(
+    population,
+    input,
+    ::NeutralSelection,
+    counters,
+    rng;
+    timefunc
+)
     tmax = input.tmax
     nextID, nextmoduleID = counters
     t = age(population)
-    transitionrates = get_neutral_transitionrates(population, input.branchrate, input.modulesize, input.quiescence)
+    transitionrates = get_neutral_transitionrates(
+        population,
+        input.branchrate,
+        input.modulesize,
+        input.quiescence
+    )
     moduleupdate = getmoduleupdate(input)
-    mosaic_mutations = (homeostatic=Vector{Tuple{Int64, Float64}}[[]],growing=Vector{Tuple{Int64, Float64}}[[]])
+    mosaic_mutations = (
+        homeostatic=Vector{Tuple{Int64, Float64}}[[]],
+        growing=Vector{Tuple{Int64, Float64}}[[]],
+    )
     condfixtimes = (homeostatic=Vector{Float64}[], growing=Vector{Float64}[[]])
     while t < tmax && (moduleupdate==:moran || length(population) < maxmodules)
-        population, transitionrates, t, nextID, nextmoduleID = 
+        population, transitionrates, t, nextID, nextmoduleID =
             update_population_neutral_condfixtimes!(
-                population, 
+                population,
                 transitionrates,
-                mosaic_mutations, 
-                condfixtimes, 
-                input.branchrate,  
-                input.modulesize, 
-                input.branchinitsize, 
-                input.modulebranching, 
+                mosaic_mutations,
+                condfixtimes,
+                input.branchrate,
+                input.modulesize,
+                input.branchinitsize,
+                input.modulebranching,
                 input.quiescence,
-                t, 
-                nextID, 
-                nextmoduleID, 
-                input.μ, 
-                input.mutationdist, 
-                tmax, 
-                input.maxmodules, 
-                input.moranincludeself, 
-                rng; 
+                t,
+                nextID,
+                nextmoduleID,
+                input.μ,
+                input.mutationdist,
+                tmax,
+                input.maxmodules,
+                input.moranincludeself,
+                rng;
                 moduleupdate,
                 timefunc)
         #returns empty list of modules if population dies out
@@ -48,37 +67,56 @@ function simulate_condfixtime!(population, input, ::NeutralSelection, counters, 
 end
 
 """
-    update_population_neutral_condfixtimes!(population, mosaic_mutations, condfixtimes, 
-        branchrate, modulesize, branchinitsize, modulebranching, quiescence, t, nextID, 
-        nextmoduleID, μ, mutationdist, tmax, maxmodules, moranincludeself, rng; 
+    update_population_neutral_condfixtimes!(population, mosaic_mutations, condfixtimes,
+        branchrate, modulesize, branchinitsize, modulebranching, quiescence, t, nextID,
+        nextmoduleID, μ, mutationdist, tmax, maxmodules, moranincludeself, rng;
         moduleupdate=:branching, timefunc=exptime)
+
+See [`update_population_neutral!`](@ref).
 """
-function update_population_neutral_condfixtimes!(population, transitionrates, mosaic_mutations, condfixtimes, 
-    branchrate, modulesize, branchinitsize, modulebranching, quiescence, t, nextID, 
-    nextmoduleID, μ, mutationdist, tmax, maxmodules, moranincludeself, rng; 
-    moduleupdate=:branching, timefunc=exptime)
-    
-    t += exptime(rng, sum(transitionrates))
+function update_population_neutral_condfixtimes!(
+    population,
+    transitionrates,
+    mosaic_mutations,
+    condfixtimes,
+    branchrate,
+    modulesize,
+    branchinitsize,
+    modulebranching,
+    quiescence,
+    t,
+    nextID,
+    nextmoduleID,
+    μ,
+    mutationdist,
+    tmax,
+    maxmodules,
+    moranincludeself,
+    rng;
+    moduleupdate=:branching,
+    timefunc=exptime
+)
+    t += timefunc(rng, sum(transitionrates))
     #only update the population if t < tmax
     if t < tmax
         #choose transition type: 1=moran, 2=asymmetric, 3=birth, 4=death, 5=branch
         transitionid = sample(
-            rng, 
-            1:length(transitionrates), 
+            rng,
+            1:length(transitionrates),
             ProbabilityWeights(transitionrates ./ sum(transitionrates))
         )
         population, nextID, nextmoduleID = transition_condfixtimes!(
-            population, 
-            mosaic_mutations, 
+            population,
+            mosaic_mutations,
             condfixtimes,
-            transitionid, 
-            modulesize, 
-            branchinitsize, 
-            modulebranching, 
-            t, 
+            transitionid,
+            modulesize,
+            branchinitsize,
+            modulebranching,
+            t,
             nextID,
             nextmoduleID,
-            μ, 
+            μ,
             mutationdist,
             maxmodules,
             moranincludeself,
@@ -93,40 +131,118 @@ function update_population_neutral_condfixtimes!(population, transitionrates, mo
 end
 
 """
-    transition_condfixtimes!(population, mosaic_mutations, condfixtimes, transitionid, modulesize, branchinitsize, 
-        modulebranching, t, nextID, nextmoduleID, μ, mutationdist, maxmodules, 
+    transition_condfixtimes!(population, mosaic_mutations, condfixtimes, transitionid, modulesize, branchinitsize,
+        modulebranching, t, nextID, nextmoduleID, μ, mutationdist, maxmodules,
         moranincludeself, rng; moduleupdate=:branching)
 
+See [`transition!`](@ref).
 """
-function transition_condfixtimes!(population, mosaic_mutations, condfixtimes, transitionid, modulesize, branchinitsize, 
-    modulebranching, t, nextID, nextmoduleID, μ, mutationdist, maxmodules, 
-    moranincludeself, rng; moduleupdate=:branching)
-    
+function transition_condfixtimes!(
+    population,
+    mosaic_mutations,
+    condfixtimes,
+    transitionid,
+    modulesize,
+    branchinitsize,
+    modulebranching,
+    t,
+    nextID,
+    nextmoduleID,
+    μ,
+    mutationdist,
+    maxmodules,
+    moranincludeself,
+    rng;
+    moduleupdate=:branching
+)
     if transitionid == 1
-        _, nextID = moranupdate_condfixtimes!(population, mosaic_mutations, condfixtimes, modulesize, t, nextID, μ, mutationdist, rng; moranincludeself)
+        _, nextID = moranupdate_condfixtimes!(
+            population,
+            mosaic_mutations,
+            condfixtimes,
+            modulesize,
+            t,
+            nextID,
+            μ,
+            mutationdist,
+            rng;
+            moranincludeself
+        )
     elseif transitionid == 2
-        _, nextID = asymmetricupdate_condfixtimes!(population, mosaic_mutations, modulesize, t, nextID, μ, mutationdist, rng)
+        _, nextID = asymmetricupdate_condfixtimes!(
+            population, mosaic_mutations,
+            modulesize,
+            t,
+            nextID,
+            μ,
+            mutationdist,
+            rng
+        )
     elseif transitionid == 3
-        _, nextID = birthupdate_condfixtimes!(population, mosaic_mutations, condfixtimes, modulesize, t, nextID, μ, mutationdist, rng)
+        _, nextID = birthupdate_condfixtimes!(
+            population,
+            mosaic_mutations,
+            condfixtimes,
+            modulesize,
+            t,
+            nextID,
+            μ,
+            mutationdist,
+            rng
+        )
     elseif transitionid == 4
-        deathupdate_condfixtimes!(population, mosaic_mutations, condfixtimes, modulesize, t, μ, mutationdist, rng)
+        deathupdate_condfixtimes!(
+            population,
+            mosaic_mutations,
+            condfixtimes,
+            modulesize,
+            t,
+            μ,
+            mutationdist,
+            rng
+        )
     elseif transitionid == 5
         if moduleupdate == :branching || length(population) < maxmodules
             _, nextmoduleID, nextID = modulebranchingupdate_condfixtimes!(
-                population, mosaic_mutations, condfixtimes, nextmoduleID, modulesize, branchinitsize, t, rng; 
-                modulebranching, nextID, μ, mutationdist
+                population,
+                mosaic_mutations,
+                condfixtimes,
+                nextmoduleID,
+                modulesize,
+                branchinitsize,
+                t,
+                rng;
+                modulebranching,
+                nextID,
+                μ,
+                mutationdist
             )
         elseif moduleupdate == :moran
             _, nextmoduleID, nextID = modulemoranupdate_condfixtimes!(
-                population, mosaic_mutations, condfixtimes, nextmoduleID, modulesize, branchinitsize, t, rng; 
-                modulebranching, nextID, μ, mutationdist
+                population,
+                mosaic_mutations,
+                condfixtimes,
+                nextmoduleID,
+                modulesize,
+                branchinitsize,
+                t,
+                rng;
+                modulebranching,
+                nextID,
+                μ,
+                mutationdist
             )
         end
     end
     return population, nextID, nextmoduleID
 end
 
-function checkfixationextinction_addcondfixtimes!(mosaic_mutations_in_cellmodule, condfixtimes_in_cellmodule, cellmodule, t)
+function checkfixationextinction_addcondfixtimes!(
+    mosaic_mutations_in_cellmodule,
+    condfixtimes_in_cellmodule,
+    cellmodule,
+    t
+)
     ids_to_remove = Int64[]
     for (i, (mut, t0)) in enumerate(mosaic_mutations_in_cellmodule)
         fixed, extinct = isfixed_isextinct(mut, cellmodule)
@@ -148,7 +264,7 @@ function isfixed_isextinct(mutationid, cellmodule)
             for cell in cellmodule.cells
     ]
     return (all(mut_in_cell), !any(mut_in_cell))
-end            
+end
 
 function new_mosaic_mutations!(mosaic_mutations_in_cellmodule, firstID, lastID, t)
     for mutID in firstID:lastID
@@ -156,74 +272,144 @@ function new_mosaic_mutations!(mosaic_mutations_in_cellmodule, firstID, lastID, 
     end
 end
 
-"""
-    moranupdate_condfixtimes!(population, mosaic_mutations, condfixtimes, modulesize, t, nextID, μ, mutationdist, rng; moranincludeself=true)
-"""
-function moranupdate_condfixtimes!(population, mosaic_mutations, condfixtimes, modulesize, t, nextID, μ, mutationdist, rng; moranincludeself=true)
-    homeostaticmoduleid, parentcellid, deadcellid = 
-        choose_homeostaticmodule_cells(population, rng; moranincludeself, maxmodulesize=modulesize)
-    homeostaticmodule = population.homeostatic_modules[homeostaticmoduleid]    
+function moranupdate_condfixtimes!(
+    population,
+    mosaic_mutations,
+    condfixtimes,
+    modulesize,
+    t,
+    nextID,
+    μ,
+    mutationdist,
+    rng;
+    moranincludeself=true
+)
+    homeostaticmoduleid, parentcellid, deadcellid = choose_homeostaticmodule_cells(
+        population,
+        rng;
+        moranincludeself,
+        maxmodulesize=modulesize
+    )
+    homeostaticmodule = population.homeostatic_modules[homeostaticmoduleid]
     nextID_before = nextID
-    _, _, nextID = celldivision!(homeostaticmodule, population.subclones, parentcellid, t, nextID, μ, mutationdist, rng)
-    new_mosaic_mutations!(mosaic_mutations.homeostatic[homeostaticmoduleid], nextID_before, nextID-1, t)
+    _, _, nextID = celldivision!(
+        homeostaticmodule,
+        population.subclones,
+        parentcellid,
+        t,
+        nextID,
+        μ,
+        mutationdist,
+        rng
+    )
+    new_mosaic_mutations!(
+        mosaic_mutations.homeostatic[homeostaticmoduleid],
+        nextID_before,
+        nextID-1,
+        t
+    )
     celldeath!(homeostaticmodule, population.subclones, deadcellid, t, μ, mutationdist, rng)
     updatetime!(homeostaticmodule, t)
     checkfixationextinction_addcondfixtimes!(
-        mosaic_mutations.homeostatic[homeostaticmoduleid], 
-        condfixtimes.homeostatic[homeostaticmoduleid], 
-        homeostaticmodule, 
+        mosaic_mutations.homeostatic[homeostaticmoduleid],
+        condfixtimes.homeostatic[homeostaticmoduleid],
+        homeostaticmodule,
         t
     )
     return population, nextID
 end
 
-"""
-    asymmetricupdate_condfixtimes!(population, mosaic_mutations, modulesize, t, nextID, μ, mutationdist, rng)
-
-Selects a homeostatic module uniformly at random to undergo a single asymmetric update. From 
-that module one cell divides, producing a single offspring.
-"""
-function asymmetricupdate_condfixtimes!(population, mosaic_mutations, modulesize, t, nextID, μ, mutationdist, rng)
-    homeostaticmoduleid, parentcellid = 
-        choose_homeostaticmodule_cells(population, rng; twocells=false, maxmodulesize=modulesize)
-    homeostaticmodule = population.homeostatic_modules[homeostaticmoduleid]    
+function asymmetricupdate_condfixtimes!(
+    population,
+    mosaic_mutations,
+    modulesize,
+    t,
+    nextID,
+    μ,
+    mutationdist,
+    rng
+)
+    homeostaticmoduleid, parentcellid = choose_homeostaticmodule_cells(
+        population,
+        rng;
+        twocells=false,
+        maxmodulesize=modulesize
+    )
+    homeostaticmodule = population.homeostatic_modules[homeostaticmoduleid]
     nextID_before = nextID
-    _, _, nextID = celldivision!(homeostaticmodule, population.subclones, parentcellid, t, nextID, μ, mutationdist, rng; nchildcells=1)
-    new_mosaic_mutations!(mosaic_mutations.homeostatic[homeostaticmoduleid], nextID_before, nextID-1, t)
+    _, _, nextID = celldivision!(
+        homeostaticmodule,
+        population.subclones,
+        parentcellid,
+        t,
+        nextID,
+        μ,
+        mutationdist,
+        rng;
+        nchildcells=1
+        )
+    new_mosaic_mutations!(
+        mosaic_mutations.homeostatic[homeostaticmoduleid],
+        nextID_before,
+        nextID-1,
+        t
+    )
     updatetime!(homeostaticmodule, t)
     return population, nextID
 end
 
-
-"""
-    birthupdate_condfixtimes!(population, modulesize, t, nextID, μ, mutationdist, rng)
-
-Selects a cell uniformly at random from all cells in non-homeostatic modules to divide.
-"""
-function birthupdate_condfixtimes!(population, mosaic_mutations, condfixtimes, maxmodulesize, t, nextID, μ, mutationdist, rng)
+function birthupdate_condfixtimes!(
+    population,
+    mosaic_mutations,
+    condfixtimes,
+    maxmodulesize,
+    t,
+    nextID,
+    μ,
+    mutationdist,
+    rng
+)
     growingmoduleid, parentcellid = choose_growingmodule_cell(population, rng)
     growingmodule = population.growing_modules[growingmoduleid]
     nextID_before = nextID
-    _, _, nextID = celldivision!(growingmodule, population.subclones, parentcellid, t, nextID, μ, mutationdist, rng)
-    new_mosaic_mutations!(mosaic_mutations.growing[growingmoduleid], nextID_before, nextID-1, t)
+    _, _, nextID = celldivision!(
+        growingmodule,
+        population.subclones,
+        parentcellid,
+        t,
+        nextID,
+        μ,
+        mutationdist,
+        rng
+    )
+    new_mosaic_mutations!(
+        mosaic_mutations.growing[growingmoduleid],
+        nextID_before,
+        nextID-1,
+        t
+    )
     updatetime!(growingmodule, t)
     if length(growingmodule) >= maxmodulesize
         move_module_to_homeostasis!(population, growingmoduleid)
-        push!(mosaic_mutations.homeostatic, popat!(mosaic_mutations.growing, growingmoduleid))
+        push!(
+            mosaic_mutations.homeostatic,
+            popat!(mosaic_mutations.growing, growingmoduleid)
+        )
         push!(condfixtimes.homeostatic, popat!(condfixtimes.growing, growingmoduleid))
     end
     return population, nextID
 end
 
-
-"""
-    deathupdate!(population, modulesize, t, rng)
-
-Selects a cell uniformly at random from all cells in non-homeostatic modules to die. If 
-cell death results in an empty module, remove that module from the population.
-"""
-
-function deathupdate_condfixtimes!(population, mosaic_mutations, condfixtimes, modulesize, t, μ, mutationdist, rng)
+function deathupdate_condfixtimes!(
+    population,
+    mosaic_mutations,
+    condfixtimes,
+    modulesize,
+    t,
+    μ,
+    mutationdist,
+    rng
+)
     growingmoduleid, deadcellid = choose_growingmodule_cell(population, rng)
     growingmodule = population.growing_modules[growingmoduleid]
     celldeath!(growingmodule, population.subclones, deadcellid, t, μ, mutationdist, rng)
@@ -233,43 +419,95 @@ function deathupdate_condfixtimes!(population, mosaic_mutations, condfixtimes, m
         deleteat!(mosaic_mutations.growing, growingmoduleid)
         deleteat!(condfixtimes.growing, growingmoduleid)
     else
-        checkfixation_addcondfixtimes!(mosaic_mutations.growing[growingmoduleid], condfixtimes.growing[growingmoduleid], growingmodule, t)
+        checkfixation_addcondfixtimes!(
+            mosaic_mutations.growing[growingmoduleid],
+            condfixtimes.growing[growingmoduleid],
+            growingmodule,
+            t
+        )
     end
     return population
 end
 
-"""
-    modulebranchingupdate!(population, modulesize, branchinitsize, t, rng)
-Select a homeostatic module, uniformly at random, to undergo branching. Cells are sampled 
-(number of cells giving by `branchinitsize`) from the parent module to form a new module, 
-which is added to `population`
-"""
-function modulebranchingupdate_condfixtimes!(population, mosaic_mutations, condfixtimes, nextmoduleID, modulesize, branchinitsize, t, rng; 
-    modulebranching=:split, nextID=nothing, μ=nothing, mutationdist=nothing)
-    
+function modulebranchingupdate_condfixtimes!(
+    population,
+    mosaic_mutations,
+    condfixtimes,
+    nextmoduleID,
+    modulesize,
+    branchinitsize,
+    t,
+    rng;
+    modulebranching=:split,
+    nextID=nothing,
+    μ=nothing,
+    mutationdist=nothing
+)
+
     parentmoduleid = choose_homeostaticmodule(population, rng)
     parentmodule = population.homeostatic_modules[parentmoduleid]
-    parentmodule, newmodule, nextID = 
-        newmoduleformation!(parentmodule, population.subclones, nextmoduleID, branchinitsize, t, rng; 
+    parentmodule, newmodule, nextID =
+        newmoduleformation!(parentmodule, population.subclones, nextmoduleID, branchinitsize, t, rng;
             modulebranching, nextID, μ, mutationdist)
     push!(population.growing_modules, newmodule)
     push!(mosaic_mutations.growing, copy(mosaic_mutations.homeostatic[parentmoduleid]))
     push!(condfixtimes.growing, copy(condfixtimes.homeostatic[parentmoduleid]))
-    checkfixationextinction_addcondfixtimes!(mosaic_mutations.homeostatic[parentmoduleid], condfixtimes.homeostatic[parentmoduleid], parentmodule, t)
-    checkfixationextinction_addcondfixtimes!(mosaic_mutations.growing[end], condfixtimes.growing[end], population[end], t)
+    checkfixationextinction_addcondfixtimes!(
+        mosaic_mutations.homeostatic[parentmoduleid],
+        condfixtimes.homeostatic[parentmoduleid],
+        parentmodule,
+        t
+    )
+    checkfixationextinction_addcondfixtimes!(
+        mosaic_mutations.growing[end],
+        condfixtimes.growing[end],
+        population[end],
+        t
+    )
     if modulebranching == :split
-        move_module_a_to_b!(population.homeostatic_modules, population.growing_modules, parentmoduleid)
-        push!(mosaic_mutations.growing, popat!(mosaic_mutations.homeostatic, parentmoduleid))
+        move_module_a_to_b!(
+            population.homeostatic_modules,
+            population.growing_modules,
+            parentmoduleid
+        )
+        push!(
+            mosaic_mutations.growing,
+            popat!(mosaic_mutations.homeostatic, parentmoduleid)
+        )
         push!(condfixtimes.growing, popat!(condfixtimes.homeostatic, parentmoduleid))
     end
     return population, nextmoduleID + 1, nextID
 end
 
-function modulemoranupdate_condfixtimes!(population, mosaic_mutations, condfixtimes, nextmoduleID, modulesize, branchinitsize, t, rng; 
-    modulebranching=:split, nextID=nothing, μ=nothing, mutationdist=nothing)
+function modulemoranupdate_condfixtimes!(
+    population,
+    mosaic_mutations,
+    condfixtimes,
+    nextmoduleID,
+    modulesize,
+    branchinitsize,
+    t,
+    rng;
+    modulebranching=:split,
+    nextID=nothing,
+    μ=nothing,
+    mutationdist=nothing
+)
 
-    _, _, nextID = modulebranchingupdate_condfixtimes!(population, mosaic_mutations, condfixtimes, nextmoduleID, modulesize, 
-        branchinitsize, t, rng; modulebranching, nextID, μ, mutationdist)
+    _, _, nextID = modulebranchingupdate_condfixtimes!(
+        population,
+        mosaic_mutations,
+        condfixtimes,
+        nextmoduleID,
+        modulesize,
+        branchinitsize,
+        t,
+        rng;
+        modulebranching,
+        nextID,
+        μ,
+        mutationdist
+    )
 
     deadmoduleid = choose_any_module(population, rng)
     deadmodule = population[deadmoduleid]

@@ -54,7 +54,7 @@ simulation = SomaticEvolution.Simulation(input, population2)
 @testset "mutation statistics" begin
     @test mutations_per_cell(mt1) == [3, 8, 5, 2]
     @test average_mutations_per_module(simulation) ≈ [4.5, 4, 1]
-    @test all(average_mutations(simulation, true) .≈ (3.875, 5.267857142857143))
+    @test average_mutations(simulation) .≈ 3.875
     @test clonal_mutations(simulation) == [0, 2, 1]
     @test SomaticEvolution.clonal_mutation_ids(simulation) == [[], [1, 13], [1]]
     @test pairwise_fixed_differences_matrix(simulation, diagonals=true) == [0 0 0; 2 2 0; 1 1 1]

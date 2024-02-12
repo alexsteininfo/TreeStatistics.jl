@@ -216,7 +216,7 @@ end
         @test coalescence_times(root) ≈ [0.0, 1.6919799338516708 - 1.5355542835848743, 1.6919799338516708 - 1.5355542835848743]
         @test pairwisedistance(root.left.left, root.right) == 28
         @test pairwisedistance(root.left.left, root.left.right) == 30
-        @test pairwisedistances(root) == Dict(28=>1, 30=>1, 32=>1)
+        @test pairwise_differences(getalivecells(root)) == Dict(28=>1, 30=>1, 32=>1)
         @test Set(getalivecells(root)) == Set([root.right, root.left.left, root.left.right])
         @test endtime(root.left.left) === nothing
         @test endtime(root) ≈ 1.5355542835848743 atol=1e-6

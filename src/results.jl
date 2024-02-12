@@ -23,25 +23,22 @@ Base.lastindex(multisim::MultiSimulation) = lastindex(multisim.output)
 get_simulation(multsim, i) = return Simulation(multsim.input, multsim.output[i])
 
 abstract type AbstractVAFResult end
-struct VAFResult{T<:SimulationInput} <: AbstractVAFResult
+struct VAFResult <: AbstractVAFResult
     read_depth::Float64
     cellularity::Float64
     detectionlimit::Float64
     trueVAF::Vector{Float64}
     sampledVAF::Vector{Float64}
     subclonefreq::Vector{Float64}
-    subclonefreqp::Vector{Float64}
 end
 
-struct VAFResultMulti{T<:MultilevelInput} <: AbstractVAFResult
+struct VAFResultMulti <: AbstractVAFResult
     read_depth::Float64
     cellularity::Float64
     detectionlimit::Float64
     trueVAFs::Vector{Vector{Float64}}
     sampledVAFs::Vector{Vector{Float64}}
     subclonefreqs::Vector{Vector{Float64}}
-    subclonefreqps::Vector{Vector{Float64}}
-
 end
 
 """

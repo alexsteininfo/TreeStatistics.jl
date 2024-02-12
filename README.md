@@ -18,12 +18,19 @@ Simulations are run using the `runsimulation`, `runsimulation_timeseries` or
 
 To run a simulation an input must be created. Different input types correspond to different 
 simulations (see `?SimulationInput` for options). Keyword arguments for each input type and 
-default values can be found in the docs for each input type, e.g. see `?BranchingInput` or `MultilevelBranchingMoranInput`. 
+default values can be found in the docs for each input type, e.g. see `?BranchingInput` or 
+`?MultilevelInput`. 
 
 By default selection is neutral (i.e. all cells have the 
 same fitness). Other selection regimes can be specified by passing an explicit 
 `selection::AbstractSelection` argument to `runsimulation`. This can be of type 
 `NeutralSelection` (default), `SelectionPredefined` or `SelectionDistribution`.
+- `SelectionPredefined` allows you to define (approximate) times and fitnesses for new 
+  mutations
+- `SelectionDistribution` allows you to define a probability for fit mutations to 
+  occur allong with a fitness distribution.
+
+Note that simulations with selection may need further testing.
 
 ## Examples 
 
@@ -61,14 +68,15 @@ same fitness). Other selection regimes can be specified by passing an explicit
   simulation = runsimulation(input, selection, rng)
   ```
 
-## Cell implementations
+## Implementations
 
-The default implementation relies on storing lists of mutations for each cell, with each
-cell having a unique id. A (generally) faster implementation which uses tree structured 
-cells is also available. To choose which implementation is used, the cell type can be
-passed to runsimulation as the first argument.
+The "cell" implementation relies on storing lists of mutations for each cell, with each
+cell having a unique id. The "tree" implementation is usually faster, and stores cells
+within a tree structure so full ancestory is preserved throughout the simulation. The number
+unique mutations for each cell is stored, rather than each mutation individually. To choose 
+which implementation is used, the cell type can be passed to runsimulation as the first argument.
 
-- `runsimulation(Cell, input, rng)`: default
+- `runsimulation(Cell, input, rng)`
 - `runsimulation(SimpleTreeCell, input, rng)`: tree-structured cells, dead cells are
   removed from tree.
 - `runsimulation(TreeCell, input, rng)`: tree-structured cells, dead cells stay in tree and
@@ -86,4 +94,3 @@ code for examples of how these can be implemented.
 The second optional argument of `runsimulation` is a type `S<:ModuleStructure` that defaults 
 to `WellMixed`. Other types could be implemented to enable spatial arrangement of cells 
 within the module.
-

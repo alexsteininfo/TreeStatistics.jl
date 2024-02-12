@@ -1,29 +1,29 @@
-function proccessresults!(treemodule::TreeModule, μ, clonalmutations, rng; mutationdist=:poisson)
-    return treemodule
-end
-
-function proccessresults!(population::Population{TreeModule}, μ, clonalmutations, rng; mutationdist=:poisson)
-    return population
-end
-
-function processresults!(cellmodule::CellModule, μ, clonalmutations, rng::AbstractRNG;
-    mutationdist=:poisson)
-
+function processresults!(
+    cellmodule::CellModule,
+    μ,
+    clonalmutations,
+    rng::AbstractRNG;
+    mutationdist=:poisson
+)
     mutationlist = get_mutationlist(cellmodule)
-    expandedmutationids = 
-        get_expandedmutationids(μ, mutationdist, mutationlist, clonalmutations, rng)
+    expandedmutationids = get_expandedmutationids(
+        μ, mutationdist, mutationlist, clonalmutations, rng
+    )
     expandmutations!(cellmodule, expandedmutationids, clonalmutations)
-    
     return cellmodule
 end
 
-function processresults!(population::Union{Population{CellModule{T}}, Population{CellModule{T}}}, μ, mutationdist, 
-    clonalmutations, rng::AbstractRNG) where T
-    
+function processresults!(
+    population::Union{Population{CellModule{T}}, Population{CellModule{T}}},
+    μ,
+    mutationdist,
+    clonalmutations,
+    rng::AbstractRNG
+) where T
     mutationlist = get_mutationlist(population)
-    expandedmutationids = 
-        get_expandedmutationids(μ, mutationdist, mutationlist, clonalmutations, rng)
-    
+    expandedmutationids = get_expandedmutationids(
+        μ, mutationdist, mutationlist, clonalmutations, rng
+    )
     for cellmodule in population
         expandmutations!(cellmodule, expandedmutationids, clonalmutations)
     end
@@ -31,19 +31,19 @@ function processresults!(population::Union{Population{CellModule{T}}, Population
 end
 
 function final_timedep_mutations!(
-    population::Union{Population{CellModule{T}}, PopulationWithQuiescence{CellModule{T}}}, 
-    μ, 
-    mutationdist, 
+    population::Union{Population{CellModule{T}}, PopulationWithQuiescence{CellModule{T}}},
+    μ,
+    mutationdist,
     rng;
     tend=age(population),
     mutID=nothing
 ) where T
-
     if isnothing(mutID)
-        mutID = maximum(mutid 
-            for cellmodule in population 
-                for cell in cellmodule.cells
-                    for mutid in cell.mutations
+        mutID = maximum(
+            mutid
+                for cellmodule in population
+                    for cell in cellmodule.cells
+                        for mutid in cell.mutations
         )
     end
     for cellmodule in population
@@ -51,14 +51,25 @@ function final_timedep_mutations!(
     end
 end
 
-function final_timedep_mutations!(population::SinglelevelPopulation, μ, mutationdist, rng; 
-    tend = age(population), mutID=nothing)
+function final_timedep_mutations!(
+    population::SinglelevelPopulation,
+    μ,
+    mutationdist,
+    rng;
+    tend = age(population),
+    mutID=nothing
+)
     final_timedep_mutations!(population.singlemodule, μ, mutationdist, rng; tend, mutID)
 end
 
-function final_timedep_mutations!(cellmodule::CellModule, μ, mutationdist, rng; 
-    mutID=nothing, tend=age(cellmodule))
-
+function final_timedep_mutations!(
+    cellmodule::CellModule,
+    μ,
+    mutationdist,
+    rng;
+    mutID=nothing,
+    tend=age(cellmodule)
+)
     if isnothing(mutID)
         mutID = maximum(mutid for cell in cellmodule.cells for mutid in cell.mutations) + 1
     end
@@ -75,15 +86,26 @@ function final_timedep_mutations!(cellmodule::CellModule, μ, mutationdist, rng;
     return mutID
 end
 
-function final_timedep_mutations!(population::Union{Population{TreeModule{S, T}}, PopulationWithQuiescence{TreeModule{S, T}}}, μ, 
-    mutationdist, rng; tend=age(population), mutID=nothing) where {S, T}
-    
+function final_timedep_mutations!(
+    population::Union{Population{TreeModule{S, T}}, PopulationWithQuiescence{TreeModule{S, T}}},
+    μ,
+    mutationdist,
+    rng;
+    tend=age(population),
+    mutID=nothing
+) where {S, T}
     for treemodule in population
-        final_timedep_mutations!(treemodule, μ, mutationdist, rng; tend)
+        final_timedep_mutations!(treemodule, μ, mutationdist, rng; tend, mutID)
     end
 end
 
-function final_timedep_mutations!(treemodule::TreeModule, μ, mutationdist, rng; tend=age(treemodule), mutID=nothing)
+function final_timedep_mutations!(
+    treemodule::TreeModule,
+    μ, mutationdist,
+    rng;
+    tend=age(treemodule),
+    mutID=nothing
+)
     for (μ0, mutationdist0) in zip(μ, mutationdist)
         if mutationdist0 ∈ (:poissontimedep, :fixedtimedep)
             for cell in treemodule.cells
@@ -97,7 +119,6 @@ function final_timedep_mutations!(treemodule::TreeModule, μ, mutationdist, rng;
 end
 
 function expandmutations!(cellmodule, expandedmutationids, clonalmutations)
-
     if length(expandedmutationids) > 0
         for cell in cellmodule.cells
             cell.mutations = expandmutations(expandedmutationids, cell.mutations)
@@ -115,7 +136,7 @@ end
 
 function expandmutations(expandedmutationids, originalmutations)
     return reduce(
-        vcat, 
+        vcat,
         filter(!isempty, map(x -> expandedmutationids[x], originalmutations)),
         init=Int64[]
     )
@@ -123,7 +144,7 @@ end
 
 function get_mutationlist(population::Population)
     #get list of all mutations assigned to each cell
-    mutationlist = [mutation 
+    mutationlist = [mutation
         for cellmodule in population
             for cell in cellmodule.cells
                 for mutation in cell.mutations
@@ -133,7 +154,7 @@ end
 
 function get_mutationlist(cellmodule)
     #get list of all mutations assigned to each cell
-    mutationlist = [mutation 
+    mutationlist = [mutation
         for cell in cellmodule.cells
             for mutation in cell.mutations
     ]
@@ -141,7 +162,6 @@ function get_mutationlist(cellmodule)
 end
 
 function get_expandedmutationids(μ, mutationdist, mutationlist, clonalmutations, rng)
-
     mutationsN = sum(
         numberuniquemutations(rng, length(mutationlist), mutationdist0, μ0)
             for (mutationdist0, μ0) in zip(mutationdist, μ)
@@ -161,7 +181,7 @@ function numberuniquemutations(rng, L, mutationdist, μ)
     if mutationdist == :fixed
         return fill(μ, L)
     elseif mutationdist == :poisson
-        return rand(rng, Poisson(μ), L) 
+        return rand(rng, Poisson(μ), L)
     elseif mutationdist == :geometric
         return rand(rng, Geometric(1/(1+μ)), L)
     elseif (mutationdist == :poissontimedep) || (mutationdist == :fixedtimedep)
@@ -171,21 +191,6 @@ function numberuniquemutations(rng, L, mutationdist, μ)
     end
 end
 
-function remove_undetectable!(cellmodule, clonefreq, clonefreqp, numclones, detectableclones)
-    #if there are clones outside the detectable range remove them from the data
-    if sum(detectableclones) < numclones
-        numclones = sum(detectableclones)
-        clonefreq = clonefreq[detectableclones]
-        clonefreqp = clonefreqp[detectableclones]
-        cellmodule.subclones = cellmodule.subclones[detectableclones]
-        pushfirst!(detectableclones, true)
-        cellmodule.clonesize = cellmodule.clonesize[detectableclones]
-        detectableclones = detectableclones[1:length(br)]
-    end
-    return cellmodule, clonefreq, clonefreqp, numclones
-end
-
-
 function calculateclonefreq!(clonefreq, subclonalmutations, subclones)
     for i in length(subclones):-1:2
         if subclones[i].parenttype > 1
@@ -194,7 +199,7 @@ function calculateclonefreq!(clonefreq, subclonalmutations, subclones)
         end
     end
     if (sum(clonefreq.>1.0) > 0)
-        error("There is a clone with frequency greater than 1, this should be impossible 
+        error("There is a clone with frequency greater than 1, this should be impossible
                 ($(clonesize)), $(parenttype), $(clonefreq)")
     end
     return clonefreq, subclonalmutations

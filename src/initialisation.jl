@@ -1,11 +1,13 @@
 """
     initialize_population(::Type{T}, ::Type{S}, input; rng=Random.GLOBAL_RNG) where {T<: AbstractCell, S<: ModuleStructure}
 
-Create the initial `Population` or `SinglelevelPopulation`. 
+Create the initial population of type Population{M}, PopulationWithQuiescence or SinglelevelPopulation{M}
+depending on `input` type. Module type `M` is determined by calling `moduletype(T, S)`.
 """
+function initialize_population end
 function initialize_population(
-    ::Type{T}, 
-    ::Type{S}, 
+    ::Type{T},
+    ::Type{S},
     input::MultilevelInput;
     rng=Random.GLOBAL_RNG
 ) where {T <: AbstractCell, S <: ModuleStructure}
@@ -13,24 +15,29 @@ function initialize_population(
     N = getNinit(input)
     modulesize = getmaxmodulesize(input)
     Nmodules = getNmodules_init(input)
-    modules = moduletype(T,S)[initialize(T, S, input.clonalmutations, N; rng) for _ in 1:Nmodules]
-    homeostatic_modules, growing_modules = 
-        if N == modulesize
-            modules, moduletype(T,S)[]
-        else
-            moduletype(T,S)[], modules
-        end
+    modules = moduletype(T,S)[
+        initialize(T, S, input.clonalmutations, N; rng)
+            for _ in 1:Nmodules
+    ]
+    homeostatic_modules, growing_modules = if N == modulesize
+        modules, moduletype(T,S)[]
+    else
+        moduletype(T,S)[], modules
+    end
 
-        return Population(
-            homeostatic_modules, 
-            growing_modules, 
-            input.birthrate, input.deathrate, input.moranrate, input.asymmetricrate
-        )
+    return Population(
+        homeostatic_modules,
+        growing_modules,
+        input.birthrate,
+        input.deathrate,
+        input.moranrate,
+        input.asymmetricrate
+    )
 end
 
 function initialize_population(
-    ::Type{T}, 
-    ::Type{S}, 
+    ::Type{T},
+    ::Type{S},
     input::MultilevelStochasticQuiescentInput;
     rng=Random.GLOBAL_RNG
 ) where {T <: AbstractCell, S <: ModuleStructure}
@@ -38,8 +45,11 @@ function initialize_population(
     N = getNinit(input)
     modulesize = getmaxmodulesize(input)
     Nmodules = getNmodules_init(input)
-    modules = moduletype(T,S)[initialize(T, S, input.clonalmutations, N; rng) for _ in 1:Nmodules]
-    homeostatic_modules, growing_modules = 
+    modules = moduletype(T,S)[
+        initialize(T, S, input.clonalmutations, N; rng)
+            for _ in 1:Nmodules
+    ]
+    homeostatic_modules, growing_modules =
         if N == modulesize
             modules, moduletype(T,S)[]
         else
@@ -47,16 +57,16 @@ function initialize_population(
         end
     quiescent_modules = moduletype(T,S)[]
         return PopulationWithQuiescence(
-            homeostatic_modules, 
+            homeostatic_modules,
             quiescent_modules,
-            growing_modules, 
+            growing_modules,
             input.birthrate, input.deathrate, input.moranrate, input.asymmetricrate
         )
 end
 
 function initialize_population(
-    ::Type{T}, 
-    ::Type{S}, 
+    ::Type{T},
+    ::Type{S},
     input::SinglelevelInput;
     rng=Random.GLOBAL_RNG
 ) where {T<: AbstractCell, S<: ModuleStructure}
@@ -65,7 +75,13 @@ function initialize_population(
     singlemodule = initialize(T, S, input.clonalmutations, N; rng)
     birthrate, deathrate, moranrate, asymmetricrate = getinputrates(input)
 
-    return SinglelevelPopulation(singlemodule, birthrate, deathrate, moranrate, asymmetricrate)
+    return SinglelevelPopulation(
+        singlemodule,
+        birthrate,
+        deathrate,
+        moranrate,
+        asymmetricrate
+    )
 end
 
 
@@ -74,10 +90,10 @@ end
     initialize(::Type{T}, ::Type{S}, input, rng::AbstractRNG=Random.GLOBAL_RNG)
 
 Initialise population of cells based on `input` and return as a `TreeModule{T, S} or
-if `T == Cell` as a`CellModule{S}`.
+`CellModule{S}`.
 """
 function initialize(
-    ::Type{T}, 
+    ::Type{T},
     ::Type{S},
     clonalmutations,
     N;
@@ -111,7 +127,7 @@ create_modulestructure(WellMixed, N) = WellMixed()
 
 function newcell(::Type{Cell}, id, mutations)
     return Cell(
-        collect(1:mutations), 
+        collect(1:mutations),
         1,  #clonetype (wild-type)
         0,  #birthtime
         0,  #latest update time
@@ -124,26 +140,41 @@ function newcell(::Type{T}, id, mutations) where T <: AbstractTreeCell
     return BinaryNode{T}(T(;id, mutations))
 end
 
-function create_cells(::Type{T}, structure::ModuleStructure, initialmutations, N=1; 
+function create_cells(::Type{T}, structure::ModuleStructure, initialmutations, N=1;
     rng=Random.GLOBAL_RNG) where T <:AbstractCell
 
     alivecells = [newcell(T, id, initialmutations) for id in 1:N]
     return position_cells(alivecells, structure, rng)
 end
 
-position_cells(alivecells, structure, rng) = alivecells
+position_cells(alivecells, ::Any, rng) = alivecells
+
 
 function position_cells(cells, structure::Linear, rng)
     N = length(cells)
     pad1 = round(Int64, (structure.size - N - 1)/2)
     pad2 = structure.size - pad1 - 1
-    if rand(rng, 1:2) == 2 
-        pad1, pad2 = pad2, pad1 
+    if rand(rng, 1:2) == 2
+        pad1, pad2 = pad2, pad1
     end
     return [fill(nothing, pad1); cells; fill(nothing, pad2)]
 end
 
-function new_module_from_cells(cells::T, t, branchtimes, id, parentid, modulestructure::S) where {T, S}
+"""
+    new_module_from_cells(cells::T, t, branchtimes, id, parentid, modulestructure::S) where
+        {T, S}
+
+Create a new module from the vector of cells `cells`. Module type is determined by calling
+`moduletype(T, S)`.
+"""
+function new_module_from_cells(
+    cells::T,
+    t,
+    branchtimes,
+    id,
+    parentid,
+    modulestructure::S
+) where {T, S}
     cellmodule = moduletype(T, S)(
         cells,
         t,

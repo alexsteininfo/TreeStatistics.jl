@@ -1,5 +1,5 @@
 abstract type AbstractPopulation end
-abstract type MultilevelPopulation <: AbstractPopulation end 
+abstract type MultilevelPopulation <: AbstractPopulation end
 
 struct Population{T<:AbstractModule} <: MultilevelPopulation
     homeostatic_modules::Vector{T}
@@ -20,22 +20,71 @@ struct SinglelevelPopulation{T<:AbstractModule} <: AbstractPopulation
 end
 
 Base.size(population::SinglelevelPopulation) = (length(population),)
-Base.size(population::Population) = (length(population.homeostatic_modules), length(population.growing_modules))
-Base.size(population::PopulationWithQuiescence) = 
-    (length(population.homeostatic_modules), length(population.quiescent_modules), length(population.growing_modules))
+
+function Base.size(population::Population)
+    return (length(population.homeostatic_modules), length(population.growing_modules))
+end
+
+function Base.size(population::PopulationWithQuiescence)
+    return (
+        length(population.homeostatic_modules),
+        length(population.quiescent_modules),
+        length(population.growing_modules)
+    )
+end
 
 
 Base.length(population::SinglelevelPopulation) = length(population.singlemodule)
-Base.length(population::Population) = length(population.homeostatic_modules) + length(population.growing_modules)
-Base.length(population::PopulationWithQuiescence) = length(population.homeostatic_modules) + length(population.quiescent_modules) + length(population.growing_modules)
-Base.iterate(population::Population) = iterate(Base.Iterators.flatten((population.homeostatic_modules, population.growing_modules)))
-Base.iterate(population::Population, state) = iterate(Base.Iterators.flatten((population.homeostatic_modules, population.growing_modules)), state)
-Base.iterate(population::PopulationWithQuiescence) = iterate(Base.Iterators.flatten((population.homeostatic_modules, population.quiescent_modules, population.growing_modules)))
-Base.iterate(population::PopulationWithQuiescence, state) = iterate(Base.Iterators.flatten((population.homeostatic_modules, population.quiescent_modules, population.growing_modules)), state)
+
+function Base.length(population::Population)
+    return length(population.homeostatic_modules) + length(population.growing_modules)
+end
+
+function Base.length(population::PopulationWithQuiescence)
+    return length(population.homeostatic_modules) +
+        length(population.quiescent_modules) +
+        length(population.growing_modules)
+end
+
+function Base.iterate(population::Population)
+    return iterate(
+        Base.Iterators.flatten((population.homeostatic_modules, population.growing_modules))
+    )
+end
+
+function Base.iterate(population::Population, state)
+    return iterate(
+        Base.Iterators.flatten(
+            (population.homeostatic_modules, population.growing_modules)
+        ),
+        state
+    )
+end
+
+function Base.iterate(population::PopulationWithQuiescence)
+    return iterate(
+        Base.Iterators.flatten((
+            population.homeostatic_modules,
+            population.quiescent_modules,
+            population.growing_modules
+        ))
+    )
+end
+
+function Base.iterate(population::PopulationWithQuiescence, state)
+    return iterate(
+        Base.Iterators.flatten((
+            population.homeostatic_modules,
+            population.quiescent_modules,
+            population.growing_modules
+        )),
+        state
+    )
+end
 
 function Base.getindex(population::Population, i)
     Nhom = length(population.homeostatic_modules)
-    if i <= Nhom 
+    if i <= Nhom
         return Base.getindex(population.homeostatic_modules, i)
     else
         return Base.getindex(population.growing_modules, i - Nhom)
@@ -45,7 +94,7 @@ end
 function Base.getindex(population::PopulationWithQuiescence, i)
     Nhom = length(population.homeostatic_modules)
     Nqui = length(population.quiescent_modules)
-    if i <= Nhom 
+    if i <= Nhom
         return Base.getindex(population.homeostatic_modules, i)
     elseif i <= Nhom + Nqui
         return Base.getindex(population.quiescent_modules, i - Nhom)
@@ -54,12 +103,17 @@ function Base.getindex(population::PopulationWithQuiescence, i)
     end
 end
 
-Base.getindex(population::Population, a::Vector{Int64}) = map(i -> getindex(population, i), a)
-Base.getindex(population::PopulationWithQuiescence, a::Vector{Int64}) = map(i -> getindex(population, i), a)
+function Base.getindex(population::Population, a::Vector{Int64})
+    return map(i -> getindex(population, i), a)
+end
+
+function Base.getindex(population::PopulationWithQuiescence, a::Vector{Int64})
+    return map(i -> getindex(population, i), a)
+end
 
 function Base.setindex(population::Population, v, i)
     Nhom = length(population.homeostatic_modules)
-    if i <= Nhom 
+    if i <= Nhom
         return Base.setindex(population.homeostatic_modules, v, i)
     else
         return Base.setindex(population.growing_modules, v, i - Nhom)
@@ -69,7 +123,7 @@ end
 function Base.setindex(population::PopulationWithQuiescence, v, i)
     Nhom = length(population.homeostatic_modules)
     Nqui = length(population.quiescent_modules)
-    if i <= Nhom 
+    if i <= Nhom
         return Base.setindex(population.homeostatic_modules, v, i)
     elseif i <= Nhom + Nqui
         return Base.setindex(population.quiescent_modules, v, i - Nhom)
@@ -79,7 +133,7 @@ function Base.setindex(population::PopulationWithQuiescence, v, i)
 end
 
 function Base.firstindex(population::Population)
-    if length(population.homeostatic_modules) != 0 
+    if length(population.homeostatic_modules) != 0
         return firstindex(population.homeostatic_modules)
     else
         return firstindex(population.growing_modules)
@@ -87,9 +141,9 @@ function Base.firstindex(population::Population)
 end
 
 function Base.firstindex(population::PopulationWithQuiescence)
-    if length(population.homeostatic_modules) != 0 
+    if length(population.homeostatic_modules) != 0
         return firstindex(population.homeostatic_modules)
-    elseif length(population.quiescent_modules) != 0 
+    elseif length(population.quiescent_modules) != 0
         return firstindex(population.quiescent_modules)
     else
         return firstindex(population.growing_modules)
@@ -97,71 +151,92 @@ function Base.firstindex(population::PopulationWithQuiescence)
 end
 
 function Base.lastindex(population::Population)
-    if length(population.growing_modules) != 0 
+    if length(population.growing_modules) != 0
         return lastindex(population.growing_modules)
-    else 
+    else
         return lastindex(population.homeostatic_modules)
     end
 end
 
 function Base.lastindex(population::PopulationWithQuiescence)
-    if length(population.growing_modules) != 0 
+    if length(population.growing_modules) != 0
         return lastindex(population.growing_modules)
-    elseif length(population.quiescent_modules) != 0 
+    elseif length(population.quiescent_modules) != 0
         return lastindex(population.quiescent_modules)
     else
         return lastindex(population.homeostatic_modules)
     end
 end
 
-function Population(homeostatic_modules::Vector{T}, growing_modules::Vector{T}, birthrate, deathrate, moranrate, asymmetricrate) where T
+function Population(
+    homeostatic_modules::Vector{T},
+    growing_modules::Vector{T},
+    birthrate,
+    deathrate,
+    moranrate,
+    asymmetricrate
+) where T
     return Population{T}(
-        homeostatic_modules, 
+        homeostatic_modules,
         growing_modules,
-    Subclone[Subclone(
-        1,
-        0,
-        0.0,
-        sum(length.(homeostatic_modules)) + sum(length.(growing_modules)),
-        birthrate,
-        deathrate,
-        moranrate,
-        asymmetricrate
-    )]
+        Subclone[Subclone(
+            1,
+            0,
+            0.0,
+            sum(length.(homeostatic_modules)) + sum(length.(growing_modules)),
+            birthrate,
+            deathrate,
+            moranrate,
+            asymmetricrate
+        )]
     )
 end
 
-function PopulationWithQuiescence(homeostatic_modules::Vector{T}, quiescent_modules::Vector{T}, growing_modules::Vector{T}, birthrate, deathrate, moranrate, asymmetricrate) where T
+function PopulationWithQuiescence(
+    homeostatic_modules::Vector{T},
+    quiescent_modules::Vector{T},
+    growing_modules::Vector{T},
+    birthrate,
+    deathrate,
+    moranrate,
+    asymmetricrate
+) where T
     return PopulationWithQuiescence{T}(
-        homeostatic_modules, 
+        homeostatic_modules,
         quiescent_modules,
         growing_modules,
-    Subclone[Subclone(
-        1,
-        0,
-        0.0,
-        sum(length.(homeostatic_modules)) + sum(length.(growing_modules)),
-        birthrate,
-        deathrate,
-        moranrate,
-        asymmetricrate
-    )]
+        Subclone[Subclone(
+            1,
+            0,
+            0.0,
+            sum(length.(homeostatic_modules)) + sum(length.(growing_modules)),
+            birthrate,
+            deathrate,
+            moranrate,
+            asymmetricrate
+        )]
     )
 end
 
-function SinglelevelPopulation(singlemodule::T, birthrate, deathrate, moranrate, asymmetricrate) where T
+function SinglelevelPopulation(
+    singlemodule::T,
+    birthrate,
+    deathrate,
+    moranrate,
+    asymmetricrate
+) where T
     return SinglelevelPopulation{T}(
         singlemodule,
-    Subclone[Subclone(
-        1,
-        0,
-        0.0,
-        length(singlemodule),
-        birthrate,
-        deathrate,
-        moranrate,
-        asymmetricrate
-    )]
+        Subclone[Subclone(
+            1,
+            0,
+            0.0,
+            length(singlemodule),
+            birthrate,
+            deathrate,
+            moranrate,
+            asymmetricrate
+        )]
     )
 end
 
@@ -220,7 +295,7 @@ function printmodule(io::IO, mod::AbstractModule; maxsubclone=nothing)
         subclonelist = sort!([getclonetype(cell) for cell in mod])
         unique_subclones = unique(subclonelist)
         @printf(io, "[")
-        if length(unique_subclones) == 1 
+        if length(unique_subclones) == 1
             @printf(io, "%d (%d)", length(subclonelist), unique_subclones[1])
         else
             for subcloneid in unique_subclones[1:end-1]
@@ -232,20 +307,3 @@ function printmodule(io::IO, mod::AbstractModule; maxsubclone=nothing)
         @printf(io, "]")
     end
 end
-
-# function printmodule(io::IO, mod::AbstractModule; maxsubclone=nothing)
-#     if length(mod) == 0
-#         @printf(io, "[]")
-#     else
-#         subclonelist = [getclonetype(cell) for cell in mod]
-#         maxsubclone = isnothing(maxsubclone) ? maximum(subclonelist) : maxsubclone
-#         subclone_counts = counts(subclonelist, 1:maxsubclone)
-#         @printf(io, "[%d", subclone_counts[1])
-#         if length(subclone_counts) > 1
-#             for c in subclone_counts[2:end]
-#                 @printf(io, ", %d", c)
-#             end
-#         end
-#         @printf(io, "]")
-#     end
-# end

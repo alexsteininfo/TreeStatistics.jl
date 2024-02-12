@@ -1,10 +1,9 @@
 
 """
-    killcell!(alivecells::Vector{BinaryNode{TreeCell}}, deadcellidx::Integer, t, μ, mutationdist, rng)
+    killcell!(alivecells::TreeCellVector, deadcellidx::Integer, t, μ, mutationdist, rng)
 
-Kill `TreeCell` at index `deadcellidx` in `alivecells` by adding a left child node with `alive=false`. If 
+Kill `TreeCell` at index `deadcellidx` in `alivecells` by adding a left child node with `alive=false`. If
 `mutationdist ∈ [:poissontimedep, :fixedtimedep]` then add mutations to the dying cell.
-
 """
 function killcell!(alivecells::TreeCellVector, deadcellidx::Integer, t, μ, mutationdist, rng)
     deadcellnode = alivecells[deadcellidx]
@@ -13,12 +12,16 @@ function killcell!(alivecells::TreeCellVector, deadcellidx::Integer, t, μ, muta
         for (μ0, mutationdist0) in zip(μ, mutationdist)
             if mutationdist0 == :fixedtimedep || mutationdist0 == :poissontimedep
                 Δt = t - deadcellnode.data.birthtime
-                deadcellnode.data.mutations += numbernewmutations(rng, mutationdist0, μ0, Δt=Δt)
+                deadcellnode.data.mutations +=
+                    numbernewmutations(rng, mutationdist0, μ0, Δt=Δt)
             end
         end
     end
     #add leftchild node containing a dead cell
-    leftchild!(deadcellnode, TreeCell(deadcellnode.data.id, false, t, t, 0, deadcellnode.data.clonetype))
+    leftchild!(
+        deadcellnode,
+        TreeCell(deadcellnode.data.id, false, t, t, 0, deadcellnode.data.clonetype)
+    )
 end
 
 """
@@ -34,7 +37,7 @@ end
 """
     killcells!(alivecells, deadcellvector, args...)
 
-Kill 
+Kill multiple tree cells.
 """
 function killcells!(alivecells, deadcellvector, args...)
     for deadcellidx in deadcellvector
@@ -48,14 +51,11 @@ function killallcells!(alivecells, args...)
     return alivecells
 end
 
-    
-
 """
     prune_tree!(cellnode)
 
-Remove `cellnode` from tree, and remove any node that has no children after its 
+Remove `cellnode` from tree, and remove any node that has no children after its
 removal.
-
 """
 function prune_tree!(cellnode)
     while true
@@ -90,7 +90,7 @@ Take the phylogeny, defined by `root` and assign new mutations according the the
 
 """
 function changemutations!(root::BinaryNode, μ, mutationdist, tmax, rng, clonalmutations=0)
-    if mutationdist == :fixedtimedep || mutationdist == :poissontimedep    
+    if mutationdist == :fixedtimedep || mutationdist == :poissontimedep
         for cellnode in PreOrderDFS(root)
             Δt = celllifetime(cellnode, tmax)
             cellnode.data.mutations = numbernewmutations(rng, mutationdist, μ, Δt=Δt)
@@ -106,7 +106,7 @@ end
 """
     endtime(cellnode::BinaryNode)
 
-Return the time at which the cell divided (or died if it is a `TreeCell`.) If the cell is 
+Return the time at which the cell divided (or died if it is a `TreeCell`.) If the cell is
 still alive, return `nothing`.
 """
 function endtime(cellnode::BinaryNode)
@@ -115,7 +115,7 @@ function endtime(cellnode::BinaryNode)
     else
         return nothing
     end
-end 
+end
 
 """
     celllifetime(cellnode::BinaryNode, [tmax])
@@ -138,7 +138,7 @@ end
     celllifetimes(root; excludeliving=true)
 
 Computes the lifetime of each cell in the phylogeny, excluding currently alive cells by
-default.    
+default.
 """
 function celllifetimes(root; excludeliving=true)
     lifetimes = Float64[]
@@ -172,14 +172,11 @@ function age(root::BinaryNode)
     return age
 end
 
-getalivecells(root::BinaryNode) = 
+getalivecells(root::BinaryNode) =
     [cellnode for cellnode in Leaves(root) if isalive(cellnode.data)]
 
-getalivecells(roots::Vector{BinaryNode{T}}) where T = 
+getalivecells(roots::Vector{BinaryNode{T}}) where T =
     [cellnode for root in roots for cellnode in Leaves(root) if isalive(cellnode.data)]
-
-popsize(root::BinaryNode{SimpleTreeCell}) = treebreadth(root)
-popsize(roots::Vector) = sum(popsize(root) for root in roots)
 
 isalive(cellnode::BinaryNode{T}) where T = isalive(cellnode.data)
 isalive(cell::TreeCell) = cell.alive
@@ -192,7 +189,7 @@ id(cellnode::BinaryNode{<:AbstractTreeCell}) = cellnode.data.id
 """
     asroot!(node)
 
-Transform `node` into a root by setting `parent` field to nothing. Return `node` and the 
+Transform `node` into a root by setting `parent` field to nothing. Return `node` and the
 original `parent` node.
 """
 function asroot!(node)
