@@ -1,4 +1,4 @@
-name = "SomaticEvolution"
+name = "TreeStatistics"
 uuid = "7b855ee6-6887-412f-a571-26d20a5a92d7"
 authors = ["Jessie Renton <jsr.renton@gmail.com> and contributors"]
 version = "0.2.1"
