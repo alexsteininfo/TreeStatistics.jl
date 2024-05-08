@@ -82,7 +82,7 @@ function runsimulation(
     input::SimulationInput, 
     selection=NeutralSelection()::AbstractSelection,
     rng::AbstractRNG=Random.GLOBAL_RNG;
-    timefunc=exptime, returnextinct=true
+    timefunc=exptime, returnextinct=false
 ) where {T, S}
 
     #If T==Cell: Initially set clonalmutations = 0 and μ = 1. These are expanded later. 
