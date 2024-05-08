@@ -97,8 +97,8 @@ function runsimulation(
     population = InitialPopulation
 
     counters = initialize_counters(population)
-    population, = simulate!(population, input, selection, counters, rng; timefunc)
-    #println("NewFunction")
+    #population, = simulate!(population, input, selection, counters, rng; timefunc)
+    simulate!(population, input, selection, counters, rng; timefunc, tmax=100)
 
     #if we set μ=1 earlier expand now
     #if reset_mutation

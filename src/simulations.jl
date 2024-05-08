@@ -58,6 +58,7 @@ function simulate!(
     t0=nothing,
     tmax=nothing
 )
+    println("We enter simulate!!")
     population, nextID = branchingprocess!(
         population,
         selection,
