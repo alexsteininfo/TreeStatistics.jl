@@ -76,7 +76,7 @@ end
 # Take a previous simulation "InitialPopulation" as input for the next simulation
 # If the populatoin goes extinct, we do not start again
 function runsimulation(
-    InitialSimulation,
+    InitialPopulation,
     ::Type{T}, 
     ::Type{S}, 
     input::SimulationInput, 
@@ -93,7 +93,7 @@ function runsimulation(
     #    input = newinput(input, μ=[1], clonalmutations=0, mutationdist=[:fixed])
     #end
 
-    population = InitialSimulation.output
+    population = InitialPopulation
 
     counters = initialize_counters(population)
     population, = simulate!(population, input, selection, counters, rng; timefunc)
