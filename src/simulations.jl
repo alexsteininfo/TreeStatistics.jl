@@ -147,6 +147,9 @@ function branchingprocess!(
     #Rmax starts with birthrate + deathrate and changes once a fitter mutant is introduced
     Rmax = maximum(birthrates) + maximum(deathrates)
 
+    println("We entered branchingproces! function!!")
+    println("birthrate = ", maximum(birthrates), " deathrate = ", maximum(deathrates))
+
     if(maximum(birthrates)>maximum(deathrates[1]))
         while N < Nmax && N > 0
 
