@@ -73,6 +73,44 @@ function runsimulation(
     return Simulation(input, population)
 end
 
+# Take a previous simulation "InitialPopulation" as input for the next simulation
+# If the populatoin goes extinct, we do not start again
+function runsimulation(
+    InitialPopulation
+    ::Type{T}, 
+    ::Type{S}, 
+    input::SimulationInput, 
+    selection=NeutralSelection()::AbstractSelection,
+    rng::AbstractRNG=Random.GLOBAL_RNG;
+    timefunc=exptime, returnextinct=true
+) where {T, S}
+
+    #If T==Cell: Initially set clonalmutations = 0 and μ = 1. These are expanded later. 
+    #UNLESS input.mutationdist==(:poissontimedep or :fixedtimedep) or μ <=1
+    reset_mutation = reset_mutationargs(T, input)
+    input_original = input
+    if reset_mutation
+        input = newinput(input, μ=[1], clonalmutations=0, mutationdist=[:fixed])
+    end
+    population = InitialPopulation
+    #if the population dies out we start a new simulation (unless returnextinct=true)
+    while true 
+        counters = initialize_counters(population)
+        population, = simulate!(population, input, selection, counters, rng; timefunc)
+        if length(population) != 0 || returnextinct
+            break
+        else
+            population = initialize_population(T, S, input; rng)
+        end
+    end
+    #if we set μ=1 earlier expand now
+    if reset_mutation
+        input = input_original
+        population = processresults!(population, input.μ, input.clonalmutations, rng)
+    end
+    return Simulation(input, population)
+end
+
 """
     runsimulation_timeseries_returnfinalpop(
         [::Type{T},] 
