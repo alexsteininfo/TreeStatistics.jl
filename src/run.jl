@@ -76,7 +76,7 @@ end
 # Take a previous simulation "InitialPopulation" as input for the next simulation
 # If the populatoin goes extinct, we do not start again
 function runsimulation(
-    InitialPopulation
+    InitialPopulation,
     ::Type{T}, 
     ::Type{S}, 
     input::SimulationInput, 
