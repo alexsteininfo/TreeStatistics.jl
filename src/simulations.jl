@@ -146,29 +146,81 @@ function branchingprocess!(
     #Rmax starts with birthrate + deathrate and changes once a fitter mutant is introduced
     Rmax = maximum(birthrates) + maximum(deathrates)
 
-    while N < Nmax && N > 0
+    if(birthrate>deathrate)
+        while N < Nmax && N > 0
 
-        #calc next event time and break if it exceeds tmax
-        Δt =  1 / (Rmax * N) .* timefunc(rng)
-        t + Δt <= tmax || break # end simulation if time exceeds maximum
-        t += Δt
+            #calc next event time and break if it exceeds tmax
+            Δt =  1 / (Rmax * N) .* timefunc(rng)
+            t + Δt <= tmax || break # end simulation if time exceeds maximum
+            t += Δt
 
-        population, birthrates, deathrates, Rmax, N, nextID, nsubclonescurrent, nsubclones =
-            branchingupdate!(
-                population,
-                selection,
-                birthrates,
-                deathrates,
-                Rmax,
-                N,
-                nextID,
-                nsubclonescurrent,
-                nsubclones,
-                t,
-                μ,
-                mutationdist,
-                rng
-            )
+            population, birthrates, deathrates, Rmax, N, nextID, nsubclonescurrent, nsubclones =
+                branchingupdate!(
+                    population,
+                    selection,
+                    birthrates,
+                    deathrates,
+                    Rmax,
+                    N,
+                    nextID,
+                    nsubclonescurrent,
+                    nsubclones,
+                    t,
+                    μ,
+                    mutationdist,
+                    rng
+                )
+        end
+    elseif(birthrate<deathrate)
+        while N > Nmax && N > 0
+
+            #calc next event time and break if it exceeds tmax
+            Δt =  1 / (Rmax * N) .* timefunc(rng)
+            t + Δt <= tmax || break # end simulation if time exceeds maximum
+            t += Δt
+
+            population, birthrates, deathrates, Rmax, N, nextID, nsubclonescurrent, nsubclones =
+                branchingupdate!(
+                    population,
+                    selection,
+                    birthrates,
+                    deathrates,
+                    Rmax,
+                    N,
+                    nextID,
+                    nsubclonescurrent,
+                    nsubclones,
+                    t,
+                    μ,
+                    mutationdist,
+                    rng
+                )
+        end
+    else
+        while N < Nmax && N > 0
+
+            #calc next event time and break if it exceeds tmax
+            Δt =  1 / (Rmax * N) .* timefunc(rng)
+            t + Δt <= tmax || break # end simulation if time exceeds maximum
+            t += Δt
+
+            population, birthrates, deathrates, Rmax, N, nextID, nsubclonescurrent, nsubclones =
+                branchingupdate!(
+                    population,
+                    selection,
+                    birthrates,
+                    deathrates,
+                    Rmax,
+                    N,
+                    nextID,
+                    nsubclonescurrent,
+                    nsubclones,
+                    t,
+                    μ,
+                    mutationdist,
+                    rng
+                )
+        end
     end
     return population, nextID
 end
