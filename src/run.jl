@@ -94,15 +94,10 @@ function runsimulation(
     end
     population = InitialPopulation
     #if the population dies out we start a new simulation (unless returnextinct=true)
-    while true 
-        counters = initialize_counters(population)
-        population, = simulate!(population, input, selection, counters, rng; timefunc)
-        if length(population) != 0 || returnextinct
-            break
-        else
-            population = initialize_population(T, S, input; rng)
-        end
-    end
+
+    counters = initialize_counters(population)
+    population, = simulate!(population, input, selection, counters, rng; timefunc)
+
     #if we set μ=1 earlier expand now
     if reset_mutation
         input = input_original
