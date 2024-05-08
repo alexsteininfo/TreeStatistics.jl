@@ -87,22 +87,22 @@ function runsimulation(
 
     #If T==Cell: Initially set clonalmutations = 0 and μ = 1. These are expanded later. 
     #UNLESS input.mutationdist==(:poissontimedep or :fixedtimedep) or μ <=1
-    reset_mutation = reset_mutationargs(T, input)
-    input_original = input
-    if reset_mutation
-        input = newinput(input, μ=[1], clonalmutations=0, mutationdist=[:fixed])
-    end
+    #reset_mutation = reset_mutationargs(T, input)
+    #input_original = input
+    #if reset_mutation
+    #    input = newinput(input, μ=[1], clonalmutations=0, mutationdist=[:fixed])
+    #end
+
     population = InitialPopulation
-    #if the population dies out we start a new simulation (unless returnextinct=true)
 
     counters = initialize_counters(population)
     population, = simulate!(population, input, selection, counters, rng; timefunc)
 
     #if we set μ=1 earlier expand now
-    if reset_mutation
-        input = input_original
-        population = processresults!(population, input.μ, input.clonalmutations, rng)
-    end
+    #if reset_mutation
+    #    input = input_original
+    #    population = processresults!(population, input.μ, input.clonalmutations, rng)
+    #end
     return Simulation(input, population)
 end
 
