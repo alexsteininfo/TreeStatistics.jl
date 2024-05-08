@@ -146,7 +146,7 @@ function branchingprocess!(
     #Rmax starts with birthrate + deathrate and changes once a fitter mutant is introduced
     Rmax = maximum(birthrates) + maximum(deathrates)
 
-    if(birthrate>deathrate)
+    if(birthrates>deathrates)
         while N < Nmax && N > 0
 
             #calc next event time and break if it exceeds tmax
@@ -171,7 +171,7 @@ function branchingprocess!(
                     rng
                 )
         end
-    elseif(birthrate<deathrate)
+    elseif(birthrates<deathrates)
         while N > Nmax && N > 0
 
             #calc next event time and break if it exceeds tmax
