@@ -58,6 +58,10 @@ function simulate!(
     t0=nothing,
     tmax=nothing
 )
+    # adapt birth and death rates
+    population.subclones[1].birthrate = input.birthrate
+    population.subclones[1].deathrate = input.deathrate
+
     population, nextID = branchingprocess!(
         population,
         selection,
