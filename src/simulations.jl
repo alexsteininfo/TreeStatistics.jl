@@ -89,6 +89,9 @@ function simulate!(
     t0=nothing,
     tmax=nothing
 )
+    # adapt birth and death rates
+    population.subclones[1].moranrate = input.moranrate
+
     population, nextID = moranprocess!(
         population,
         selection,
