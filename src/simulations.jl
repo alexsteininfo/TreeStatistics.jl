@@ -58,7 +58,6 @@ function simulate!(
     t0=nothing,
     tmax=nothing
 )
-    println("We enter simulate!!")
     population, nextID = branchingprocess!(
         population,
         selection,
@@ -199,7 +198,7 @@ function branchingprocess!(
                 )
         end
     else
-        while N < Nmax && N > 0
+        while N < 1.5*Nmax && N > 0.5*Nmax
 
             #calc next event time and break if it exceeds tmax
             Δt =  1 / (Rmax * N) .* timefunc(rng)
