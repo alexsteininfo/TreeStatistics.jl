@@ -176,14 +176,14 @@ function branchingprocess!(
                 )
         end
     elseif(maximum(birthrates)<maximum(deathrates))
-        prtinln("We entered the decreasing phase!!!")
+        println("We entered the decreasing phase!!!")
         while N > Nmax && N > 0
             prtinln("We have N > Nmin!!!")
             #calc next event time and break if it exceeds tmax
             Δt =  1 / (Rmax * N) .* timefunc(rng)
             t + Δt <= tmax || break # end simulation if time exceeds maximum
             t += Δt
-            prtinln("We have t < tmax!!!")
+            println("We have t < tmax!!!")
 
             population, birthrates, deathrates, Rmax, N, nextID, nsubclonescurrent, nsubclones =
                 branchingupdate!(
