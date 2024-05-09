@@ -147,8 +147,7 @@ function branchingprocess!(
     #Rmax starts with birthrate + deathrate and changes once a fitter mutant is introduced
     Rmax = maximum(birthrates) + maximum(deathrates)
 
-    println("We entered branchingprocess! function!!")
-    println("birthrate = ", maximum(birthrates), " deathrate = ", maximum(deathrates))
+    #println("birthrate = ", maximum(birthrates), " deathrate = ", maximum(deathrates))
 
     if(maximum(birthrates)>maximum(deathrates))
         while N < Nmax && N > 0
@@ -176,14 +175,11 @@ function branchingprocess!(
                 )
         end
     elseif(maximum(birthrates)<maximum(deathrates))
-        println("We entered the decreasing phase!!!")
         while N > Nmax && N > 0
-            println("We have N > Nmin!!!")
             #calc next event time and break if it exc∂eeds tmax
             Δt =  1 / (Rmax * N) .* timefunc(rng)
             t + Δt <= tmax || break # end simulation if time exceeds maximum
             t += Δt
-            println("We have t < tmax!!!")
 
             population, birthrates, deathrates, Rmax, N, nextID, nsubclonescurrent, nsubclones =
                 branchingupdate!(

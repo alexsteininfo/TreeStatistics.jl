@@ -92,7 +92,7 @@ function runsimulation(
     #if reset_mutation
     #    input = newinput(input, μ=[1], clonalmutations=0, mutationdist=[:fixed])
     #end
-    println("We enter the correct runsimulation function!!")
+    #println("We enter the correct runsimulation function!!")
 
     # Initilize using the previous population
     population = InitialPopulation
