@@ -147,10 +147,10 @@ function branchingprocess!(
     #Rmax starts with birthrate + deathrate and changes once a fitter mutant is introduced
     Rmax = maximum(birthrates) + maximum(deathrates)
 
-    println("We entered branchingproces! function!!")
+    println("We entered branchingprocess! function!!")
     println("birthrate = ", maximum(birthrates), " deathrate = ", maximum(deathrates))
 
-    if(maximum(birthrates)>maximum(deathrates[1]))
+    if(maximum(birthrates)>maximum(deathrates))
         while N < Nmax && N > 0
 
             #calc next event time and break if it exceeds tmax

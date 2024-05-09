@@ -94,7 +94,12 @@ function runsimulation(
     #end
     println("We enter the correct runsimulation function!!")
 
+    # Initilize using the previous population
     population = InitialPopulation
+    # Change the birth and death rates of all subclones
+    population.subclones[1].birthrate = input.birthrate
+    population.subclones[1].deathrate = input.deathrate
+
 
     counters = initialize_counters(population)
     #population, = simulate!(population, input, selection, counters, rng; timefunc)
