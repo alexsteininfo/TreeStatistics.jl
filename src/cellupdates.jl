@@ -295,9 +295,9 @@ which is unchanged).
 """
 function get_newsubclone_rates(wildtype, selectioncoefficient)
     return (
-        birthrate = wildtype.birthrate * (1 + selectioncoefficient),
-        deathrate = wildtype.deathrate,
-        moranrate = wildtype.moranrate * (1 + selectioncoefficient),
+        birthrate = wildtype.birthrate, #wildtype.birthrate * (1 + selectioncoefficient),
+        deathrate = wildtype.deathrate - selectioncoefficient, #wildtype.deathrate,
+        moranrate = wildtype.moranrate + selectioncoefficient, #wildtype.moranrate * (1 + selectioncoefficient),
         asymmetricrate =  wildtype.asymmetricrate * (1 + selectioncoefficient)
     )
 end
