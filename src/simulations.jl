@@ -166,7 +166,7 @@ function branchingprocess!(
 
     #println("birthrate = ", maximum(birthrates), " deathrate = ", maximum(deathrates))
 
-    if(maximum(birthrates)>maximum(deathrates))
+    if(maximum(birthrates)>minimum(deathrates))
         while N < Nmax && N > 0
 
             #calc next event time and break if it exceeds tmax
@@ -191,7 +191,7 @@ function branchingprocess!(
                     rng
                 )
         end
-    elseif(maximum(birthrates)<maximum(deathrates))
+    elseif(maximum(birthrates)<minimum(deathrates))
         while N > Nmax && N > 0
             #calc next event time and break if it exc∂eeds tmax
             Δt =  1 / (Rmax * N) .* timefunc(rng)
