@@ -59,8 +59,18 @@ function simulate!(
     tmax=nothing
 )
     # adapt birth and death rates
-    population.subclones[1].birthrate = input.birthrate
-    population.subclones[1].deathrate = input.deathrate
+    for (i,subclone) in enumerate(population.subclones)
+        if(i==1)
+            subclone.birthrate = input.birthrate
+            subclone.deathrate = input.deathrate
+        else
+            selectioncoefficient = selection.mutant_selection[i-1]
+            subclone.birthrate = input.birthrate
+            subclone.deathrate = input.deathrate + selection.
+        end
+    end
+    #population.subclones[1].birthrate = input.birthrate
+    #population.subclones[1].deathrate = input.deathrate
 
     population, nextID = branchingprocess!(
         population,
