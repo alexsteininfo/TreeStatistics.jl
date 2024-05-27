@@ -65,7 +65,7 @@ function simulate!(
             subclone.deathrate = input.deathrate
         else
             #selectioncoefficient = selection.mutant_selection[i-1]
-            subclone.birthrate = input.birthrate - selection[i-1]
+            subclone.birthrate = input.birthrate - selection.mutant_selection[i-1]
             #subclone.deathrate = input.deathrate + selectioncoefficient
             #nothing # cells behave as before
         end
