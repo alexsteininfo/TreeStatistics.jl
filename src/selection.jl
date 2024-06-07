@@ -95,3 +95,24 @@ end
 function getselectioncoefficient(selection::SelectionDistribution, nsubclonescurrent, rng)
     return rand(rng, selection.distribution)
 end
+
+
+
+"""
+    Define a new selection type with all necessary functions
+
+    Generate a new subclone writh mutation probability during division 
+with new birth and death rate defined here. All clones are behaving in the same way.
+"""
+struct SelectionUniform <: AbstractSelection
+    mutant_birthrate::Float64
+    mutant_deathrate::Float64
+    mutation_probability::Float64
+    maximum_subclones::Int64
+end
+
+getmaxsubclones(selection::SelectionUniform) = selection.maximum_subclones
+
+function newsubclone_ready(selection::SelectionUniform, nsubclonescurrent, nsubclones, t, rng)
+    return nsubclonescurrent < nsubclones &&  rand(rng) < selection.mutation_probability 
+end
