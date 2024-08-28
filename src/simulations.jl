@@ -64,6 +64,8 @@ function simulate!(
             subclone.birthrate = input.birthrate
             subclone.deathrate = input.deathrate
         else
+            subclone.birthrate = 0.7
+            subclone.deathrate = 0.0
             #selectioncoefficient = 0.3
             #subclone.birthrate = input.birthrate - selectioncoefficient
             #subclone.deathrate = input.deathrate + selectioncoefficient
